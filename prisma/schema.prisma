@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Person {
+  id          String   @id  // e.g. "@I500001@"
+  name        String
+  sex         String?
+  birthDate   String?  @map("birth_date")
+  birthPlace  String?  @map("birth_place")
+  deathDate   String?  @map("death_date")
+  deathPlace  String?  @map("death_place")
+  burialPlace String?  @map("burial_place")
+  burialDate  String?  @map("burial_date")
+  occupation  String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  asHusband   Family[]      @relation("FamilyHusband")
+  asWife      Family[]      @relation("FamilyWife")
+  childIn     FamilyChild[]
+
+  @@map("people")
+}
+
+model Family {
+  id        String   @id  // e.g. "@F500001@"
+  husband   Person?  @relation("FamilyHusband", fields: [husbId], references: [id])
+  husbId    String?  @map("husb_id")
+  wife      Person?  @relation("FamilyWife", fields: [wifeId], references: [id])
+  wifeId    String?  @map("wife_id")
+  marrDate  String?  @map("marr_date")
+  marrPlace String?  @map("marr_place")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  children  FamilyChild[]
+
+  @@map("families")
+}
+
+model FamilyChild {
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyId String @map("family_id")
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String @map("person_id")
+
+  @@id([familyId, personId])
+  @@map("family_children")
+}
+
+// Mirrors auth.users — created automatically via Supabase trigger
+model UserProfile {
+  id        String   @id  // matches auth.users.id (UUID)
+  email     String?
+  name      String?
+  role      String   @default("viewer")  // "admin" | "editor" | "viewer"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  auditLogs AuditLog[]
+
+  @@map("user_profiles")
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  tableName String      @map("table_name")
+  recordId  String      @map("record_id")
+  action    String      // "create" | "update" | "delete"
+  oldData   Json?       @map("old_data")
+  newData   Json?       @map("new_data")
+  user      UserProfile? @relation(fields: [userId], references: [id])
+  userId    String?     @map("user_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@map("audit_log")
+}
