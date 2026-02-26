@@ -29,7 +29,7 @@ function LoginForm() {
     if (!result?.error) {
       // Hard navigation avoids Next.js router getting stuck if middleware
       // redirects back to this same page before the admin page fully loads.
-      window.location.href = '/admin';
+      window.location.href = '/';
     } else {
       setStatus('error');
       setError('Invalid email or password.');
