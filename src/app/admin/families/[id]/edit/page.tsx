@@ -20,7 +20,7 @@ export default async function EditFamilyPage({ params }: Props) {
 
   if (!raw) notFound();
 
-  function mapPerson(p: { id: string; name: string; sex: string | null; birthDate: string | null; birthPlace: string | null; deathDate: string | null; deathPlace: string | null; burialPlace: string | null; burialDate: string | null; occupation: string | null; notes: string | null; createdAt: Date; updatedAt: Date } | null): Person | null {
+  function mapPerson(p: { id: string; name: string; sex: string | null; birthDate: string | null; birthPlace: string | null; deathDate: string | null; deathPlace: string | null; burialPlace: string | null; burialDate: string | null; occupation: string | null; notes: string | null; narrative: string | null; createdAt: Date; updatedAt: Date } | null): Person | null {
     if (!p) return null;
     return {
       id:          p.id,
@@ -34,6 +34,7 @@ export default async function EditFamilyPage({ params }: Props) {
       burialDate:  p.burialDate,
       occupation:  p.occupation,
       notes:       p.notes,
+      narrative:   p.narrative,
       createdAt:   p.createdAt.toISOString(),
       updatedAt:   p.updatedAt.toISOString(),
     };
