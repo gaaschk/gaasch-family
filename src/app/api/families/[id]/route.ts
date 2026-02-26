@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/auth';
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
-  const auth = await requireRole('editor');
+  const auth = await requireRole('viewer');
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;

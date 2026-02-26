@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole('editor');
+  const auth = await requireRole('viewer');
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = req.nextUrl;

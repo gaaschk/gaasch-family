@@ -11,11 +11,8 @@ export async function GET(req: NextRequest) {
   const surname = searchParams.get('surname') ?? '';
   const all     = searchParams.get('all')     === 'true';
 
-  // Bulk export requires authentication
-  if (all) {
-    const auth = await requireRole('editor');
-    if (auth instanceof NextResponse) return auth;
-  }
+  const auth = await requireRole('viewer');
+  if (auth instanceof NextResponse) return auth;
 
   const limit   = all ? undefined : Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 2000);
   const offset  = all ? undefined : Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);

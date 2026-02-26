@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic';
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const auth = await requireRole('viewer');
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   const person = await prisma.person.findUnique({
