@@ -9,14 +9,29 @@ import {
   PublicMapsSection,
   PublicDirectorySection,
 } from '@/components/public/ClientSections';
+import { CHAPTER_CHAIN } from '@/components/public/chapters';
 import 'leaflet/dist/leaflet.css';
 
 async function getHeroStats() {
-  const [peopleCount, familyCount] = await Promise.all([
+  const [peopleCount, familyCount, birthDates] = await Promise.all([
     prisma.person.count(),
     prisma.family.count(),
+    prisma.person.findMany({
+      where: { birthDate: { not: null } },
+      select: { birthDate: true },
+    }),
   ]);
-  return { peopleCount, familyCount };
+
+  const years = birthDates
+    .map(p => p.birthDate!.match(/\b(\d{4})\b/)?.[1])
+    .filter((y): y is string => y !== undefined)
+    .map(Number)
+    .filter(y => y > 1400 && y < 2100);
+
+  const minYear = years.length > 0 ? Math.min(...years) : 1698;
+  const yearsOfHistory = new Date().getFullYear() - minYear;
+
+  return { peopleCount, familyCount, yearsOfHistory };
 }
 
 // ── Landing page for unauthenticated visitors ────────────────────────────────
@@ -141,7 +156,7 @@ export default async function HomePage() {
     return <LandingPage />;
   }
 
-  const { peopleCount, familyCount } = await getHeroStats();
+  const { peopleCount, familyCount, yearsOfHistory } = await getHeroStats();
 
   return (
     <>
@@ -188,11 +203,11 @@ export default async function HomePage() {
                 <span className="hero-stat-label">Families</span>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-num">10</span>
+                <span className="hero-stat-num">{CHAPTER_CHAIN.length}</span>
                 <span className="hero-stat-label">Generations</span>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-num">350+</span>
+                <span className="hero-stat-num">{yearsOfHistory}</span>
                 <span className="hero-stat-label">Years of history</span>
               </div>
             </div>
