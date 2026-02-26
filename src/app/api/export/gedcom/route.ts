@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 export async function GET() {
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const [people, families, children] = await Promise.all([
     prisma.person.findMany({ orderBy: { id: 'asc' } }),
     prisma.family.findMany({ orderBy: { id: 'asc' } }),

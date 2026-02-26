@@ -4,7 +4,10 @@ import { requireRole } from '@/lib/auth';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   const family = await prisma.family.findUnique({

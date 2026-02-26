@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const { searchParams } = req.nextUrl;
   const limit  = Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 200);
   const offset = Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);
