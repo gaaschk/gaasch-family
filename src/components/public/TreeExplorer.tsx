@@ -192,11 +192,20 @@ export default function TreeExplorer({ initialPerson }: { initialPerson?: Person
   const isDirect  = DIRECT_LINE_IDS.has(person.id);
 
   // Show the chain from the currently-viewed person down to Kevin.
-  // For people not on the direct line, show the full chain for navigation.
+  // For people not on the direct line, prepend a synthetic entry so their
+  // name still appears as the active node above the chain.
   const activeChainIndex = CHAPTER_CHAIN.findIndex(e => e.personId === currentId);
-  const visibleChain = activeChainIndex >= 0
-    ? CHAPTER_CHAIN.slice(activeChainIndex)
-    : CHAPTER_CHAIN;
+  const visibleChain: Array<{ personId: string; name: string; year: string }> =
+    activeChainIndex >= 0
+      ? CHAPTER_CHAIN.slice(activeChainIndex)
+      : [
+          {
+            personId: currentId,
+            name:     cleanName(person.name).split(' ')[0],
+            year:     formatLifespan(person),
+          },
+          ...CHAPTER_CHAIN,
+        ];
 
   return (
     <section id="chapters" className="chapters-section">
