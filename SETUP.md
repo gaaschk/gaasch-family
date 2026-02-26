@@ -1,13 +1,12 @@
 # Gaasch Family — Next.js Setup Guide
 
-This project is a Next.js 15 + Supabase + Prisma rewrite of the static family history site, adding authentication, role-based authorization, and live data editing.
+This project is a Next.js 15 + SQLite + Auth.js rewrite of the static family history site, adding authentication, role-based authorization, and live data editing.
 
 ---
 
 ## Prerequisites
 
 - Node.js 20+
-- A [Supabase](https://supabase.com) project (free tier is fine)
 
 ---
 
@@ -25,17 +24,27 @@ npm install
 cp .env.local.example .env.local
 ```
 
-Open `.env.local` and fill in the values from your Supabase project:
+Open `.env.local` and fill in the values:
 
-| Variable | Where to find it |
+| Variable | Notes |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → anon key |
-| `DATABASE_URL` | Supabase Dashboard → Settings → Database → Connection Pooling (port 6543, **Transaction** mode) |
-| `DIRECT_URL` | Supabase Dashboard → Settings → Database → Direct connection (port 5432) |
+| `DATABASE_URL` | Leave as `file:./prisma/dev.db` for local development |
+| `AUTH_SECRET` | Generate with `openssl rand -base64 32` |
+| `AUTH_URL` | Leave as `http://localhost:3000` for local development |
+| `EMAIL_SERVER` | SMTP connection string — see below |
+| `EMAIL_FROM` | Display name and address for magic-link emails |
 
-> **Important**: `DATABASE_URL` uses the **pooler** (port 6543) for runtime queries.
-> `DIRECT_URL` uses the **direct** connection (port 5432) for Prisma migrations only.
+### Email setup (local development)
+
+Use [Ethereal](https://ethereal.email) — a free disposable SMTP inbox for testing:
+
+1. Go to [https://ethereal.email](https://ethereal.email) and click **Create Ethereal Account**
+2. Copy the SMTP credentials into `.env.local`:
+   ```
+   EMAIL_SERVER=smtp://your-user:your-pass@smtp.ethereal.email:587
+   EMAIL_FROM="Gaasch Family <noreply@gaasch.family>"
+   ```
+3. Magic-link emails are captured in the Ethereal web inbox — they are never actually delivered
 
 ---
 
@@ -45,7 +54,7 @@ Open `.env.local` and fill in the values from your Supabase project:
 npm run db:migrate
 ```
 
-This creates the `people`, `families`, `family_children`, `user_profiles`, and `audit_log` tables in your Supabase database.
+This creates `prisma/dev.db` with all tables: `people`, `families`, `family_children`, `users`, `accounts`, `sessions`, `verification_tokens`, and `audit_log`.
 
 ---
 
@@ -61,105 +70,26 @@ This reads `../gaasch-family/src/data/people.json` and `families.json` and upser
 
 ---
 
-## 5. Configure Supabase Auth
+## 5. Create the First Admin
 
-In the Supabase Dashboard:
+The first time you sign in, Auth.js creates a `User` row with `role = "pending"` and redirects you to `/awaiting-approval`. You need to promote yourself to admin directly in the database.
 
-1. **Authentication → Settings → Email** — enable "Magic Links" (OTP via email)
-2. **Authentication → URL Configuration** — add `http://localhost:3000/auth/callback` to "Redirect URLs"
-3. **Authentication → Settings** — set "Site URL" to `http://localhost:3000`
+**Option A — Prisma Studio:**
+```bash
+npm run db:studio
+```
+Find your user row in the `users` table and set `role` to `admin`.
 
----
-
-## 6. Set Up Row Level Security (RLS)
-
-Run the following SQL in the Supabase SQL Editor to enable RLS:
-
-```sql
--- Enable RLS on all tables
-ALTER TABLE people         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE families       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE family_children ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_profiles  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log      ENABLE ROW LEVEL SECURITY;
-
--- Public read access (all tables except user_profiles)
-CREATE POLICY "public_read_people"
-  ON people FOR SELECT USING (true);
-
-CREATE POLICY "public_read_families"
-  ON families FOR SELECT USING (true);
-
-CREATE POLICY "public_read_family_children"
-  ON family_children FOR SELECT USING (true);
-
--- Editor/admin write access
-CREATE POLICY "editor_write_people"
-  ON people FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'editor')
-    )
-  );
-
-CREATE POLICY "editor_write_families"
-  ON families FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'editor')
-    )
-  );
-
-CREATE POLICY "editor_write_family_children"
-  ON family_children FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles
-      WHERE id = auth.uid()
-        AND role IN ('admin', 'editor')
-    )
-  );
-
--- Users can read their own profile; admin can read all
-CREATE POLICY "read_own_profile"
-  ON user_profiles FOR SELECT
-  USING (id = auth.uid());
-
--- Trigger: create user_profile on new sign-up
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  INSERT INTO public.user_profiles (id, email, role)
-  VALUES (NEW.id, NEW.email, 'viewer')
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+**Option B — SQLite CLI:**
+```bash
+npx prisma db execute --stdin <<'EOF'
+UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
+EOF
 ```
 
 ---
 
-## 7. Promote the First Admin
-
-After signing in once via the magic link, run in the SQL Editor:
-
-```sql
-UPDATE user_profiles
-SET role = 'admin'
-WHERE email = 'your-email@example.com';
-```
-
----
-
-## 8. Start the Dev Server
+## 6. Start the Dev Server
 
 ```bash
 npm run dev
@@ -167,15 +97,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Sign in at [http://localhost:3000/login](http://localhost:3000/login) — enter your email, check the Ethereal inbox for the magic link, click it, and you will land on `/admin`.
+
 ---
 
 ## User Roles
 
 | Role | Can do |
 |---|---|
+| `pending` | Signed up but not yet approved — redirected to `/awaiting-approval` |
 | `viewer` | Read all people and families (public read is also unauthenticated) |
 | `editor` | Create and update people and families |
 | `admin` | Everything, including delete and managing users |
+
+### Approving pending users
+
+In `/admin/users`, pending users appear in the table. Change their role from `pending` to `viewer`, `editor`, or `admin` and click Save. They can then sign in and access the admin area.
 
 ---
 
@@ -184,28 +121,42 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 gaasch-family-next/
 ├── prisma/
-│   └── schema.prisma          # Database schema
+│   ├── schema.prisma          # SQLite schema (Auth.js + app models)
+│   └── dev.db                 # SQLite database file (gitignored)
 ├── scripts/
-│   └── migrate-json.ts        # One-time JSON → Postgres import
+│   └── migrate-json.ts        # One-time JSON → SQLite import
 ├── src/
 │   ├── app/
-│   │   ├── admin/             # Admin dashboard (protected)
+│   │   ├── admin/
+│   │   │   ├── families/      # Families list + new/edit forms
+│   │   │   ├── people/        # People list + new/edit forms
+│   │   │   ├── users/         # User management (admin only)
+│   │   │   ├── layout.tsx     # Admin shell with sidebar
+│   │   │   └── page.tsx       # Dashboard
 │   │   ├── api/
-│   │   │   ├── people/        # GET list, POST create; GET/PATCH/DELETE by id
-│   │   │   └── families/      # GET list, POST create; GET/PATCH/DELETE by id
-│   │   ├── auth/callback/     # Supabase auth callback
+│   │   │   ├── auth/[...nextauth]/  # Auth.js handler
+│   │   │   ├── export/gedcom/       # GEDCOM 5.5.1 download
+│   │   │   ├── families/            # GET list, POST create; GET/PATCH/DELETE/children by id
+│   │   │   ├── people/              # GET list, POST create; GET/PATCH/DELETE by id
+│   │   │   └── users/               # GET list, POST create; PATCH/DELETE by id; GET /me
+│   │   ├── awaiting-approval/ # Shown to pending users after sign-in
 │   │   ├── login/             # Magic link login page
 │   │   ├── layout.tsx
-│   │   └── page.tsx
+│   │   └── page.tsx           # Public homepage
+│   ├── auth.ts                # Auth.js config (NextAuth v5)
+│   ├── components/
+│   │   ├── public/            # Public-facing client components (tree, maps, directory)
+│   │   ├── FamilyForm.tsx     # Shared family editor
+│   │   ├── PersonForm.tsx     # Shared person editor
+│   │   └── PersonSearch.tsx   # Typeahead search
 │   ├── lib/
-│   │   ├── prisma.ts          # Singleton Prisma client
-│   │   └── supabase/
-│   │       ├── client.ts      # Browser Supabase client
-│   │       └── server.ts      # Server Supabase client (cookies)
-│   ├── middleware.ts           # Auth middleware (protects /admin)
+│   │   ├── auth.ts            # requireRole() helper
+│   │   └── prisma.ts          # Singleton Prisma client
+│   ├── middleware.ts           # Auth middleware (protects /admin, pending → /awaiting-approval)
 │   └── types/
 │       └── index.ts           # TypeScript types
-├── .env.local.example
+├── .env.local                 # Local env vars (gitignored)
+├── .env.local.example         # Template
 ├── next.config.ts
 ├── package.json
 └── SETUP.md

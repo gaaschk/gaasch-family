@@ -1,0 +1,39 @@
+import nodemailer from 'nodemailer';
+
+function createTransport() {
+  return nodemailer.createTransport(process.env.EMAIL_SERVER as string);
+}
+
+export async function sendVerificationEmail(to: string, token: string) {
+  const base = process.env.AUTH_URL ?? 'http://localhost:3000';
+  const url  = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}`;
+  await createTransport().sendMail({
+    from:    process.env.EMAIL_FROM,
+    to,
+    subject: 'Verify your email — Gaasch Family',
+    text:    `Click the link below to create your password:\n\n${url}\n\nThis link expires in 24 hours.`,
+    html:    `
+      <p>You requested access to the Gaasch Family site.</p>
+      <p>Click the link below to create your password:</p>
+      <p><a href="${url}">${url}</a></p>
+      <p style="color:#888;font-size:0.85em">This link expires in 24 hours. If you did not request this, you can ignore this email.</p>
+    `,
+  });
+}
+
+export async function sendPasswordResetEmail(to: string, token: string) {
+  const base = process.env.AUTH_URL ?? 'http://localhost:3000';
+  const url  = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}&reset=1`;
+  await createTransport().sendMail({
+    from:    process.env.EMAIL_FROM,
+    to,
+    subject: 'Reset your password — Gaasch Family',
+    text:    `Click the link below to reset your password:\n\n${url}\n\nThis link expires in 1 hour. If you did not request this, you can ignore this email.`,
+    html:    `
+      <p>You requested a password reset for the Gaasch Family site.</p>
+      <p>Click the link below to set a new password:</p>
+      <p><a href="${url}">${url}</a></p>
+      <p style="color:#888;font-size:0.85em">This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
+    `,
+  });
+}

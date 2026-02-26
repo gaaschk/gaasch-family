@@ -37,3 +37,11 @@ next-env.d.ts
 
 # prisma
 /prisma/generated
+
+# sqlite database (rebuild via npm run db:seed)
+*.db
+*.db-shm
+*.db-wal
+
+# ide
+.idea/

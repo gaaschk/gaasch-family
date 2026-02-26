@@ -1,55 +1,101 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const verified     = searchParams.get('verified') === '1';
+
   const [email, setEmail]     = useState('');
-  const [status, setStatus]   = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus]   = useState<'idle' | 'loading' | 'error'>('idle');
+  const [error, setError]     = useState('');
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('loading');
+    setError('');
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
+    const result = await signIn('credentials', {
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      password,
+      redirect: false,
     });
 
-    if (error) {
-      setStatus('error');
-      setMessage(error.message);
+    if (!result?.error) {
+      // Hard navigation avoids Next.js router getting stuck if middleware
+      // redirects back to this same page before the admin page fully loads.
+      window.location.href = '/admin';
     } else {
-      setStatus('sent');
-      setMessage(`Check ${email} for a sign-in link.`);
+      setStatus('error');
+      setError('Invalid email or password.');
     }
   }
 
   return (
-    <main style={{ padding: '4rem 2rem', maxWidth: '400px', margin: '0 auto' }}>
-      <h1>Sign In</h1>
-      <p>Enter your email address. We will send you a magic link.</p>
+    <main className="login-page">
+      <div className="login-card">
+        <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
+        <h1 className="login-title">The Gaasch Family</h1>
+        <p className="login-subtitle">Admin Access</p>
 
-      {status === 'sent' ? (
-        <p style={{ color: 'green' }}>{message}</p>
-      ) : (
-        <form onSubmit={handleLogin}>
+        {verified && (
+          <div className="login-success" style={{ marginBottom: '1rem' }}>
+            <p>Account created! You can now sign in.</p>
+            <p style={{ fontSize: '0.85rem', marginTop: '0.35rem', opacity: 0.8 }}>
+              Your account is pending admin approval. Once approved you&apos;ll have access.
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="login-form">
+          <label className="sr-only" htmlFor="login-email">Email address</label>
           <input
+            id="login-email"
             type="email"
+            className="login-input"
+            placeholder="you@example.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
             required
-            style={{ display: 'block', width: '100%', padding: '0.5rem', marginBottom: '1rem' }}
+            autoFocus
           />
-          {status === 'error' && <p style={{ color: 'red' }}>{message}</p>}
-          <button type="submit" disabled={status === 'loading'}>
-            {status === 'loading' ? 'Sending…' : 'Send magic link'}
+          <label className="sr-only" htmlFor="login-password">Password</label>
+          <input
+            id="login-password"
+            type="password"
+            className="login-input"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            style={{ marginTop: '0.5rem' }}
+          />
+          {status === 'error' && <p className="login-error">{error}</p>}
+          <button type="submit" className="login-btn" disabled={status === 'loading'}>
+            {status === 'loading' ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-      )}
+
+        <p style={{ marginTop: '1.25rem', fontSize: '0.85rem', textAlign: 'center', color: 'var(--sepia)' }}>
+          <Link href="/forgot-password" style={{ color: 'var(--rust)' }}>Forgot password?</Link>
+          {' · '}
+          New here?{' '}
+          <Link href="/signup" style={{ color: 'var(--rust)' }}>Request access</Link>
+        </p>
+      </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

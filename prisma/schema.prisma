@@ -3,10 +3,70 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
+
+// ── Auth.js required models ──────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  role          String    @default("pending")  // "pending" | "viewer" | "editor" | "admin"
+  password      String?                        // bcrypt hash; null until /set-password step
+  tokenVersion  Int       @default(0)          // incremented to force re-login
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ── Family history models ────────────────────────────────────────────────────
 
 model Person {
   id          String   @id  // e.g. "@I500001@"
@@ -23,9 +83,9 @@ model Person {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  asHusband   Family[]      @relation("FamilyHusband")
-  asWife      Family[]      @relation("FamilyWife")
-  childIn     FamilyChild[]
+  asHusband Family[]      @relation("FamilyHusband")
+  asWife    Family[]      @relation("FamilyWife")
+  childIn   FamilyChild[]
 
   @@map("people")
 }
@@ -41,7 +101,7 @@ model Family {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  children  FamilyChild[]
+  children FamilyChild[]
 
   @@map("families")
 }
@@ -56,30 +116,16 @@ model FamilyChild {
   @@map("family_children")
 }
 
-// Mirrors auth.users — created automatically via Supabase trigger
-model UserProfile {
-  id        String   @id  // matches auth.users.id (UUID)
-  email     String?
-  name      String?
-  role      String   @default("viewer")  // "admin" | "editor" | "viewer"
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  auditLogs AuditLog[]
-
-  @@map("user_profiles")
-}
-
 model AuditLog {
-  id        String      @id @default(cuid())
-  tableName String      @map("table_name")
-  recordId  String      @map("record_id")
-  action    String      // "create" | "update" | "delete"
-  oldData   Json?       @map("old_data")
-  newData   Json?       @map("new_data")
-  user      UserProfile? @relation(fields: [userId], references: [id])
-  userId    String?     @map("user_id")
-  createdAt DateTime    @default(now()) @map("created_at")
+  id        String   @id @default(cuid())
+  tableName String   @map("table_name")
+  recordId  String   @map("record_id")
+  action    String   // "create" | "update" | "delete"
+  oldData   String?  @map("old_data")   // JSON stored as text (SQLite has no native JSON)
+  newData   String?  @map("new_data")
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("audit_log")
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -20,7 +21,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // TODO: add auth check (editor/admin role required)
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const body = await req.json();
 
   const family = await prisma.family.create({
@@ -30,6 +33,17 @@ export async function POST(req: NextRequest) {
       wifeId:    body.wifeId    ?? null,
       marrDate:  body.marrDate  ?? null,
       marrPlace: body.marrPlace ?? null,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tableName: 'families',
+      recordId:  family.id,
+      action:    'create',
+      oldData:   null,
+      newData:   JSON.stringify(family),
+      userId:    auth.userId,
     },
   });
 

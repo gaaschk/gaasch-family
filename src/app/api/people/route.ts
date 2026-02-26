@@ -1,15 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const q      = searchParams.get('q') ?? '';
-  const limit  = Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 200);
-  const offset = Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);
+  const q       = searchParams.get('q')       ?? '';
+  const place   = searchParams.get('place')   ?? '';
+  const surname = searchParams.get('surname') ?? '';
+  const limit   = Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 200);
+  const offset  = Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);
 
-  const where = q
-    ? { name: { contains: q, mode: 'insensitive' as const } }
-    : undefined;
+  const conditions: object[] = [];
+
+  if (q) {
+    conditions.push({
+      OR: [
+        { name:       { contains: q } },
+        { birthPlace: { contains: q } },
+        { deathPlace: { contains: q } },
+      ],
+    });
+  }
+
+  if (place) {
+    conditions.push({
+      OR: [
+        { birthPlace: { contains: place } },
+        { deathPlace: { contains: place } },
+      ],
+    });
+  }
+
+  // Surnames in GEDCOM format are wrapped in slashes: "Jean /Gaasch/"
+  if (surname) {
+    conditions.push({ name: { contains: `/${surname}/` } });
+  }
+
+  const where = conditions.length === 0 ? undefined
+    : conditions.length === 1 ? conditions[0]
+    : { AND: conditions };
 
   const [data, total] = await Promise.all([
     prisma.person.findMany({ where, take: limit, skip: offset, orderBy: { name: 'asc' } }),
@@ -20,22 +51,35 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // TODO: add auth check (editor/admin role required)
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const body = await req.json();
 
   const person = await prisma.person.create({
     data: {
       id:          body.id,
       name:        body.name,
-      sex:         body.sex        ?? null,
-      birthDate:   body.birthDate  ?? null,
-      birthPlace:  body.birthPlace ?? null,
-      deathDate:   body.deathDate  ?? null,
-      deathPlace:  body.deathPlace ?? null,
+      sex:         body.sex         ?? null,
+      birthDate:   body.birthDate   ?? null,
+      birthPlace:  body.birthPlace  ?? null,
+      deathDate:   body.deathDate   ?? null,
+      deathPlace:  body.deathPlace  ?? null,
       burialPlace: body.burialPlace ?? null,
       burialDate:  body.burialDate  ?? null,
       occupation:  body.occupation  ?? null,
       notes:       body.notes       ?? null,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tableName: 'people',
+      recordId:  person.id,
+      action:    'create',
+      oldData:   null,
+      newData:   JSON.stringify(person),
+      userId:    auth.userId,
     },
   });
 

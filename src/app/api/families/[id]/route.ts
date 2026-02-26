@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,9 +24,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  // TODO: add auth check (editor/admin role required)
+  const auth = await requireRole('editor');
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
   const body = await req.json();
+
+  const existing = await prisma.family.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: 'Family not found' }, { status: 404 });
+  }
 
   const { husbId, wifeId, marrDate, marrPlace } = body;
 
@@ -39,14 +47,43 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   });
 
+  await prisma.auditLog.create({
+    data: {
+      tableName: 'families',
+      recordId:  id,
+      action:    'update',
+      oldData:   JSON.stringify(existing),
+      newData:   JSON.stringify(family),
+      userId:    auth.userId,
+    },
+  });
+
   return NextResponse.json(family);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  // TODO: add auth check (admin role required)
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const auth = await requireRole('admin');
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
+  const existing = await prisma.family.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: 'Family not found' }, { status: 404 });
+  }
+
   await prisma.family.delete({ where: { id } });
+
+  await prisma.auditLog.create({
+    data: {
+      tableName: 'families',
+      recordId:  id,
+      action:    'delete',
+      oldData:   JSON.stringify(existing),
+      newData:   null,
+      userId:    auth.userId,
+    },
+  });
 
   return new NextResponse(null, { status: 204 });
 }

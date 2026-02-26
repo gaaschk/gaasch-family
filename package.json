@@ -9,20 +9,26 @@
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate": "dotenv -e .env.local -- prisma migrate dev",
+    "db:migrate:deploy": "dotenv -e .env.local -- prisma migrate deploy",
     "db:seed": "dotenv -e .env.local -- tsx scripts/migrate-json.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "dotenv -e .env.local -- prisma studio"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.0.0",
-    "@supabase/ssr": "^0.5.0",
-    "@supabase/supabase-js": "^2.47.0",
+    "@types/leaflet": "^1.9.21",
+    "@types/nodemailer": "^7.0.11",
+    "bcryptjs": "^3.0.3",
+    "leaflet": "^1.9.4",
     "next": "^15.0.0",
+    "next-auth": "^5.0.0-beta.30",
+    "nodemailer": "^7.0.13",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

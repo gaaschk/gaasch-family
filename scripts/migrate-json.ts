@@ -1,13 +1,13 @@
 /**
  * migrate-json.ts
  *
- * Seeds the Supabase/Postgres database from the static JSON data files
+ * Seeds the SQLite database from the static JSON data files
  * in the sibling gaasch-family project.
  *
  * Usage (from gaasch-family-next/):
  *   npm run db:seed
  *
- * Requires .env.local with DATABASE_URL and DIRECT_URL set.
+ * Requires .env.local with DATABASE_URL set.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -23,14 +23,11 @@ interface RawPerson {
   id: string;
   name: string;
   sex?: string;
-  birt_date?: string;
-  birt_plac?: string;
-  deat_date?: string;
-  deat_plac?: string;
-  buri_plac?: string;
-  buri_date?: string;
-  occu?: string;
-  note?: string;
+  birth?: string;
+  birth_place?: string;
+  death?: string;
+  death_place?: string;
+  occupation?: string;
   famc?: string[];
   fams?: string[];
 }
@@ -59,7 +56,7 @@ async function main() {
 
   // --- People ---
   console.log('Upserting people…');
-  const personChunks = chunk(peopleRaw, 100);
+  const personChunks = chunk(peopleRaw, 10);
   for (const batch of personChunks) {
     await Promise.all(batch.map(p =>
       prisma.person.upsert({
@@ -67,27 +64,27 @@ async function main() {
         create: {
           id:          p.id,
           name:        p.name,
-          sex:         p.sex         ?? null,
-          birthDate:   p.birt_date   ?? null,
-          birthPlace:  p.birt_plac   ?? null,
-          deathDate:   p.deat_date   ?? null,
-          deathPlace:  p.deat_plac   ?? null,
-          burialPlace: p.buri_plac   ?? null,
-          burialDate:  p.buri_date   ?? null,
-          occupation:  p.occu        ?? null,
-          notes:       p.note        ?? null,
+          sex:         p.sex          ?? null,
+          birthDate:   p.birth        ?? null,
+          birthPlace:  p.birth_place  ?? null,
+          deathDate:   p.death        ?? null,
+          deathPlace:  p.death_place  ?? null,
+          burialPlace: null,
+          burialDate:  null,
+          occupation:  p.occupation   ?? null,
+          notes:       null,
         },
         update: {
           name:        p.name,
-          sex:         p.sex         ?? null,
-          birthDate:   p.birt_date   ?? null,
-          birthPlace:  p.birt_plac   ?? null,
-          deathDate:   p.deat_date   ?? null,
-          deathPlace:  p.deat_plac   ?? null,
-          burialPlace: p.buri_plac   ?? null,
-          burialDate:  p.buri_date   ?? null,
-          occupation:  p.occu        ?? null,
-          notes:       p.note        ?? null,
+          sex:         p.sex          ?? null,
+          birthDate:   p.birth        ?? null,
+          birthPlace:  p.birth_place  ?? null,
+          deathDate:   p.death        ?? null,
+          deathPlace:  p.death_place  ?? null,
+          burialPlace: null,
+          burialDate:  null,
+          occupation:  p.occupation   ?? null,
+          notes:       null,
         },
       })
     ));
@@ -95,40 +92,55 @@ async function main() {
   }
   console.log('\nPeople done.');
 
+  // Build a set of all valid person IDs to guard against orphaned references
+  const validPersonIds = new Set(peopleRaw.map(p => p.id));
+
   // --- Families ---
   console.log('Upserting families…');
-  for (const f of familiesRaw) {
-    await prisma.family.upsert({
-      where:  { id: f.id },
-      create: {
-        id:        f.id,
-        husbId:    f.husb     ?? null,
-        wifeId:    f.wife     ?? null,
-        marrDate:  f.marr_date ?? null,
-        marrPlace: f.marr_plac ?? null,
-      },
-      update: {
-        husbId:    f.husb     ?? null,
-        wifeId:    f.wife     ?? null,
-        marrDate:  f.marr_date ?? null,
-        marrPlace: f.marr_plac ?? null,
-      },
-    });
+  for (const batch of chunk(familiesRaw, 10)) {
+    await Promise.all(batch.map(f =>
+      prisma.family.upsert({
+        where:  { id: f.id },
+        create: {
+          id:        f.id,
+          husbId:    f.husb && validPersonIds.has(f.husb) ? f.husb : null,
+          wifeId:    f.wife && validPersonIds.has(f.wife) ? f.wife : null,
+          marrDate:  f.marr_date ?? null,
+          marrPlace: f.marr_plac ?? null,
+        },
+        update: {
+          husbId:    f.husb && validPersonIds.has(f.husb) ? f.husb : null,
+          wifeId:    f.wife && validPersonIds.has(f.wife) ? f.wife : null,
+          marrDate:  f.marr_date ?? null,
+          marrPlace: f.marr_plac ?? null,
+        },
+      })
+    ));
+    process.stdout.write('.');
   }
-  console.log('Families done.');
+  console.log('\nFamilies done.');
 
   // --- Family children (join table) ---
+  // Use createMany with skipDuplicates — sends large batches instead of one query per row
   console.log('Upserting family_children…');
-  for (const f of familiesRaw) {
-    for (const childId of (f.children ?? [])) {
-      await prisma.familyChild.upsert({
-        where:  { familyId_personId: { familyId: f.id, personId: childId } },
-        create: { familyId: f.id, personId: childId },
-        update: {},
-      });
-    }
+  const allChildren = familiesRaw.flatMap(f =>
+    (f.children ?? [])
+      .filter(childId => validPersonIds.has(childId))
+      .map(childId => ({ familyId: f.id, personId: childId }))
+  );
+  for (const batch of chunk(allChildren, 50)) {
+    await prisma.$transaction(
+      batch.map(({ familyId, personId }) =>
+        prisma.familyChild.upsert({
+          where:  { familyId_personId: { familyId, personId } },
+          create: { familyId, personId },
+          update: {},
+        })
+      )
+    );
+    process.stdout.write('.');
   }
-  console.log('Family children done.');
+  console.log('\nFamily children done.');
 
   console.log('\nMigration complete.');
 }

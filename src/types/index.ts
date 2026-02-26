@@ -1,3 +1,17 @@
+// Auth.js type augmentation
+declare module 'next-auth' {
+  interface User    { role: string }
+  interface Session {
+    user: {
+      id:    string;
+      role:  string;
+      email: string;
+      name?: string | null;
+      image?: string | null;
+    }
+  }
+}
+
 // Matches Prisma Person model (returned from API)
 export interface Person {
   id: string;
@@ -35,11 +49,11 @@ export interface FamilyChild {
   person?: Person;
 }
 
-export type UserRole = 'admin' | 'editor' | 'viewer';
+export type UserRole = 'admin' | 'editor' | 'viewer' | 'pending';
 
 export interface UserProfile {
   id: string;
-  email: string | null;
+  email: string;
   name: string | null;
   role: UserRole;
   createdAt: string;
