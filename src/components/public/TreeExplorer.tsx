@@ -17,6 +17,7 @@ interface PersonRelation {
 }
 
 interface PersonFull extends PersonRelation {
+  narrative: string | null;
   // childIn: families where person is a child → gives parents
   childIn: {
     familyId: string;
@@ -182,7 +183,10 @@ export default function TreeExplorer({ initialPerson }: { initialPerson?: Person
   if (!person) return null;
 
   const { parents, spouses, children } = deriveRelations(person);
-  const narrative = CHAPTER_NARRATIVES[person.id];
+  // DB narrative takes precedence over hardcoded chapters
+  const narrative = person.narrative
+    ? <div dangerouslySetInnerHTML={{ __html: person.narrative }} />
+    : CHAPTER_NARRATIVES[person.id];
   const lifespan  = formatLifespan(person);
   const nameClean = cleanName(person.name);
   const isDirect  = DIRECT_LINE_IDS.has(person.id);

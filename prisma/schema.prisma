@@ -80,6 +80,7 @@ model Person {
   burialDate  String?  @map("burial_date")
   occupation  String?
   notes       String?
+  narrative   String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const {
     name, sex, birthDate, birthPlace,
     deathDate, deathPlace, burialPlace, burialDate,
-    occupation, notes,
+    occupation, notes, narrative,
   } = body;
 
   const person = await prisma.person.update({
@@ -66,6 +66,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(burialDate  !== undefined && { burialDate }),
       ...(occupation  !== undefined && { occupation }),
       ...(notes       !== undefined && { notes }),
+      ...(narrative   !== undefined && { narrative }),
     },
   });
 

@@ -25,6 +25,7 @@ export interface Person {
   burialDate: string | null;
   occupation: string | null;
   notes: string | null;
+  narrative: string | null;
   createdAt: string;
   updatedAt: string;
 }

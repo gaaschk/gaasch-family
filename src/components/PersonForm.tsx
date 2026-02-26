@@ -25,6 +25,7 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
     burialPlace: person?.burialPlace ?? '',
     occupation:  person?.occupation  ?? '',
     notes:       person?.notes       ?? '',
+    narrative:   person?.narrative   ?? '',
   });
 
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -56,6 +57,7 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
           burialPlace: fields.burialPlace || null,
           occupation:  fields.occupation || null,
           notes:       fields.notes      || null,
+          narrative:   fields.narrative  || null,
         };
 
     const res = await fetch(url, {
@@ -196,6 +198,24 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
             value={fields.notes}
             onChange={set('notes')}
             rows={4}
+          />
+        </div>
+
+        <div className="form-group full-width">
+          <label className="form-label" htmlFor="pf-narrative">
+            Narrative
+            <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
+              HTML — renders on the public tree explorer page
+            </span>
+          </label>
+          <textarea
+            id="pf-narrative"
+            className="form-textarea"
+            value={fields.narrative}
+            onChange={set('narrative')}
+            rows={16}
+            placeholder={'<div class="chapter-header">\n  <span class="chapter-num">Generation One</span>\n  <h2>Jean Gaasch</h2>\n  <p class="chapter-meta">c. 1698 – May 8, 1743</p>\n</div>\n<p class="body-text">…</p>'}
+            style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
           />
         </div>
       </div>
