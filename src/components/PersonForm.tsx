@@ -28,12 +28,58 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
     narrative:   person?.narrative   ?? '',
   });
 
-  const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
-  const [error, setError] = useState('');
+  const [status, setStatus]         = useState<'idle' | 'saving' | 'error'>('idle');
+  const [error, setError]           = useState('');
+  const [genStatus, setGenStatus]   = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
+  const [genError, setGenError]     = useState('');
 
   function set(field: keyof typeof fields) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setFields(f => ({ ...f, [field]: e.target.value }));
+  }
+
+  async function generateNarrative() {
+    if (!person?.id) return;
+    setGenStatus('generating');
+    setGenError('');
+    setFields(f => ({ ...f, narrative: '' }));
+
+    try {
+      const res = await fetch(`/api/people/${encodeURIComponent(person.id)}/generate-narrative`, {
+        method: 'POST',
+      });
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
+        setGenError(data.error ?? `${res.status} ${res.statusText}`);
+        setGenStatus('error');
+        return;
+      }
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        // Surface any error the server embedded in the stream
+        if (text.includes('__ERROR__:')) {
+          const msg = text.split('__ERROR__:')[1]?.trim() ?? 'Generation failed';
+          setGenError(msg);
+          setGenStatus('error');
+          setFields(f => ({ ...f, narrative: '' }));
+          return;
+        }
+        setFields(f => ({ ...f, narrative: text }));
+      }
+
+      setGenStatus('done');
+    } catch {
+      setGenError('Network error — check server logs');
+      setGenStatus('error');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -202,12 +248,46 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
         </div>
 
         <div className="form-group full-width">
-          <label className="form-label" htmlFor="pf-narrative">
-            Narrative
-            <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
-              HTML — renders on the public tree explorer page
-            </span>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+            <label className="form-label" htmlFor="pf-narrative" style={{ margin: 0 }}>
+              Narrative
+              <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
+                HTML — renders on the public tree explorer page
+              </span>
+            </label>
+            {!isNew && (
+              <button
+                type="button"
+                onClick={generateNarrative}
+                disabled={genStatus === 'generating' || status === 'saving'}
+                style={{
+                  marginLeft: 'auto',
+                  padding: '0.25rem 0.75rem',
+                  fontSize: '0.8rem',
+                  background: genStatus === 'generating' ? 'var(--border-light)' : 'var(--ink)',
+                  color: '#f5f0e8',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: genStatus === 'generating' ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-sc)',
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {genStatus === 'generating' ? 'Generating…' : '✦ Generate with Claude'}
+              </button>
+            )}
+          </div>
+          {genStatus === 'done' && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--sepia)', marginBottom: '0.4rem' }}>
+              ✓ Generated and saved — edit below if needed, then Save changes to update further.
+            </p>
+          )}
+          {genStatus === 'error' && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--rust)', marginBottom: '0.4rem' }}>
+              Generation failed: {genError}
+            </p>
+          )}
           <textarea
             id="pf-narrative"
             className="form-textarea"
