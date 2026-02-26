@@ -24,6 +24,7 @@ export default async function EditPersonPage({ params }: Props) {
     burialDate:  raw.burialDate,
     occupation:  raw.occupation,
     notes:       raw.notes,
+    narrative:   raw.narrative,
     createdAt:   raw.createdAt.toISOString(),
     updatedAt:   raw.updatedAt.toISOString(),
   };
