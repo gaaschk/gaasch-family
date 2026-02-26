@@ -9,8 +9,9 @@ export async function GET(req: NextRequest) {
   const q       = searchParams.get('q')       ?? '';
   const place   = searchParams.get('place')   ?? '';
   const surname = searchParams.get('surname') ?? '';
-  const limit   = Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 200);
-  const offset  = Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);
+  const all     = searchParams.get('all')     === 'true';
+  const limit   = all ? undefined : Math.min(parseInt(searchParams.get('limit')  ?? '50', 10), 2000);
+  const offset  = all ? undefined : Math.max(parseInt(searchParams.get('offset') ?? '0',  10), 0);
 
   const conditions: object[] = [];
 
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
         { name:       { contains: q } },
         { birthPlace: { contains: q } },
         { deathPlace: { contains: q } },
+        { occupation: { contains: q } },
+        { notes:      { contains: q } },
       ],
     });
   }
@@ -29,6 +32,7 @@ export async function GET(req: NextRequest) {
       OR: [
         { birthPlace: { contains: place } },
         { deathPlace: { contains: place } },
+        { burialPlace: { contains: place } },
       ],
     });
   }
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
     prisma.person.count({ where }),
   ]);
 
-  return NextResponse.json({ data, total, limit, offset });
+  return NextResponse.json({ data, total, limit: limit ?? total, offset: offset ?? 0 });
 }
 
 export async function POST(req: NextRequest) {
@@ -69,6 +73,7 @@ export async function POST(req: NextRequest) {
       burialDate:  body.burialDate  ?? null,
       occupation:  body.occupation  ?? null,
       notes:       body.notes       ?? null,
+      narrative:   body.narrative   ?? null,
     },
   });
 
