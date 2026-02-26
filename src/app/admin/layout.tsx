@@ -45,9 +45,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             Families
           </Link>
           {role === 'admin' && (
-            <Link href="/admin/users" className="admin-nav-link">
-              Users
-            </Link>
+            <>
+              <Link href="/admin/users" className="admin-nav-link">
+                Users
+              </Link>
+              <Link href="/admin/import" className="admin-nav-link">
+                Import GEDCOM
+              </Link>
+            </>
           )}
         </nav>
 
