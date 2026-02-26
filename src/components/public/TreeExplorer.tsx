@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CHAPTER_NARRATIVES, CHAPTER_CHAIN, DIRECT_LINE_IDS } from './chapters';
+import { CHAPTER_NARRATIVES, DIRECT_LINE_IDS } from './chapters';
 import type { Person } from '@/types';
 
 // ── Types from the enriched API response ─────────────────────────────────
@@ -16,8 +16,16 @@ interface PersonRelation {
   occupation: string | null;
 }
 
+interface PathEntry {
+  id: string;
+  name: string;
+  birthDate: string | null;
+  deathDate: string | null;
+}
+
 interface PersonFull extends PersonRelation {
   narrative: string | null;
+  pathToKevin: PathEntry[];
   // childIn: families where person is a child → gives parents
   childIn: {
     familyId: string;
@@ -50,6 +58,16 @@ function formatLifespan(p: PersonRelation) {
   const d = p.deathDate?.replace(/^ABT |^BEF |^AFT |^BET .* AND /i, '') ?? '';
   if (b && d) return `${b} – ${d}`;
   if (b) return `b. ${b}`;
+  if (d) return `d. ${d}`;
+  return '';
+}
+
+function formatTimelineYear(p: PathEntry) {
+  const extract = (s: string | null) => s?.match(/\b(\d{4})\b/)?.[1] ?? '';
+  const b = extract(p.birthDate);
+  const d = extract(p.deathDate);
+  if (b && d) return `${b}–${d}`;
+  if (b) return b;
   if (d) return `d. ${d}`;
   return '';
 }
@@ -191,42 +209,34 @@ export default function TreeExplorer({ initialPerson }: { initialPerson?: Person
   const nameClean = cleanName(person.name);
   const isDirect  = DIRECT_LINE_IDS.has(person.id);
 
-  // Show the chain from the currently-viewed person down to Kevin.
-  // For people not on the direct line, prepend a synthetic entry so their
-  // name still appears as the active node above the chain.
-  const activeChainIndex = CHAPTER_CHAIN.findIndex(e => e.personId === currentId);
-  const visibleChain: Array<{ personId: string; name: string; year: string }> =
-    activeChainIndex >= 0
-      ? CHAPTER_CHAIN.slice(activeChainIndex)
-      : [
-          {
-            personId: currentId,
-            name:     cleanName(person.name).split(' ')[0],
-            year:     formatLifespan(person),
-          },
-          ...CHAPTER_CHAIN,
-        ];
+  // Timeline: the server computes the actual ancestral path from this person
+  // to Kevin via BFS over the full family graph. Falls back to just the
+  // current person when they are not an ancestor of Kevin.
+  const timelineEntries: PathEntry[] =
+    person.pathToKevin.length > 0
+      ? person.pathToKevin
+      : [{ id: person.id, name: person.name, birthDate: person.birthDate, deathDate: person.deathDate }];
 
   return (
     <section id="chapters" className="chapters-section">
       {/* ── Timeline sidebar ── */}
       <aside className="chapters-timeline">
         <div className="timeline-crumb">
-          {visibleChain.map((entry, i) => {
-            const isActive = currentId === entry.personId;
+          {timelineEntries.map((entry, i) => {
+            const isActive = entry.id === currentId;
             return (
-              <span key={entry.personId}>
+              <span key={entry.id}>
                 <button
                   className={`crumb-node${isActive ? ' crumb-node--active' : ''}`}
-                  onClick={() => navigateTo(entry.personId)}
+                  onClick={() => navigateTo(entry.id)}
                 >
                   <span className="crumb-dot" />
                   <span className="crumb-text">
-                    <span className="crumb-name">{entry.name} Gaasch</span>
-                    <span className="crumb-year">{entry.year}</span>
+                    <span className="crumb-name">{cleanName(entry.name)}</span>
+                    <span className="crumb-year">{formatTimelineYear(entry)}</span>
                   </span>
                 </button>
-                {i < visibleChain.length - 1 && (
+                {i < timelineEntries.length - 1 && (
                   <span className="crumb-arrow">↓</span>
                 )}
               </span>
