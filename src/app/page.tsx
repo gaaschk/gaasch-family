@@ -34,10 +34,10 @@ function LandingPage() {
         <section className="hero-section">
           <div className="hero-ornament">✦ ✦ ✦</div>
           <h1>The Gaasch Family</h1>
-          <p className="hero-subtitle">A History Across Nine Generations</p>
+          <p className="hero-subtitle">A History Across Ten Generations</p>
           <div className="hero-rule" />
           <p className="hero-body">
-            A private family history spanning three centuries and two continents —
+            A private family history spanning four centuries and two continents —
             from the villages of Luxembourg through the French Revolutionary era,
             across the Atlantic to the American Midwest, and west to the Texas High Plains.
           </p>
@@ -63,7 +63,7 @@ function LandingPage() {
           </div>
 
           <p className="hero-dates">
-            Circa 1698 — Present Day &nbsp;·&nbsp; Luxembourg &amp; America
+            17th Century — Present Day &nbsp;·&nbsp; Luxembourg &amp; America
           </p>
         </section>
 
@@ -85,7 +85,7 @@ function LandingPage() {
               {([
                 {
                   num: 'I',
-                  title: 'Nine Generations',
+                  title: 'Ten Generations',
                   body: 'The direct paternal line traced from the Alzette valley through the French Revolutionary era, across the Atlantic, and across the American frontier — documented through primary source parish and land records.',
                 },
                 {
@@ -124,8 +124,8 @@ function LandingPage() {
         {/* ── Footer ── */}
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          The Gaasch Family — A History Across Nine Generations<br />
-          Alzingen, Luxembourg · c. 1698 — Bailey County, Texas · Present
+          The Gaasch Family — A History Across Ten Generations<br />
+          Alzingen, Luxembourg · 17th Century — Bailey County, Texas · Present
         </footer>
       </div>
     </>
@@ -167,12 +167,12 @@ export default async function HomePage() {
         <section id="hero" className="hero-section">
           <div className="hero-ornament">✦ ✦ ✦</div>
           <h1>The Gaasch Family</h1>
-          <p className="hero-subtitle">A History Across Nine Generations</p>
+          <p className="hero-subtitle">A History Across Ten Generations</p>
           <div className="hero-rule" />
           <p className="hero-body">
             From the Villages of Luxembourg to the American Frontier — tracing the direct paternal line
-            from the Alzette valley village of Alzingen through nine generations to the Texas High Plains.
-            Beginning with Jean Gaasch born circa 1698, the line passes through the French Revolutionary era,
+            from the Alzette valley village of Alzingen through ten generations to the Texas High Plains.
+            Beginning in 17th-century Luxembourg, the line passes through the French Revolutionary era,
             crosses the Atlantic in 1848, homesteads the Kansas prairie, rides the Tulsa oil boom,
             and arrives at the present day in Bailey County, Texas.
           </p>
@@ -188,18 +188,18 @@ export default async function HomePage() {
                 <span className="hero-stat-label">Families</span>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-num">9</span>
+                <span className="hero-stat-num">10</span>
                 <span className="hero-stat-label">Generations</span>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-num">325</span>
+                <span className="hero-stat-num">350+</span>
                 <span className="hero-stat-label">Years of history</span>
               </div>
             </div>
           )}
 
           <a href="#chapters" className="hero-cta">Begin Exploring ↓</a>
-          <p className="hero-dates">Circa 1698 — Present Day &nbsp;·&nbsp; Luxembourg &amp; America</p>
+          <p className="hero-dates">17th Century — Present Day &nbsp;·&nbsp; Luxembourg &amp; America</p>
         </section>
 
         {/* ── Chapters + Tree Explorer ── */}
@@ -259,8 +259,8 @@ export default async function HomePage() {
         {/* ── Footer ── */}
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          The Gaasch Family — A History Across Nine Generations<br />
-          Alzingen, Luxembourg · c. 1698 — Bailey County, Texas · Present
+          The Gaasch Family — A History Across Ten Generations<br />
+          Alzingen, Luxembourg · 17th Century — Bailey County, Texas · Present
           <br /><br />
           Compiled 2024–2026 · Primary sources: FamilySearch Luxemburg Kirchenbücher 1601–1796
         </footer>
