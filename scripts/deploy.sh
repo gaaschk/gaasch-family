@@ -9,6 +9,12 @@ set -euo pipefail
 APP_DIR="/home/ubuntu/gaasch-family"
 cd "$APP_DIR"
 
+# Load .env.local so Prisma CLI can read DATABASE_URL
+set -a
+# shellcheck disable=SC1091
+source "$APP_DIR/.env.local"
+set +a
+
 echo ""
 echo "→ Pulling latest code..."
 git pull
