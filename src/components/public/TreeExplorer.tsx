@@ -131,7 +131,10 @@ export default function TreeExplorer({
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const lsKey = `tree:${treeSlug}:lastPerson`;
+
   const navigateTo = useCallback(async (id: string) => {
+    localStorage.setItem(`tree:${treeSlug}:lastPerson`, id);
     if (cache.current.has(id)) {
       const cached = cache.current.get(id)!;
       setPerson(cached);
@@ -152,9 +155,9 @@ export default function TreeExplorer({
     } finally {
       setLoading(false);
     }
-  }, [treeSlug]);
+  }, [treeSlug, lsKey]);
 
-  // On mount: navigate to defaultPersonId, or first alphabetically
+  // On mount: restore last-viewed person, else default person, else first alphabetically
   useEffect(() => {
     if (initialPerson) {
       cache.current.set(initialPerson.id, initialPerson);
@@ -165,8 +168,10 @@ export default function TreeExplorer({
     (async () => {
       setLoading(true);
       try {
-        if (defaultPersonId) {
-          await navigateTo(defaultPersonId);
+        const saved = localStorage.getItem(lsKey);
+        const startId = saved || defaultPersonId;
+        if (startId) {
+          await navigateTo(startId);
         } else {
           const listRes = await fetch(`/api/trees/${treeSlug}/people?limit=1`);
           if (listRes.ok) {
@@ -179,7 +184,7 @@ export default function TreeExplorer({
         setLoading(false);
       }
     })();
-  }, [initialPerson, treeSlug, navigateTo, defaultPersonId]);
+  }, [initialPerson, treeSlug, navigateTo, defaultPersonId, lsKey]);
 
   // Store fetched person in cache
   useEffect(() => {
