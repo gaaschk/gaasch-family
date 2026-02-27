@@ -307,6 +307,32 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
               </a>
             )}
             <h2>{nameClean}</h2>
+            <div className="key-facts" style={{ marginTop: '1.5rem' }}>
+              {person.birthDate && (
+                <div className="key-fact">
+                  <span className="key-fact-label">Born</span>
+                  <span className="key-fact-value">
+                    {person.birthDate}
+                    {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
+                  </span>
+                </div>
+              )}
+              {person.deathDate && (
+                <div className="key-fact">
+                  <span className="key-fact-label">Died</span>
+                  <span className="key-fact-value">
+                    {person.deathDate}
+                    {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
+                  </span>
+                </div>
+              )}
+              {person.occupation && (
+                <div className="key-fact">
+                  <span className="key-fact-label">Occupation</span>
+                  <span className="key-fact-value">{person.occupation}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -345,34 +371,8 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
               // Hardcoded narratives include their own header + key-facts
               hardcodedNarrative
             ) : (
-              // DB narrative or generic card — header is rendered full-width above
+              // DB narrative or generic card — header + key-facts rendered full-width above
               <>
-                <div className="key-facts">
-                  {person.birthDate && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Born</span>
-                      <span className="key-fact-value">
-                        {person.birthDate}
-                        {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
-                      </span>
-                    </div>
-                  )}
-                  {person.deathDate && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Died</span>
-                      <span className="key-fact-value">
-                        {person.deathDate}
-                        {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
-                      </span>
-                    </div>
-                  )}
-                  {person.occupation && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Occupation</span>
-                      <span className="key-fact-value">{person.occupation}</span>
-                    </div>
-                  )}
-                </div>
                 {dbNarrative && (
                   <div dangerouslySetInnerHTML={{ __html: dbNarrative }} />
                 )}
