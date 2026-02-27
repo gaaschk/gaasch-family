@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     <main className="login-page">
       <div className="login-card">
         <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
-        <h1 className="login-title">The Gaasch Family</h1>
+        <h1 className="login-title">Family History</h1>
         <p className="login-subtitle">Reset Password</p>
 
         {status === 'sent' ? (

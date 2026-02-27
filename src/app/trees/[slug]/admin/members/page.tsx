@@ -27,10 +27,12 @@ export default function TreeMembersPage() {
 
   // Role change state
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [roleError, setRoleError]       = useState('');
 
   // Remove confirmation
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [removing, setRemoving]               = useState(false);
+  const [removeError, setRemoveError]         = useState('');
 
   // Revoke confirmation
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
@@ -82,20 +84,32 @@ export default function TreeMembersPage() {
 
   async function handleRoleChange(userId: string, role: string) {
     setChangingRole(userId);
-    await fetch(`/api/trees/${treeSlug}/members/${userId}`, {
+    setRoleError('');
+    const res = await fetch(`/api/trees/${treeSlug}/members/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
     });
     setChangingRole(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setRoleError(data.error ?? `Role change failed (${res.status})`);
+      return;
+    }
     load();
   }
 
   async function handleRemove(userId: string) {
     setRemoving(true);
-    await fetch(`/api/trees/${treeSlug}/members/${userId}`, { method: 'DELETE' });
+    setRemoveError('');
+    const res = await fetch(`/api/trees/${treeSlug}/members/${userId}`, { method: 'DELETE' });
     setConfirmRemoveId(null);
     setRemoving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setRemoveError(data.error ?? `Remove failed (${res.status})`);
+      return;
+    }
     load();
   }
 
@@ -206,6 +220,13 @@ export default function TreeMembersPage() {
         <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
       ) : (
         <>
+          {roleError && (
+            <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{roleError}</p>
+          )}
+          {removeError && (
+            <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{removeError}</p>
+          )}
+
           {/* Members table */}
           <section style={{ marginBottom: '2rem' }}>
             <h2

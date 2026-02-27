@@ -157,7 +157,7 @@ model Person {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tree      Tree                @relation(fields: [treeId], references: [id])
+  tree      Tree                @relation(fields: [treeId], references: [id], onDelete: Cascade)
   asHusband Family[]            @relation("FamilyHusband")
   asWife    Family[]            @relation("FamilyWife")
   childIn   FamilyChild[]
@@ -189,16 +189,16 @@ model Family {
   id        String   @id @default(cuid())
   treeId    String   @map("tree_id")
   gedcomId  String?  @map("gedcom_id")
-  husband   Person?  @relation("FamilyHusband", fields: [husbId], references: [id])
+  husband   Person?  @relation("FamilyHusband", fields: [husbId], references: [id], onDelete: SetNull)
   husbId    String?  @map("husb_id")
-  wife      Person?  @relation("FamilyWife", fields: [wifeId], references: [id])
+  wife      Person?  @relation("FamilyWife", fields: [wifeId], references: [id], onDelete: SetNull)
   wifeId    String?  @map("wife_id")
   marrDate  String?  @map("marr_date")
   marrPlace String?  @map("marr_place")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tree     Tree         @relation(fields: [treeId], references: [id])
+  tree     Tree         @relation(fields: [treeId], references: [id], onDelete: Cascade)
   children FamilyChild[]
 
   @@unique([treeId, gedcomId])
@@ -222,7 +222,7 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tree Tree @relation(fields: [treeId], references: [id])
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
 
   @@unique([treeId, key])
   @@map("settings")

@@ -23,6 +23,7 @@ export default function TreePeoplePage() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const load = useCallback(
     (query: string, pg: number) => {
@@ -59,11 +60,17 @@ export default function TreePeoplePage() {
 
   async function handleDelete(id: string) {
     setDeleting(true);
-    await fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(id)}`, {
+    setDeleteError('');
+    const res = await fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     setConfirmDeleteId(null);
     setDeleting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDeleteError(data.error ?? `Delete failed (${res.status})`);
+      return;
+    }
     load(q, page);
   }
 
@@ -90,6 +97,10 @@ export default function TreePeoplePage() {
           onChange={e => setQ(e.target.value)}
         />
       </div>
+
+      {deleteError && (
+        <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{deleteError}</p>
+      )}
 
       {loading ? (
         <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>

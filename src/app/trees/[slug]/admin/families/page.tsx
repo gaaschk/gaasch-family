@@ -23,6 +23,7 @@ export default function TreeFamiliesPage() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const load = useCallback(
     (pg: number) => {
@@ -48,11 +49,17 @@ export default function TreeFamiliesPage() {
 
   async function handleDelete(id: string) {
     setDeleting(true);
-    await fetch(`/api/trees/${treeSlug}/families/${encodeURIComponent(id)}`, {
+    setDeleteError('');
+    const res = await fetch(`/api/trees/${treeSlug}/families/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     setConfirmDeleteId(null);
     setDeleting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDeleteError(data.error ?? `Delete failed (${res.status})`);
+      return;
+    }
     load(page);
   }
 
@@ -69,6 +76,10 @@ export default function TreeFamiliesPage() {
           + New family
         </Link>
       </div>
+
+      {deleteError && (
+        <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{deleteError}</p>
+      )}
 
       {loading ? (
         <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>

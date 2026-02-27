@@ -165,15 +165,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'No INDI or FAM records found in file' }, { status: 400 });
   }
 
-  // 1. Upsert people — narrative is NOT in the update block, so it is preserved
+  // 1. Upsert people — narrative is NOT in the update block, so it is preserved.
+  //    Use the composite (treeId, gedcomId) unique key so re-importing the same GEDCOM
+  //    into a different tree never collides with another tree's records.
   for (let i = 0; i < people.length; i += BATCH) {
     const batch = people.slice(i, i + BATCH);
     await prisma.$transaction(
       batch.map(p =>
         prisma.person.upsert({
-          where: { id: p.id },
+          where: { treeId_gedcomId: { treeId: tree.id, gedcomId: p.id } },
           create: {
-            id: p.id, treeId: tree.id, gedcomId: p.id,
+            treeId: tree.id, gedcomId: p.id,
             name: p.name, sex: p.sex,
             birthDate: p.birthDate, birthPlace: p.birthPlace,
             deathDate: p.deathDate, deathPlace: p.deathPlace,
@@ -194,24 +196,33 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  // 2. Upsert families
+  // Build gedcomId → DB person id map so family spouse FKs use real CUIDs
+  const personRows = await prisma.person.findMany({
+    where: { treeId: tree.id, gedcomId: { in: people.map(p => p.id) } },
+    select: { id: true, gedcomId: true },
+  });
+  const gedcomIdMap = new Map(personRows.map(p => [p.gedcomId!, p.id]));
+
+  // 2. Upsert families — resolve husband/wife gedcomIds to DB person CUIDs
   for (let i = 0; i < families.length; i += BATCH) {
     const batch = families.slice(i, i + BATCH);
     await prisma.$transaction(
-      batch.map(f =>
-        prisma.family.upsert({
-          where: { id: f.id },
+      batch.map(f => {
+        const husbId = f.husbId ? (gedcomIdMap.get(f.husbId) ?? null) : null;
+        const wifeId = f.wifeId ? (gedcomIdMap.get(f.wifeId) ?? null) : null;
+        return prisma.family.upsert({
+          where: { treeId_gedcomId: { treeId: tree.id, gedcomId: f.id } },
           create: {
-            id: f.id, treeId: tree.id, gedcomId: f.id,
-            husbId: f.husbId, wifeId: f.wifeId,
+            treeId: tree.id, gedcomId: f.id,
+            husbId, wifeId,
             marrDate: f.marrDate, marrPlace: f.marrPlace,
           },
           update: {
-            husbId: f.husbId, wifeId: f.wifeId,
+            husbId, wifeId,
             marrDate: f.marrDate, marrPlace: f.marrPlace,
           },
-        })
-      )
+        });
+      })
     );
   }
 
