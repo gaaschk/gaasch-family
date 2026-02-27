@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A Next.js 15 private family history site for the Gaasch family — tracing ten generations from 17th-century Luxembourg to present-day Texas. It features a public landing page, an authenticated site with an interactive genealogy explorer, maps, and a searchable people directory, plus an `/admin` area for data management.
+A Next.js 15 multi-tenant private family history platform. Multiple families can each own a private genealogy tree — with an interactive explorer, searchable people directory, and AI-generated biographical narratives. Users are invited to trees by tree admins.
 
 ## Commands
 
@@ -24,7 +24,31 @@ All `db:*` scripts use `dotenv -e .env.local` to inject `DATABASE_URL`.
 
 After any `prisma/schema.prisma` change, run `npm run db:migrate` (creates a migration) then `npm run db:generate` (regenerates the client).
 
+### Migration notes (multi-tenant transition)
+
+The repo contains two schema files during the migration period:
+- `prisma/schema.prisma` — intermediate: adds Tree/TreeMember/TreeInvite models + nullable `treeId`/`gedcomId` on Person/Family/Setting
+- `prisma/schema.final.prisma` — final: CUID PKs, NOT NULL `treeId`, composite unique keys
+
+Migration workflow:
+1. `npm run db:migrate` — apply intermediate schema (Migration 1)
+2. `dotenv -e .env.local -- tsx scripts/migrate-to-multi-tenant.ts` — one-time data migration
+3. Replace `schema.prisma` with `schema.final.prisma` content, then `npm run db:migrate` again (Migration 2)
+
 ## Architecture
+
+### URL Structure
+```
+/                        Generic platform landing; authenticated → /dashboard
+/dashboard               Authenticated: list owned + member trees
+/trees/new               Create a new tree
+/trees/[slug]/           Tree view (explorer + directory); requires login + membership
+/trees/[slug]/admin/     Tree admin shell (sidebar layout)
+/invite/[token]          Accept a tree invitation
+/login, /signup          Auth pages
+```
+
+`/admin` → 301 redirects to `/dashboard` (legacy bookmark support).
 
 ### Auth split (Edge + Node)
 Auth.js v5 (NextAuth beta) uses **two config files** to satisfy Next.js Edge Runtime constraints:
@@ -34,44 +58,61 @@ Auth.js v5 (NextAuth beta) uses **two config files** to satisfy Next.js Edge Run
 Session tokens are JWTs (30-minute expiry). The `role` and `id` fields are embedded in the token via JWT/session callbacks.
 
 ### Authorization
-`src/lib/auth.ts` exports `requireRole(minRole)` — call at the top of every API route handler. Returns `{ userId, email, role }` or a `NextResponse` (401/403) to return directly. Role hierarchy: `pending (-1) < viewer (0) < editor (1) < admin (2)`.
+`src/lib/auth.ts` exports four helpers:
+- `requireRole(minRole)` — platform-level (create trees, approve users). Returns `{ userId, email, role }` or `NextResponse` 401/403.
+- `requireRoleOrToken(req, minRole)` — same, plus `Authorization: Bearer` fallback against any tree's `api_token` setting.
+- `requireTreeAccess(treeIdOrSlug, minRole)` — tree-scoped; checks owner or TreeMember row. Returns `{ userId, email, treeRole, tree }` or `NextResponse`.
+- `requireTreeAccessOrToken(req, treeIdOrSlug, minRole)` — same, plus Bearer token checked against the tree's `api_token` setting.
 
-Middleware (`src/middleware.ts`) redirects unauthenticated users away from `/admin/*` and redirects `pending` users to `/awaiting-approval`.
+Role hierarchies:
+- Platform: `pending (-1) < viewer (0) < editor (1) < admin (2)`
+- Tree: `viewer (0) < editor (1) < admin (2)`
+
+Middleware (`src/middleware.ts`) redirects unauthenticated users away from `/dashboard`, `/trees/*`, `/invite/*`, and redirects `pending` users to `/awaiting-approval`.
 
 ### Database
 SQLite via Prisma. Key models:
-- `Person` — genealogy records, GEDCOM-style IDs (e.g. `@I500001@`)
-- `Family` — links husband/wife `Person` rows; `FamilyChild` is the join table for children
+- `Tree` — each tree has a slug, name, ownerId
+- `TreeMember` — `(treeId, userId)` unique; role is viewer/editor/admin
+- `TreeInvite` — email invitation with expiry and accept token
+- `Person` — genealogy records scoped to a tree; `gedcomId` stores original GEDCOM identifier
+- `Family` — links husband/wife Person rows; `FamilyChild` is the join table for children
 - `User` / `Account` / `Session` / `VerificationToken` — Auth.js standard tables
-- `Setting` — key/value store (currently holds `anthropic_api_key` and `anthropic_model`)
-- `AuditLog` — records create/update/delete/generate-narrative actions with old/new JSON
+- `Setting` — key/value store scoped to a tree (holds `anthropic_api_key`, `anthropic_model`, `api_token`)
+- `AuditLog` — records create/update/delete/generate-narrative actions with old/new JSON, scoped to a tree
 
 Singleton Prisma client is at `src/lib/prisma.ts`.
 
-### Public homepage (`src/app/page.tsx`)
-Server component. Unauthenticated visitors see a `<LandingPage />` static component. Authenticated users see the full site: hero stats (queried live from DB), `<PublicTreeExplorer />`, `<PublicMapsSection />`, and `<PublicDirectorySection />` — all lazy-loaded client components in `src/components/public/`.
+### API routes
+All tree-scoped routes live under `/api/trees/[treeId]/` and resolve the slug/id via:
+```ts
+const tree = await prisma.tree.findFirst({ where: { OR: [{ id: treeId }, { slug: treeId }] } });
+const auth = await requireTreeAccess(treeId, 'viewer');
+if (auth instanceof NextResponse) return auth;
+```
 
-### Chapter chain
-`src/components/public/chapters.tsx` defines two exports:
-- `CHAPTER_CHAIN` — ordered array of the 10 direct-line ancestors (Jean → Kevin), each with `personId`, `name`, `year`.
-- `CHAPTER_NARRATIVES` — React JSX narratives keyed by person ID, rendered in the tree explorer.
+Cross-tenant guard: always include `treeId: tree.id` as the first `where` condition on person/family lookups.
 
-`DIRECT_LINE_IDS` (a Set) is derived from `CHAPTER_CHAIN` and used to highlight direct ancestors in the explorer.
+Platform-level routes (`/api/trees`, `/api/users`) use `requireRole`.
+
+Old routes (`/api/people`, `/api/families`, `/api/settings`, `/api/export`, `/api/import`) have been deleted.
 
 ### AI narrative generation
-`POST /api/people/[id]/generate-narrative` — requires `editor` role. Reads `anthropic_api_key` and `anthropic_model` from the `Setting` table (configured via Admin → Settings). Streams Claude's response as `text/plain`, accumulates the full HTML, then saves it to `Person.narrative` and writes an audit log entry.
+`POST /api/trees/[treeId]/people/[id]/generate-narrative` — requires `editor` tree role or Bearer token. Reads `anthropic_api_key` and `anthropic_model` from the tree's `Setting` rows. Streams Claude's response as `text/plain`, accumulates full HTML, saves to `Person.narrative`, writes audit log.
 
-### API routes pattern
-All routes follow the same pattern:
-1. Call `requireRole(minRole)` and return early if it's a `NextResponse`
-2. Parse params/body
-3. Perform DB operations
-4. Return `NextResponse.json()`
+### generate-narratives script
+```bash
+node scripts/generate-narratives.mjs \
+  --tree gaasch-family \
+  --token <api_token_from_settings> \
+  --ids <cuid1,cuid2,...> \
+  [--url https://family.example.com] \
+  [--model claude-haiku-4-5-20251001] \
+  [--concurrency 5]
+```
 
-Routes live under `src/app/api/`: `people/`, `families/`, `users/`, `settings/`, `export/gedcom/`, `import/gedcom/`.
-
-### Admin area
-`/admin` is a sidebar-layout section (`src/app/admin/layout.tsx`). Import GEDCOM and Settings nav links are only shown to `admin` role users. All admin pages are server components that call `requireRole` or redirect via Auth.js.
+### Tree view page
+`src/app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership, then renders `<PublicTreeExplorer treeSlug={slug} role={treeRole} />` and `<PublicDirectorySection treeSlug={slug} />`.
 
 ## Environment Variables
 
@@ -91,6 +132,7 @@ The Anthropic API key is stored in the DB (`Setting` table), not in `.env`.
 1. `npm install`
 2. `cp .env.local.example .env.local` and fill in values
 3. `npm run db:migrate`
-4. `npm run db:seed` (requires sibling `../gaasch-family/` project with `src/data/people.json` + `families.json`)
+4. `dotenv -e .env.local -- tsx scripts/migrate-to-multi-tenant.ts` (if migrating from single-tree data)
 5. `npm run dev`
 6. Sign in, then promote your user to `admin` via Prisma Studio or SQLite CLI
+7. Create your first tree at `/trees/new`

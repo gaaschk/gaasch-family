@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CHAPTER_NARRATIVES, DIRECT_LINE_IDS } from './chapters';
 import type { Person } from '@/types';
 
 // ── Types from the enriched API response ─────────────────────────────────
@@ -16,16 +15,8 @@ interface PersonRelation {
   occupation: string | null;
 }
 
-interface PathEntry {
-  id: string;
-  name: string;
-  birthDate: string | null;
-  deathDate: string | null;
-}
-
 interface PersonFull extends PersonRelation {
   narrative: string | null;
-  pathToKevin: PathEntry[];
   // childIn: families where person is a child → gives parents
   childIn: {
     familyId: string;
@@ -58,16 +49,6 @@ function formatLifespan(p: PersonRelation) {
   const d = p.deathDate?.replace(/^ABT |^BEF |^AFT |^BET .* AND /i, '') ?? '';
   if (b && d) return `${b} – ${d}`;
   if (b) return `b. ${b}`;
-  if (d) return `d. ${d}`;
-  return '';
-}
-
-function formatTimelineYear(p: PathEntry) {
-  const extract = (s: string | null) => s?.match(/\b(\d{4})\b/)?.[1] ?? '';
-  const b = extract(p.birthDate);
-  const d = extract(p.deathDate);
-  if (b && d) return `${b}–${d}`;
-  if (b) return b;
   if (d) return `d. ${d}`;
   return '';
 }
@@ -111,23 +92,20 @@ function deriveRelations(p: PersonFull) {
     }
   }
 
-  // Siblings = other children in the families where p is a child
-  const siblings: PersonRelation[] = [];
-  const seenSibs = new Set<string>();
-  seenSibs.add(p.id);
-  for (const fc of p.childIn) {
-    // Need to fetch sibling data — not available here without a separate API call
-    // We'll skip siblings for initial implementation
-  }
-
   return { parents, spouses, children };
 }
 
 // ── Main component ────────────────────────────────────────────────────────
-const KEVIN_ID = '@I500001@';
-
-export default function TreeExplorer({ initialPerson, role }: { initialPerson?: PersonFull; role?: string }) {
-  const [currentId, setCurrentId] = useState(KEVIN_ID);
+export default function TreeExplorer({
+  treeSlug,
+  initialPerson,
+  role,
+}: {
+  treeSlug: string;
+  initialPerson?: PersonFull;
+  role?: string;
+}) {
+  const [currentId, setCurrentId] = useState<string | null>(initialPerson?.id ?? null);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
   const [loading, setLoading] = useState(!initialPerson);
   const cache = useRef<Map<string, PersonFull>>(new Map());
@@ -147,7 +125,7 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/people/${encodeURIComponent(id)}`);
+      const res = await fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(id)}`);
       if (res.ok) {
         const data = await res.json();
         cache.current.set(id, data);
@@ -157,15 +135,31 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [treeSlug]);
 
+  // On mount: if no initialPerson, fetch the first person alphabetically from the tree
   useEffect(() => {
-    if (!initialPerson) navigateTo(KEVIN_ID);
-    else {
-      cache.current.set(KEVIN_ID, initialPerson);
-      setCurrentId(KEVIN_ID);
+    if (initialPerson) {
+      cache.current.set(initialPerson.id, initialPerson);
+      setCurrentId(initialPerson.id);
+      return;
     }
-  }, [initialPerson, navigateTo]);
+    (async () => {
+      setLoading(true);
+      try {
+        const listRes = await fetch(`/api/trees/${treeSlug}/people?limit=1`);
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const first: Person | undefined = listData.data?.[0];
+          if (first) {
+            await navigateTo(first.id);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [initialPerson, treeSlug, navigateTo]);
 
   // Store fetched person in cache
   useEffect(() => {
@@ -177,7 +171,7 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     if (!q.trim()) { setShowResults(false); return; }
     searchDebounce.current = setTimeout(async () => {
-      const res = await fetch(`/api/people?q=${encodeURIComponent(q)}&limit=12`);
+      const res = await fetch(`/api/trees/${treeSlug}/people?q=${encodeURIComponent(q)}&limit=12`);
       const data = await res.json();
       setSearchResults(data.data ?? []);
       setShowResults(true);
@@ -201,50 +195,11 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
   if (!person) return null;
 
   const { parents, spouses, children } = deriveRelations(person);
-  // Hardcoded chapter narratives include their own header/key-facts
-  // DB narratives contain only prose — header is rendered from person data below
-  const hardcodedNarrative = CHAPTER_NARRATIVES[person.id];
-  const dbNarrative        = person.narrative;
   const lifespan  = formatLifespan(person);
   const nameClean = cleanName(person.name);
-  const isDirect  = DIRECT_LINE_IDS.has(person.id);
-
-  // Timeline: the server computes the actual ancestral path from this person
-  // to Kevin via BFS over the full family graph. Falls back to just the
-  // current person when they are not an ancestor of Kevin.
-  const timelineEntries: PathEntry[] =
-    person.pathToKevin.length > 0
-      ? person.pathToKevin
-      : [{ id: person.id, name: person.name, birthDate: person.birthDate, deathDate: person.deathDate }];
 
   return (
     <section id="chapters" className="chapters-section">
-      {/* ── Timeline sidebar ── */}
-      <aside className="chapters-timeline">
-        <div className="timeline-crumb">
-          {timelineEntries.map((entry, i) => {
-            const isActive = entry.id === currentId;
-            return (
-              <span key={entry.id}>
-                <button
-                  className={`crumb-node${isActive ? ' crumb-node--active' : ''}`}
-                  onClick={() => navigateTo(entry.id)}
-                >
-                  <span className="crumb-dot" />
-                  <span className="crumb-text">
-                    <span className="crumb-name">{cleanName(entry.name)}</span>
-                    <span className="crumb-year">{formatTimelineYear(entry)}</span>
-                  </span>
-                </button>
-                {i < timelineEntries.length - 1 && (
-                  <span className="crumb-arrow">↓</span>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      </aside>
-
       {/* ── Main chapter area ── */}
       <div className="chapters-main">
         {/* Search */}
@@ -285,8 +240,8 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
           )}
         </div>
 
-        {/* Full-width header for DB/generic people (hardcoded narratives include their own) */}
-        {!loading && !hardcodedNarrative && (
+        {/* Full-width chapter header */}
+        {!loading && (
           <div className="chapter-header" style={{ padding: '2rem 2rem 2rem' }}>
             {/* Mirror the chapter-layout grid so content aligns with the center column */}
             <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr 170px', gap: '1.5rem 2.5rem' }}>
@@ -294,7 +249,7 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
               <div style={{ textAlign: 'center' }}>
                 {(role === 'editor' || role === 'admin') && (
                   <a
-                    href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
+                    href={`/trees/${treeSlug}/admin/people/${encodeURIComponent(person.id)}/edit`}
                     style={{
                       display: 'inline-block',
                       marginBottom: '1rem',
@@ -354,34 +309,12 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
 
           {/* Center: Narrative */}
           <div className="chapter-col-center">
-            {hardcodedNarrative && (role === 'editor' || role === 'admin') && (
-              <a
-                href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
-                style={{
-                  display: 'inline-block',
-                  marginBottom: '1.25rem',
-                  fontSize: '0.78rem',
-                  color: 'var(--rust)',
-                  border: '1px solid rgba(139,69,19,0.3)',
-                  borderRadius: '4px',
-                  padding: '0.3rem 0.75rem',
-                  textDecoration: 'none',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Edit this person ›
-              </a>
-            )}
             {loading ? (
               <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
-            ) : hardcodedNarrative ? (
-              // Hardcoded narratives include their own header + key-facts
-              hardcodedNarrative
             ) : (
-              // DB narrative or generic card — header + key-facts rendered full-width above
               <>
-                {dbNarrative && (
-                  <div dangerouslySetInnerHTML={{ __html: dbNarrative }} />
+                {person.narrative && (
+                  <div dangerouslySetInnerHTML={{ __html: person.narrative }} />
                 )}
               </>
             )}
@@ -424,7 +357,7 @@ function ConnGroup({
         {shown.map(p => (
           <button
             key={p.id}
-            className={`ch-nav-card${DIRECT_LINE_IDS.has(p.id) ? ' ch-nav-card--ancestor' : ''}`}
+            className="ch-nav-card"
             onClick={() => navigate(p.id)}
           >
             <span className="ch-nav-name">{cleanName(p.name)}</span>

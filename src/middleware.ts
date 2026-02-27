@@ -7,13 +7,27 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { nextUrl } = req;
   const session     = req.auth;
-  const isAdmin     = nextUrl.pathname.startsWith('/admin');
+  const pathname    = nextUrl.pathname;
 
-  if (isAdmin && !session?.user) {
-    return NextResponse.redirect(new URL('/login', nextUrl));
+  // Legacy /admin → redirect to /dashboard
+  if (pathname === '/admin' || pathname === '/admin/') {
+    return NextResponse.redirect(new URL('/dashboard', nextUrl));
   }
 
-  if (isAdmin && session?.user?.role === 'pending') {
+  const isOldAdmin   = pathname.startsWith('/admin');
+  const isDashboard  = pathname.startsWith('/dashboard');
+  const isTreeRoute  = pathname.startsWith('/trees/');
+  const isInvite     = pathname.startsWith('/invite/');
+
+  const requiresAuth = isOldAdmin || isDashboard || isTreeRoute || isInvite;
+
+  if (requiresAuth && !session?.user) {
+    const loginUrl = new URL('/login', nextUrl);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (requiresAuth && session?.user?.role === 'pending') {
     return NextResponse.redirect(new URL('/awaiting-approval', nextUrl));
   }
 

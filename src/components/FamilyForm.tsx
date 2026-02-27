@@ -6,19 +6,18 @@ import PersonSearch from './PersonSearch';
 import type { Family, Person } from '@/types';
 
 interface FamilyFormProps {
+  treeSlug: string;
   family?: Family & {
     husband?: Person | null;
     wife?: Person | null;
     children?: { familyId?: string; personId?: string; person?: Person }[];
   };
-  nextId?: string;
 }
 
-export default function FamilyForm({ family, nextId }: FamilyFormProps) {
+export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
   const router = useRouter();
   const isNew = !family;
 
-  const [id, setId] = useState(family?.id ?? nextId ?? '');
   const [husband, setHusband] = useState<Person | null>(family?.husband ?? null);
   const [wife, setWife] = useState<Person | null>(family?.wife ?? null);
   const [marrDate, setMarrDate] = useState(family?.marrDate ?? '');
@@ -49,11 +48,12 @@ export default function FamilyForm({ family, nextId }: FamilyFormProps) {
     setStatus('saving');
     setError('');
 
-    const url    = isNew ? '/api/families' : `/api/families/${family!.id}`;
+    const url    = isNew
+      ? `/api/trees/${treeSlug}/families`
+      : `/api/trees/${treeSlug}/families/${family!.id}`;
     const method = isNew ? 'POST' : 'PATCH';
 
     const payload = {
-      ...(isNew && { id }),
       husbId:    husband?.id ?? null,
       wifeId:    wife?.id    ?? null,
       marrDate:  marrDate  || null,
@@ -83,36 +83,23 @@ export default function FamilyForm({ family, nextId }: FamilyFormProps) {
     const toRemove = existing.filter(id => !desired.includes(id));
 
     if (toAdd.length > 0 || toRemove.length > 0) {
-      await fetch(`/api/families/${familyId}/children`, {
+      await fetch(`/api/trees/${treeSlug}/families/${familyId}/children`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ add: toAdd, remove: toRemove }),
       });
     }
 
-    router.push('/admin/families');
+    router.push(`/trees/${treeSlug}/admin/families`);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-grid">
-        {isNew && (
-          <div className="form-group">
-            <label className="form-label" htmlFor="ff-id">Family ID</label>
-            <input
-              id="ff-id"
-              className="form-input"
-              value={id}
-              onChange={e => setId(e.target.value)}
-              placeholder="@F500001@"
-              required
-            />
-          </div>
-        )}
-
         <div className="form-group">
           <PersonSearch
+            treeSlug={treeSlug}
             label="Husband"
             value={husband}
             onChange={setHusband}
@@ -122,6 +109,7 @@ export default function FamilyForm({ family, nextId }: FamilyFormProps) {
 
         <div className="form-group">
           <PersonSearch
+            treeSlug={treeSlug}
             label="Wife"
             value={wife}
             onChange={setWife}
@@ -175,6 +163,7 @@ export default function FamilyForm({ family, nextId }: FamilyFormProps) {
             </div>
           )}
           <PersonSearch
+            treeSlug={treeSlug}
             value={childToAdd}
             onChange={p => { addChild(p); }}
             placeholder="Search to add a child…"
@@ -190,7 +179,7 @@ export default function FamilyForm({ family, nextId }: FamilyFormProps) {
         <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
           {status === 'saving' ? 'Saving…' : isNew ? 'Create family' : 'Save changes'}
         </button>
-        <a href="/admin/families" className="btn btn-secondary">Cancel</a>
+        <a href={`/trees/${treeSlug}/admin/families`} className="btn btn-secondary">Cancel</a>
       </div>
     </form>
   );

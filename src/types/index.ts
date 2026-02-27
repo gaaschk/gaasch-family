@@ -15,6 +15,8 @@ declare module 'next-auth' {
 // Matches Prisma Person model (returned from API)
 export interface Person {
   id: string;
+  treeId: string | null;
+  gedcomId: string | null;
   name: string;
   sex: string | null;
   birthDate: string | null;
@@ -33,6 +35,8 @@ export interface Person {
 // Matches Prisma Family model (returned from API)
 export interface Family {
   id: string;
+  treeId: string | null;
+  gedcomId: string | null;
   husbId: string | null;
   wifeId: string | null;
   marrDate: string | null;
@@ -51,6 +55,7 @@ export interface FamilyChild {
 }
 
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'pending';
+export type TreeRole = 'admin' | 'editor' | 'viewer';
 
 export interface UserProfile {
   id: string;
@@ -59,6 +64,38 @@ export interface UserProfile {
   role: UserRole;
   createdAt: string;
   updatedAt: string;
+}
+
+// Tree models
+export interface Tree {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TreeMember {
+  id: string;
+  treeId: string;
+  userId: string;
+  role: TreeRole;
+  joinedAt: string;
+  user?: UserProfile;
+}
+
+export interface TreeInvite {
+  id: string;
+  treeId: string;
+  email: string;
+  role: TreeRole;
+  token: string;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
 }
 
 // API response wrappers

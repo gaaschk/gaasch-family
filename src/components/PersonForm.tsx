@@ -5,16 +5,15 @@ import { useRouter } from 'next/navigation';
 import type { Person } from '@/types';
 
 interface PersonFormProps {
+  treeSlug: string;
   person?: Person;
-  nextId?: string;
 }
 
-export default function PersonForm({ person, nextId }: PersonFormProps) {
+export default function PersonForm({ treeSlug, person }: PersonFormProps) {
   const router = useRouter();
   const isNew = !person;
 
   const [fields, setFields] = useState({
-    id:          person?.id          ?? nextId ?? '',
     name:        person?.name        ?? '',
     sex:         person?.sex         ?? '',
     birthDate:   person?.birthDate   ?? '',
@@ -45,7 +44,7 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
     setFields(f => ({ ...f, narrative: '' }));
 
     try {
-      const res = await fetch(`/api/people/${encodeURIComponent(person.id)}/generate-narrative`, {
+      const res = await fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(person.id)}/generate-narrative`, {
         method: 'POST',
       });
 
@@ -87,8 +86,10 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
     setStatus('saving');
     setError('');
 
-    const url     = isNew ? '/api/people' : `/api/people/${person!.id}`;
-    const method  = isNew ? 'POST' : 'PATCH';
+    const url    = isNew
+      ? `/api/trees/${treeSlug}/people`
+      : `/api/trees/${treeSlug}/people/${person!.id}`;
+    const method = isNew ? 'POST' : 'PATCH';
 
     const body = isNew
       ? fields
@@ -119,28 +120,14 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
       return;
     }
 
-    router.push('/admin/people');
+    router.push(`/trees/${treeSlug}/admin/people`);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-grid">
-        {isNew && (
-          <div className="form-group">
-            <label className="form-label" htmlFor="pf-id">ID</label>
-            <input
-              id="pf-id"
-              className="form-input"
-              value={fields.id}
-              onChange={set('id')}
-              placeholder="@I500001@"
-              required
-            />
-          </div>
-        )}
-
-        <div className="form-group" style={isNew ? {} : { gridColumn: '1 / -1' }}>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
           <label className="form-label" htmlFor="pf-name">Name *</label>
           <input
             id="pf-name"
@@ -308,7 +295,7 @@ export default function PersonForm({ person, nextId }: PersonFormProps) {
         <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
           {status === 'saving' ? 'Saving…' : isNew ? 'Create person' : 'Save changes'}
         </button>
-        <a href="/admin/people" className="btn btn-secondary">Cancel</a>
+        <a href={`/trees/${treeSlug}/admin/people`} className="btn btn-secondary">Cancel</a>
       </div>
     </form>
   );

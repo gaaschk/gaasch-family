@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Person } from '@/types';
 
 interface PersonSearchProps {
+  treeSlug: string;
   value: Person | null;
   onChange: (person: Person | null) => void;
   placeholder?: string;
@@ -21,7 +22,7 @@ function personMeta(p: Person) {
   return parts.join(' · ');
 }
 
-export default function PersonSearch({ value, onChange, placeholder = 'Search by name…', label }: PersonSearchProps) {
+export default function PersonSearch({ treeSlug, value, onChange, placeholder = 'Search by name…', label }: PersonSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Person[]>([]);
   const [open, setOpen] = useState(false);
@@ -32,7 +33,7 @@ export default function PersonSearch({ value, onChange, placeholder = 'Search by
 
   const search = useCallback((q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
-    fetch(`/api/people?q=${encodeURIComponent(q)}&limit=10`)
+    fetch(`/api/trees/${treeSlug}/people?q=${encodeURIComponent(q)}&limit=10`)
       .then(r => r.json())
       .then(data => {
         setResults(data.data ?? []);
@@ -40,7 +41,7 @@ export default function PersonSearch({ value, onChange, placeholder = 'Search by
         setFocusedIdx(-1);
       })
       .catch(() => setResults([]));
-  }, []);
+  }, [treeSlug]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

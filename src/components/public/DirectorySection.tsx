@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Person, PaginatedResponse } from '@/types';
-import { DIRECT_LINE_IDS } from './chapters';
 
 const PAGE_SIZE = 50;
 
@@ -20,12 +19,12 @@ function formatLifespan(p: Person) {
 }
 
 interface DirectorySectionProps {
+  treeSlug: string;
   onSelectPerson?: (id: string) => void;
 }
 
-export default function DirectorySection({ onSelectPerson }: DirectorySectionProps) {
+export default function DirectorySection({ treeSlug, onSelectPerson }: DirectorySectionProps) {
   const [q, setQ]           = useState('');
-  const [place, setPlace]   = useState('');
   const [surname, setSurname] = useState('');
   const [page, setPage]     = useState(0);
   const [data, setData]     = useState<Person[]>([]);
@@ -34,45 +33,44 @@ export default function DirectorySection({ onSelectPerson }: DirectorySectionPro
   const [gedcomLoading, setGedcomLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback((query: string, placeFilter: string, surnameFilter: string, pg: number) => {
+  const load = useCallback((query: string, surnameFilter: string, pg: number) => {
     setLoading(true);
     const params = new URLSearchParams({
       q:       query,
-      place:   placeFilter,
       surname: surnameFilter,
       limit:   String(PAGE_SIZE),
       offset:  String(pg * PAGE_SIZE),
     });
-    fetch(`/api/people?${params}`)
+    fetch(`/api/trees/${treeSlug}/people?${params}`)
       .then(r => r.json())
       .then((res: PaginatedResponse<Person>) => {
         setData(res.data);
         setTotal(res.total);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [treeSlug]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(0);
-      load(q, place, surname, 0);
+      load(q, surname, 0);
     }, 250);
-  }, [q, place, surname, load]);
+  }, [q, surname, load]);
 
   useEffect(() => {
-    load(q, place, surname, page);
+    load(q, surname, page);
   }, [page]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleGedcomDownload() {
     setGedcomLoading(true);
     try {
-      const res = await fetch('/api/export/gedcom');
+      const res = await fetch(`/api/trees/${treeSlug}/export/gedcom`);
       const text = await res.text();
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url; a.download = 'gaasch-family.ged';
+      a.href = url; a.download = `${treeSlug}.ged`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
@@ -91,9 +89,6 @@ export default function DirectorySection({ onSelectPerson }: DirectorySectionPro
           <span className="chapter-num">Full Record</span>
           <h2>All People</h2>
           <p className="chapter-meta">Every person in the family tree, searchable and sortable</p>
-          <p className="dir-legend">
-            <span className="dir-legend-star">★</span> marks the nine direct paternal-line ancestors
-          </p>
         </div>
 
         <div className="dir-export-row">
@@ -119,16 +114,6 @@ export default function DirectorySection({ onSelectPerson }: DirectorySectionPro
             onChange={e => setQ(e.target.value)}
             autoComplete="off"
           />
-          <label className="sr-only" htmlFor="dir-place">Filter by place</label>
-          <select id="dir-place" value={place} onChange={e => setPlace(e.target.value)}>
-            <option value="">All places</option>
-            <option value="Luxembourg">Luxembourg</option>
-            <option value="Iowa">Iowa</option>
-            <option value="Kansas">Kansas</option>
-            <option value="Oklahoma">Oklahoma</option>
-            <option value="Texas">Texas</option>
-            <option value="West Virginia">West Virginia</option>
-          </select>
         </div>
 
         <div className="directory-stats">
@@ -141,22 +126,20 @@ export default function DirectorySection({ onSelectPerson }: DirectorySectionPro
         </div>
 
         {!loading && data.length === 0 ? (
-          <div className="dir-empty">No people match these filters — try a different name or place.</div>
+          <div className="dir-empty">No people match these filters — try a different search.</div>
         ) : (
           <div className="directory-list">
             {data.map(p => {
-              const isDirect = DIRECT_LINE_IDS.has(p.id);
               const lifespan = formatLifespan(p);
               return (
                 <div
                   key={p.id}
-                  className={`dir-row${isDirect ? ' dir-row--direct' : ''}`}
+                  className="dir-row"
                   onClick={() => onSelectPerson?.(p.id)}
                   role={onSelectPerson ? 'button' : undefined}
                   tabIndex={onSelectPerson ? 0 : undefined}
                 >
                   <div className="dir-name">
-                    {isDirect && <span className="dir-legend-star">★ </span>}
                     {cleanName(p.name)}
                   </div>
                   <div className="dir-meta">
