@@ -54,6 +54,7 @@ export default async function TreeAdminLayout({ children, params }: Props) {
   if (!treeRole) redirect('/dashboard');
 
   const isAdmin = treeRole === 'admin';
+  const isPlatformAdmin = session.user.role === 'admin';
   const base = `/trees/${tree.slug}/admin`;
 
   return (
@@ -110,13 +111,31 @@ export default async function TreeAdminLayout({ children, params }: Props) {
           <Link href="/dashboard" className="admin-nav-link">
             All Trees
           </Link>
+
+          {isPlatformAdmin && (
+            <>
+              <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
+                Platform
+              </span>
+              <Link href="/admin" className="admin-nav-link">
+                System Admin &rarr;
+              </Link>
+            </>
+          )}
         </nav>
 
         <div className="admin-sidebar-footer">
           <p className="admin-user-email" title={session.user.email ?? ''}>
             {session.user.email}
           </p>
-          <span className={`admin-role-badge ${treeRole}`}>{treeRole}</span>
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <span className={`admin-role-badge ${treeRole}`}>
+              tree: {treeRole}
+            </span>
+            {isPlatformAdmin && (
+              <span className="admin-role-badge admin">platform admin</span>
+            )}
+          </div>
           <SignOutButton />
         </div>
       </aside>

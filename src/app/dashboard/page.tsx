@@ -45,7 +45,10 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const hasAnything = ownedTrees.length > 0 || memberRows.length > 0;
+  const ownedIds = new Set(ownedTrees.map(t => t.id));
+  const nonOwnedMemberRows = memberRows.filter(row => !ownedIds.has(row.tree.id));
+
+  const hasAnything = ownedTrees.length > 0 || nonOwnedMemberRows.length > 0;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--parchment)' }}>
@@ -106,6 +109,42 @@ export default async function DashboardPage() {
             + Create new tree
           </Link>
         </div>
+
+        {session.user.role === 'admin' && (
+          <section style={{ marginBottom: '2.5rem' }}>
+            <h2
+              style={{
+                fontFamily: 'var(--font-sc)',
+                fontSize: '0.8rem',
+                letterSpacing: '0.08em',
+                color: 'var(--sepia)',
+                textTransform: 'uppercase',
+                marginBottom: '1rem',
+              }}
+            >
+              System Admin
+            </h2>
+            <Link
+              href="/admin"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                border: '1px solid var(--border-light)',
+                borderRadius: 8,
+                padding: '0.9rem 1.25rem',
+                background: '#fff',
+                color: 'var(--ink)',
+                textDecoration: 'none',
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-sc)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Platform Management &rarr;
+            </Link>
+          </section>
+        )}
 
         {!hasAnything && (
           <div
@@ -171,7 +210,7 @@ export default async function DashboardPage() {
           </section>
         )}
 
-        {memberRows.length > 0 && (
+        {nonOwnedMemberRows.length > 0 && (
           <section>
             <h2
               style={{
@@ -192,7 +231,7 @@ export default async function DashboardPage() {
                 gap: '1rem',
               }}
             >
-              {memberRows.map(row => (
+              {nonOwnedMemberRows.map(row => (
                 <TreeCard
                   key={row.tree.id}
                   slug={row.tree.slug}

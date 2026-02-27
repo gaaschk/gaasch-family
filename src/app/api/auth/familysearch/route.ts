@@ -14,5 +14,5 @@ export async function GET(req: NextRequest) {
   const treeSlug = req.nextUrl.searchParams.get('treeSlug') ?? '';
   const state = Buffer.from(JSON.stringify({ treeSlug, userId: session.user.id })).toString('base64url');
 
-  return NextResponse.redirect(getFsAuthUrl(state));
+  return NextResponse.redirect(await getFsAuthUrl(state));
 }

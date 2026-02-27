@@ -223,6 +223,14 @@ model FamilySearchToken {
   @@map("familysearch_tokens")
 }
 
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   tableName String   @map("table_name")

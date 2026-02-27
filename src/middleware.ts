@@ -9,17 +9,12 @@ export default auth((req) => {
   const session     = req.auth;
   const pathname    = nextUrl.pathname;
 
-  // Legacy /admin → redirect to /dashboard
-  if (pathname === '/admin' || pathname === '/admin/') {
-    return NextResponse.redirect(new URL('/dashboard', nextUrl));
-  }
-
-  const isOldAdmin   = pathname.startsWith('/admin');
+  const isAdminArea  = pathname.startsWith('/admin');
   const isDashboard  = pathname.startsWith('/dashboard');
   const isTreeRoute  = pathname.startsWith('/trees/');
   const isInvite     = pathname.startsWith('/invite/');
 
-  const requiresAuth = isOldAdmin || isDashboard || isTreeRoute || isInvite;
+  const requiresAuth = isAdminArea || isDashboard || isTreeRoute || isInvite;
 
   if (requiresAuth && !session?.user) {
     const loginUrl = new URL('/login', nextUrl);
@@ -29,6 +24,11 @@ export default auth((req) => {
 
   if (requiresAuth && session?.user?.role === 'pending') {
     return NextResponse.redirect(new URL('/awaiting-approval', nextUrl));
+  }
+
+  // System admin area requires platform admin role
+  if (isAdminArea && session?.user?.role !== 'admin') {
+    return NextResponse.redirect(new URL('/dashboard', nextUrl));
   }
 
   return NextResponse.next();

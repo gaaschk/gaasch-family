@@ -6,6 +6,14 @@ import { prisma } from './prisma';
 
 const IS_SANDBOX = process.env.FAMILYSEARCH_ENV === 'sandbox';
 
+async function getSystemSetting(key: string, envFallback: string): Promise<string> {
+  try {
+    const row = await prisma.systemSetting.findUnique({ where: { key } });
+    if (row?.value) return row.value;
+  } catch { /* DB not available during build */ }
+  return process.env[envFallback] ?? '';
+}
+
 export const FS_API   = IS_SANDBOX ? 'https://beta.familysearch.org' : 'https://api.familysearch.org';
 const FS_AUTH_BASE    = IS_SANDBOX ? 'https://identbeta.familysearch.org' : 'https://ident.familysearch.org';
 const FS_TOKEN_URL    = `${FS_AUTH_BASE}/cis-web/oauth2/v3/token`;
@@ -17,10 +25,11 @@ function redirectUri() {
 
 // ── OAuth ──────────────────────────────────────────────────────────────────
 
-export function getFsAuthUrl(state: string) {
+export async function getFsAuthUrl(state: string) {
+  const clientId = await getSystemSetting('fs_client_id', 'FAMILYSEARCH_CLIENT_ID');
   const p = new URLSearchParams({
     response_type: 'code',
-    client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
+    client_id:     clientId,
     redirect_uri:  redirectUri(),
     scope:         'openid profile',
     state,
@@ -29,14 +38,18 @@ export function getFsAuthUrl(state: string) {
 }
 
 export async function exchangeCode(code: string) {
+  const [clientId, clientSecret] = await Promise.all([
+    getSystemSetting('fs_client_id', 'FAMILYSEARCH_CLIENT_ID'),
+    getSystemSetting('fs_client_secret', 'FAMILYSEARCH_CLIENT_SECRET'),
+  ]);
   const res = await fetch(FS_TOKEN_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type:    'authorization_code',
       code,
-      client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
-      client_secret: process.env.FAMILYSEARCH_CLIENT_SECRET!,
+      client_id:     clientId,
+      client_secret: clientSecret,
       redirect_uri:  redirectUri(),
     }),
   });
@@ -50,14 +63,18 @@ export async function exchangeCode(code: string) {
 }
 
 async function doRefresh(refreshToken: string) {
+  const [clientId, clientSecret] = await Promise.all([
+    getSystemSetting('fs_client_id', 'FAMILYSEARCH_CLIENT_ID'),
+    getSystemSetting('fs_client_secret', 'FAMILYSEARCH_CLIENT_SECRET'),
+  ]);
   const res = await fetch(FS_TOKEN_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type:    'refresh_token',
       refresh_token: refreshToken,
-      client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
-      client_secret: process.env.FAMILYSEARCH_CLIENT_SECRET!,
+      client_id:     clientId,
+      client_secret: clientSecret,
     }),
   });
   if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
