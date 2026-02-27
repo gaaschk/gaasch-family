@@ -119,6 +119,11 @@ export default function TreeExplorer({
   const [pathToRoot, setPathToRoot] = useState<PathNode[]>([]);
   const cache = useRef<Map<string, PersonFull>>(new Map());
 
+  // Lineage story modal
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storyHtml, setStoryHtml] = useState('');
+  const [storyGenerating, setStoryGenerating] = useState(false);
+
   // Search state
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Person[]>([]);
@@ -199,6 +204,38 @@ export default function TreeExplorer({
     navigateTo(p.id);
   }
 
+  async function generateStory() {
+    if (pathToRoot.length === 0) return;
+    setStoryHtml('');
+    setStoryGenerating(true);
+    setStoryOpen(true);
+    try {
+      const res = await fetch(`/api/trees/${treeSlug}/generate-lineage-story`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personIds: pathToRoot.map(n => n.id) }),
+      });
+      if (!res.ok || !res.body) {
+        setStoryHtml('<p class="body-text">Failed to generate story.</p>');
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setStoryHtml(accumulated);
+      }
+      // Strip code fences if model wraps in them
+      accumulated = accumulated.replace(/^```(?:html)?\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      setStoryHtml(accumulated);
+    } finally {
+      setStoryGenerating(false);
+    }
+  }
+
   if (!person && loading) {
     return (
       <div className="chapters-section">
@@ -241,7 +278,89 @@ export default function TreeExplorer({
               );
             })}
           </div>
+
+          {/* Generate lineage story button */}
+          <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
+            <button
+              onClick={generateStory}
+              disabled={storyGenerating}
+              style={{
+                width: '100%',
+                background: 'rgba(196,150,42,0.12)',
+                border: '1px solid rgba(196,150,42,0.35)',
+                borderRadius: 4,
+                color: 'var(--gold-light)',
+                fontFamily: 'var(--font-sc)',
+                fontSize: '0.6rem',
+                letterSpacing: '0.1em',
+                padding: '0.5rem 0.4rem',
+                cursor: storyGenerating ? 'wait' : 'pointer',
+                lineHeight: 1.4,
+                transition: 'background 0.15s',
+              }}
+            >
+              {storyGenerating ? 'Generating…' : 'Generate Story'}
+            </button>
+          </div>
         </nav>
+      )}
+
+      {/* ── Lineage story modal ── */}
+      {storyOpen && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setStoryOpen(false); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(26,18,8,0.75)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            padding: '3rem 1rem',
+            overflowY: 'auto',
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--parchment)',
+              border: '2px solid var(--gold)',
+              borderRadius: 6,
+              maxWidth: 720,
+              width: '100%',
+              padding: '2.5rem 2.5rem 3rem',
+              position: 'relative',
+            }}
+          >
+            <button
+              onClick={() => setStoryOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1.25rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--sepia)',
+                fontSize: '1.4rem',
+                lineHeight: 1,
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {storyGenerating && !storyHtml && (
+              <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>
+                Generating lineage story…
+              </p>
+            )}
+
+            {storyHtml && (
+              <div dangerouslySetInnerHTML={{ __html: storyHtml }} />
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Main chapter area ── */}
