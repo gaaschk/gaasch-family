@@ -171,9 +171,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     await prisma.$transaction(
       batch.map(p =>
         prisma.person.upsert({
-          where: { treeId_gedcomId: { treeId: tree.id, gedcomId: p.id } },
+          where: { id: p.id },
           create: {
-            treeId: tree.id, gedcomId: p.id,
+            id: p.id, treeId: tree.id, gedcomId: p.id,
             name: p.name, sex: p.sex,
             birthDate: p.birthDate, birthPlace: p.birthPlace,
             deathDate: p.deathDate, deathPlace: p.deathPlace,
@@ -200,9 +200,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     await prisma.$transaction(
       batch.map(f =>
         prisma.family.upsert({
-          where: { treeId_gedcomId: { treeId: tree.id, gedcomId: f.id } },
+          where: { id: f.id },
           create: {
-            treeId: tree.id, gedcomId: f.id,
+            id: f.id, treeId: tree.id, gedcomId: f.id,
             husbId: f.husbId, wifeId: f.wifeId,
             marrDate: f.marrDate, marrPlace: f.marrPlace,
           },
