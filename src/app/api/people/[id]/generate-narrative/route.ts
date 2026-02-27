@@ -144,8 +144,11 @@ ${lines.join('\n')}`;
           }
         }
 
+        // Strip markdown code fences if the model wrapped its output
+        const cleaned = fullText.replace(/^```(?:html)?\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+
         // Save to DB once generation is complete
-        await prisma.person.update({ where: { id }, data: { narrative: fullText } });
+        await prisma.person.update({ where: { id }, data: { narrative: cleaned } });
 
         await prisma.auditLog.create({
           data: {
@@ -153,7 +156,7 @@ ${lines.join('\n')}`;
             recordId:  id,
             action:    'generate-narrative',
             oldData:   JSON.stringify({ narrative: person.narrative }),
-            newData:   JSON.stringify({ narrative: fullText }),
+            newData:   JSON.stringify({ narrative: cleaned }),
             userId:    auth.userId === 'api' ? null : auth.userId,
           },
         });
