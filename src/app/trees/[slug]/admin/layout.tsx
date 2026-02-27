@@ -93,15 +93,14 @@ export default async function TreeAdminLayout({ children, params }: Props) {
               <Link href={`${base}/settings`} className="admin-nav-link">
                 Settings
               </Link>
+              <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
+                Integrations
+              </span>
+              <Link href={`${base}/familysearch`} className="admin-nav-link">
+                FamilySearch
+              </Link>
             </>
           )}
-
-          <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
-            Integrations
-          </span>
-          <Link href={`${base}/familysearch`} className="admin-nav-link">
-            FamilySearch
-          </Link>
 
           <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
             Tree

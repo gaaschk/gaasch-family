@@ -90,11 +90,17 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
     const toRemove = existing.filter(id => !desired.includes(id));
 
     if (toAdd.length > 0 || toRemove.length > 0) {
-      await fetch(`/api/trees/${treeSlug}/families/${familyId}/children`, {
+      const childRes = await fetch(`/api/trees/${treeSlug}/families/${familyId}/children`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ add: toAdd, remove: toRemove }),
       });
+      if (!childRes.ok) {
+        const data = await childRes.json().catch(() => ({})) as { error?: string };
+        setError(data.error ?? 'Failed to update children');
+        setStatus('error');
+        return;
+      }
     }
 
     router.push(`/trees/${treeSlug}/admin/families`);

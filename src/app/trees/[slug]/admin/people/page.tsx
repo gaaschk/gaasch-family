@@ -34,11 +34,12 @@ export default function TreePeoplePage() {
         offset: String(pg * PAGE_SIZE),
       });
       fetch(`/api/trees/${treeSlug}/people?${urlParams}`)
-        .then(r => r.json())
+        .then(r => r.ok ? r.json() : Promise.reject())
         .then((res: PaginatedResponse<Person>) => {
           setData(res.data);
           setTotal(res.total);
         })
+        .catch(() => {})
         .finally(() => setLoading(false));
     },
     [treeSlug],

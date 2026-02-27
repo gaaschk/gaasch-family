@@ -23,6 +23,7 @@ export default function HomePage() {
   const [ownedTrees, setOwnedTrees] = useState<Tree[]>([]);
   const [memberTrees, setMemberTrees] = useState<Tree[]>([]);
   const [ready, setReady] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     // Read last-viewed from localStorage (client only)
@@ -33,13 +34,13 @@ export default function HomePage() {
 
     // Fetch the user's trees
     fetch('/api/trees')
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: { owned: Tree[]; member: Tree[] }) => {
         const ownedIds = new Set((data.owned ?? []).map(t => t.id));
         setOwnedTrees(data.owned ?? []);
         setMemberTrees((data.member ?? []).filter(t => !ownedIds.has(t.id)));
       })
-      .catch(() => {})
+      .catch(() => setFetchError(true))
       .finally(() => setReady(true));
   }, []);
 
@@ -56,7 +57,17 @@ export default function HomePage() {
       </nav>
 
       <div className="pub-page">
-        {!ready ? null : !hasTrees ? (
+        {!ready ? null : fetchError ? (
+          /* ── Fetch error state ── */
+          <section className="hero-section" style={{ paddingTop: '5rem' }}>
+            <div className="hero-ornament">✦ ✦ ✦</div>
+            <h1 style={{ fontSize: '1.6rem' }}>Welcome</h1>
+            <div className="hero-rule" />
+            <p className="hero-body" style={{ color: 'var(--rust)' }}>
+              Could not load your trees — please refresh the page.
+            </p>
+          </section>
+        ) : !hasTrees ? (
           /* ── Empty state ── */
           <section className="hero-section" style={{ paddingTop: '5rem' }}>
             <div className="hero-ornament">✦ ✦ ✦</div>

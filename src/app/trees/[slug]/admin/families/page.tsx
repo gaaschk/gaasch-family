@@ -33,11 +33,12 @@ export default function TreeFamiliesPage() {
         offset: String(pg * PAGE_SIZE),
       });
       fetch(`/api/trees/${treeSlug}/families?${urlParams}`)
-        .then(r => r.json())
+        .then(r => r.ok ? r.json() : Promise.reject())
         .then((res: PaginatedResponse<Family>) => {
           setData(res.data);
           setTotal(res.total);
         })
+        .catch(() => {})
         .finally(() => setLoading(false));
     },
     [treeSlug],

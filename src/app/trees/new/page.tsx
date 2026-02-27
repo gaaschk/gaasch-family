@@ -149,7 +149,7 @@ export default function NewTreePage() {
                 className="form-input"
                 value={name}
                 onChange={e => handleNameChange(e.target.value)}
-                placeholder="Gaasch Family"
+                placeholder="Smith Family"
                 required
                 autoFocus
               />
@@ -167,7 +167,7 @@ export default function NewTreePage() {
                 className="form-input"
                 value={slug}
                 onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="gaasch-family"
+                placeholder="smith-family"
                 pattern="[a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9]"
                 title="Lowercase letters, numbers, and hyphens."
                 required
@@ -227,7 +227,7 @@ export default function NewTreePage() {
                   className="form-input"
                   value={personName}
                   onChange={e => setPersonName(e.target.value)}
-                  placeholder="Johann Gaasch"
+                  placeholder="First Last"
                 />
               </div>
 

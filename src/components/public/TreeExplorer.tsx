@@ -157,6 +157,7 @@ export default function TreeExplorer({
   const [fsMatches, setFsMatches]     = useState<FsMatch[]>([]);
   const [fsOpen, setFsOpen]           = useState(false);
   const [fsActing, setFsActing]       = useState<string | null>(null); // matchId being processed
+  const [fsActionError, setFsActionError] = useState('');
 
   // Search state
   const [query, setQuery] = useState('');
@@ -299,6 +300,7 @@ export default function TreeExplorer({
 
   async function handleFsAction(matchId: string, action: 'accept' | 'reject', updateFields = false) {
     setFsActing(matchId);
+    setFsActionError('');
     try {
       const res = await fetch(
         `/api/trees/${treeSlug}/people/${encodeURIComponent(currentId!)}/fs-matches/${matchId}`,
@@ -311,8 +313,10 @@ export default function TreeExplorer({
       if (res.ok) {
         const data = await res.json() as { person?: PersonFull };
         setFsMatches(prev => prev.filter(m => m.id !== matchId));
-        // If fields were updated, refresh the person view
         if (data.person && currentId) await navigateTo(currentId);
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setFsActionError(data.error ?? `Action failed (${res.status})`);
       }
     } finally {
       setFsActing(null);
@@ -754,6 +758,12 @@ export default function TreeExplorer({
               );
             })}
           </div>
+        )}
+
+        {fsActionError && (
+          <p style={{ color: 'var(--rust)', fontSize: '0.82rem', margin: '0 2rem 1rem', textAlign: 'center' }}>
+            {fsActionError}
+          </p>
         )}
 
         {/* 3-col layout: parents | narrative | children */}

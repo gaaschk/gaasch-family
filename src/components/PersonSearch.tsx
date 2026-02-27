@@ -34,8 +34,8 @@ export default function PersonSearch({ treeSlug, value, onChange, placeholder = 
   const search = useCallback((q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
     fetch(`/api/trees/${treeSlug}/people?q=${encodeURIComponent(q)}&limit=10`)
-      .then(r => r.json())
-      .then(data => {
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: { data: Person[] }) => {
         setResults(data.data ?? []);
         setOpen(true);
         setFocusedIdx(-1);

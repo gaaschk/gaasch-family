@@ -16,18 +16,20 @@ export default function SystemUsersPage() {
   const [users, setUsers]           = useState<User[]>([]);
   const [loading, setLoading]       = useState(true);
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [roleError, setRoleError]   = useState('');
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     setLoading(true);
     fetch('/api/users')
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: User[]) => {
         setUsers(data);
         setPendingRoles(Object.fromEntries(
           data.filter((u: User) => u.role === 'pending').map((u: User) => [u.id, 'viewer'])
         ));
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,12 +37,18 @@ export default function SystemUsersPage() {
 
   async function handleRoleChange(userId: string, role: string) {
     setChangingRole(userId);
-    await fetch(`/api/users/${userId}`, {
+    setRoleError('');
+    const res = await fetch(`/api/users/${userId}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ role }),
     });
     setChangingRole(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string };
+      setRoleError(data.error ?? `Role change failed (${res.status})`);
+      return;
+    }
     load();
   }
 
@@ -60,6 +68,10 @@ export default function SystemUsersPage() {
           )}
         </span>
       </div>
+
+      {roleError && (
+        <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{roleError}</p>
+      )}
 
       {loading ? (
         <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>

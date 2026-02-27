@@ -41,8 +41,9 @@ export default function TreeMembersPage() {
   const load = useCallback(() => {
     setLoading(true);
     fetch(`/api/trees/${treeSlug}/members`)
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((res: MembersResponse) => setData(res))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [treeSlug]);
 

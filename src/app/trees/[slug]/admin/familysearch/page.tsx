@@ -31,6 +31,7 @@ export default function FamilySearchPage() {
   const [importing, setImporting]   = useState(false);
   const [importResult, setImportResult] = useState<{ people: number; families: number } | null>(null);
   const [importError, setImportError] = useState('');
+  const [disconnectError, setDisconnectError] = useState('');
 
   const fsError    = searchParams.get('fs_error');
   const fsConnected = searchParams.get('fs_connected');
@@ -38,8 +39,11 @@ export default function FamilySearchPage() {
   // Load connection status
   useEffect(() => {
     fetch(`/api/trees/${treeSlug}/familysearch?status=1`)
-      .then(r => r.json())
-      .then(d => { setConnected(d.connected); setDisplayName(d.displayName); })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: { connected: boolean; displayName: string | null }) => {
+        setConnected(d.connected);
+        setDisplayName(d.displayName);
+      })
       .catch(() => setConnected(false));
   }, [treeSlug, fsConnected]);
 
@@ -88,7 +92,13 @@ export default function FamilySearchPage() {
   }
 
   async function disconnect() {
-    await fetch(`/api/trees/${treeSlug}/familysearch`, { method: 'DELETE' });
+    setDisconnectError('');
+    const res = await fetch(`/api/trees/${treeSlug}/familysearch`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string };
+      setDisconnectError(data.error ?? 'Disconnect failed');
+      return;
+    }
     setConnected(false);
     setDisplayName(null);
     setResults([]);
@@ -138,24 +148,31 @@ export default function FamilySearchPage() {
         )}
 
         {connected === true && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                fontSize: '0.85rem', color: 'var(--ink)',
-              }}
-            >
-              <span style={{ color: '#4caf50', fontSize: '0.7rem' }}>●</span>
-              Connected{displayName ? ` as ${displayName}` : ''}
-            </span>
-            <button
-              className="btn"
-              style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
-              onClick={disconnect}
-            >
-              Disconnect
-            </button>
-          </div>
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                  fontSize: '0.85rem', color: 'var(--ink)',
+                }}
+              >
+                <span style={{ color: '#4caf50', fontSize: '0.7rem' }}>●</span>
+                Connected{displayName ? ` as ${displayName}` : ''}
+              </span>
+              <button
+                className="btn"
+                style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                onClick={disconnect}
+              >
+                Disconnect
+              </button>
+            </div>
+            {disconnectError && (
+              <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                {disconnectError}
+              </p>
+            )}
+          </>
         )}
       </section>
 

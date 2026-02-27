@@ -29,7 +29,7 @@ export default function SettingsClient({ treeSlug }: { treeSlug: string }) {
 
   useEffect(() => {
     fetch(`/api/trees/${treeSlug}/members`)
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: { members: Member[]; isOwner?: boolean }) => {
         setMembers(data.members ?? []);
         setIsOwner(data.isOwner ?? false);
@@ -39,7 +39,7 @@ export default function SettingsClient({ treeSlug }: { treeSlug: string }) {
 
   useEffect(() => {
     fetch(`/api/trees/${treeSlug}/settings`)
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: Setting[]) => {
         const t = data.find(s => s.key === 'api_token');
         const d = data.find(s => s.key === 'default_person_id');
