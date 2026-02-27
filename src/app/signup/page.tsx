@@ -39,14 +39,13 @@ export default function SignupPage() {
       <div className="login-card">
         <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
         <h1 className="login-title">The Gaasch Family</h1>
-        <p className="login-subtitle">Request Access</p>
+        <p className="login-subtitle">Create an Account</p>
 
         {status === 'sent' ? (
           <div className="login-success">
             <p>Check <strong>{email}</strong> for a verification link.</p>
             <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
-              Click the link to create your password. After that, an admin will
-              approve your access level before you can sign in.
+              Click the link to set your password and sign in.
             </p>
           </div>
         ) : (

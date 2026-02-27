@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       })
     : [];
 
-  return NextResponse.json({ members, invites });
+  return NextResponse.json({ members, invites, isOwner: auth.userId === tree.ownerId });
 }
 
 // POST — invite or directly add a member to the tree (admin only)

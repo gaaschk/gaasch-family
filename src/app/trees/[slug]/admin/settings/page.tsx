@@ -5,6 +5,13 @@ import { useParams } from 'next/navigation';
 import PersonSearch from '@/components/PersonSearch';
 import type { Person } from '@/types';
 
+type Member = {
+  id: string;
+  userId: string;
+  role: string;
+  user: { id: string; email: string; name: string | null };
+};
+
 type Setting = { key: string; value: string };
 
 const MODELS = [
@@ -29,6 +36,22 @@ export default function TreeSettingsPage() {
 
   const [defaultPerson, setDefaultPerson] = useState<Person | null>(null);
   const [defaultPersonStatus, setDefaultPersonStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const [members, setMembers]               = useState<Member[]>([]);
+  const [isOwner, setIsOwner]               = useState(false);
+  const [newOwnerId, setNewOwnerId]         = useState('');
+  const [transferStatus, setTransferStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [transferError, setTransferError]   = useState('');
+
+  useEffect(() => {
+    fetch(`/api/trees/${treeSlug}/members`)
+      .then(r => r.json())
+      .then((data: { members: Member[]; isOwner?: boolean }) => {
+        setMembers(data.members ?? []);
+        setIsOwner(data.isOwner ?? false);
+      })
+      .catch(() => {});
+  }, [treeSlug]);
 
   useEffect(() => {
     fetch(`/api/trees/${treeSlug}/settings`)
@@ -260,6 +283,92 @@ export default function TreeSettingsPage() {
           {defaultPersonStatus === 'saving' ? 'Saving…' : 'Save starting person'}
         </button>
       </section>
+
+      {/* Transfer Ownership */}
+      {isOwner && members.length > 1 && (
+        <section
+          style={{
+            marginTop: '2.5rem',
+            paddingTop: '1.5rem',
+            borderTop: '1px solid var(--border-light)',
+            maxWidth: 520,
+          }}
+        >
+          <p className="section-title" style={{ marginBottom: '0.5rem', color: 'var(--rust)' }}>
+            Transfer Ownership
+          </p>
+          <p
+            style={{
+              fontSize: '0.82rem',
+              color: 'var(--sepia)',
+              marginBottom: '1.25rem',
+              lineHeight: 1.6,
+            }}
+          >
+            Assign ownership to another tree member. You will remain an admin
+            member of the tree after the transfer.
+          </p>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="new-owner">
+              New owner
+            </label>
+            <select
+              id="new-owner"
+              className="form-select"
+              value={newOwnerId}
+              onChange={e => setNewOwnerId(e.target.value)}
+            >
+              <option value="">— select a member —</option>
+              {members.map(m => (
+                <option key={m.userId} value={m.userId}>
+                  {m.user.email}{m.user.name ? ` (${m.user.name})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {transferStatus === 'error' && (
+            <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              {transferError}
+            </p>
+          )}
+          {transferStatus === 'done' && (
+            <p style={{ color: 'var(--ink)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              Ownership transferred.
+            </p>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={!newOwnerId || transferStatus === 'saving'}
+            onClick={async () => {
+              if (!newOwnerId) return;
+              setTransferStatus('saving');
+              setTransferError('');
+              try {
+                const res = await fetch(`/api/trees/${treeSlug}`, {
+                  method:  'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body:    JSON.stringify({ newOwnerId }),
+                });
+                if (!res.ok) {
+                  const body = await res.json() as { error?: string };
+                  throw new Error(body.error ?? 'Transfer failed');
+                }
+                setTransferStatus('done');
+                setIsOwner(false);
+              } catch (err) {
+                setTransferError(err instanceof Error ? err.message : 'Transfer failed');
+                setTransferStatus('error');
+              }
+            }}
+          >
+            {transferStatus === 'saving' ? 'Transferring…' : 'Transfer ownership'}
+          </button>
+        </section>
+      )}
 
       {/* API Access Token */}
       <section

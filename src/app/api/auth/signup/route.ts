@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // User doesn't exist yet — create a pending account
+  // User doesn't exist yet — create account as viewer (no approval required)
   if (!existing) {
-    await prisma.user.create({ data: { email, role: 'pending' } });
+    await prisma.user.create({ data: { email, role: 'viewer' } });
   }
 
   // Generate a secure token and store it (delete any previous tokens for this email first)

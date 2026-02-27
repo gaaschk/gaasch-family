@@ -31,9 +31,47 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const auth = await requireTreeAccess(treeId, 'admin');
   if (auth instanceof NextResponse) return auth;
 
-  const { tree } = auth;
+  const { tree, userId } = auth;
 
-  const body = (await req.json()) as { name?: string; description?: string };
+  const body = (await req.json()) as { name?: string; description?: string; newOwnerId?: string };
+
+  // Ownership transfer — only the current owner may do this
+  if (body.newOwnerId !== undefined) {
+    if (userId !== tree.ownerId) {
+      return NextResponse.json(
+        { error: 'Only the current owner can transfer ownership' },
+        { status: 403 },
+      );
+    }
+
+    if (body.newOwnerId === userId) {
+      return NextResponse.json({ error: 'Already the owner' }, { status: 400 });
+    }
+
+    const newOwnerMember = await prisma.treeMember.findUnique({
+      where: { treeId_userId: { treeId: tree.id, userId: body.newOwnerId } },
+      include: { user: { select: { id: true, email: true } } },
+    });
+
+    if (!newOwnerMember) {
+      return NextResponse.json(
+        { error: 'New owner must already be a member of this tree' },
+        { status: 400 },
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tree.update({ where: { id: tree.id }, data: { ownerId: body.newOwnerId } });
+      // Keep previous owner as an admin member so they retain access
+      await tx.treeMember.upsert({
+        where:  { treeId_userId: { treeId: tree.id, userId } },
+        update: { role: 'admin' },
+        create: { treeId: tree.id, userId, role: 'admin' },
+      });
+    });
+
+    return NextResponse.json({ ok: true });
+  }
 
   const updated = await prisma.tree.update({
     where: { id: tree.id },
