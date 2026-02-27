@@ -15,6 +15,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   const auth = await requireRoleOrToken(req, 'editor');
   if (auth instanceof NextResponse) return auth;
+  const authorId = auth.userId === 'api' ? null : auth.userId;
 
   const { id } = await params;
 
@@ -145,7 +146,7 @@ ${lines.join('\n')}`;
         action:    'generate-narrative',
         oldData:   JSON.stringify({ narrative: previousNarrative }),
         newData:   JSON.stringify({ narrative: cleaned }),
-        userId:    auth.userId === 'api' ? null : auth.userId,
+        userId:    authorId,
       },
     });
     return cleaned;
