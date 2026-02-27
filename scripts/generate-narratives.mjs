@@ -58,7 +58,7 @@ console.log(`🖊️  Generating narratives for ${ids.length} people at ${BASE_U
 
 let ok = 0, failed = 0;
 
-async function generate(id) {
+async function generate(id, attempt = 1) {
   const url = new URL(`/api/people/${encodeURIComponent(id)}/generate-narrative`, BASE_URL);
   if (MODEL) url.searchParams.set('model', MODEL);
 
@@ -70,6 +70,13 @@ async function generate(id) {
 
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText);
+      const isOverloaded = text.includes('overloaded_error');
+      if (isOverloaded && attempt < 4) {
+        const wait = attempt * 10;
+        console.log(`  ${id.padEnd(14)} ⏳  overloaded, retrying in ${wait}s (attempt ${attempt}/3)…`);
+        await new Promise(r => setTimeout(r, wait * 1000));
+        return generate(id, attempt + 1);
+      }
       console.log(`  ${id.padEnd(14)} ❌  HTTP ${res.status} — ${text.slice(0, 80)}`);
       failed++;
       return;
