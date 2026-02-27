@@ -31,9 +31,31 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-// Default: Lula + full Britton paternal line + spouses
-const DEFAULT_IDS = [
-  '@I500002@', // Lula Annetta Britton
+// Kevin's paternal Gaasch line + spouses (Generation 10 → 1)
+const GAASCH_LINE = [
+  '@I500001@', // Kevin Eugene Gaasch
+  '@I500002@', // Lula Annetta Britton (Kevin's mother)
+  '@I500003@', // Phil Eugene Gaasch
+  '@I500006@', // Elizabeth Adeline Fleming
+  '@I500007@', // Melvin Lloyd Gaasch
+  '@I500009@', // Alice Sypher Jenkinson
+  '@I500008@', // Glenn Melvin Gaasch
+  '@I500012@', // Mary Catherine Woolwine
+  '@I500011@', // Peter Gaasch
+  '@I500020@', // Catherine Sauber
+  '@I500019@', // Joannes Gaasch (emigrant)
+  '@I500036@', // Maria Prima Lorang
+  '@I500035@', // Jacobus Gaasch
+  '@I501476@', // Elisabeth Heiderscheid
+  '@I501475@', // Simon Gaasch
+  '@I501478@', // Jeanne Useldinger
+  '@I501477@', // Nicolas Gaasch
+  '@I501486@', // Anne Nee
+  '@I501485@', // Jean Gaasch (earliest known, Alzingen)
+];
+
+// Lula's paternal Britton line + spouses
+const BRITTON_LINE = [
   '@I500005@', // Charles Homer Britton
   '@I500004@', // Bertha Flois Gunter
   '@I500979@', // Albert Green Britton Jr
@@ -51,6 +73,9 @@ const DEFAULT_IDS = [
   '@I501730@', // William Asa Brittain
   '@I501731@', // Hanna Achea
 ];
+
+// Deduplicated combined list
+const DEFAULT_IDS = [...new Set([...GAASCH_LINE, ...BRITTON_LINE])];
 
 const ids = IDS_ARG ? IDS_ARG.split(',').map(s => s.trim()) : DEFAULT_IDS;
 const modelNote = MODEL ? ` (model: ${MODEL})` : '';
