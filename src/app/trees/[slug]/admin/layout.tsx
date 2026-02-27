@@ -88,7 +88,7 @@ export default async function TreeAdminLayout({ children, params }: Props) {
                 Members
               </Link>
               <Link href={`${base}/import`} className="admin-nav-link">
-                Import GEDCOM
+                Import / Export
               </Link>
               <Link href={`${base}/settings`} className="admin-nav-link">
                 Settings

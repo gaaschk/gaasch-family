@@ -66,6 +66,7 @@ export default function DirectorySection({ treeSlug, onSelectPerson }: Directory
     setGedcomLoading(true);
     try {
       const res = await fetch(`/api/trees/${treeSlug}/export/gedcom`);
+      if (!res.ok) return;
       const text = await res.text();
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       const url  = URL.createObjectURL(blob);

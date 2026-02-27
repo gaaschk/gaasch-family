@@ -407,29 +407,31 @@ export default function TreeExplorer({
             })}
           </div>
 
-          {/* Generate lineage story button */}
-          <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
-            <button
-              onClick={generateStory}
-              disabled={storyGenerating}
-              style={{
-                width: '100%',
-                background: 'rgba(196,150,42,0.12)',
-                border: '1px solid rgba(196,150,42,0.35)',
-                borderRadius: 4,
-                color: 'var(--gold-light)',
-                fontFamily: 'var(--font-sc)',
-                fontSize: '0.6rem',
-                letterSpacing: '0.1em',
-                padding: '0.5rem 0.4rem',
-                cursor: storyGenerating ? 'wait' : 'pointer',
-                lineHeight: 1.4,
-                transition: 'background 0.15s',
-              }}
-            >
-              {storyGenerating ? 'Generating…' : 'Generate Story'}
-            </button>
-          </div>
+          {/* Generate lineage story button — editors/admins only */}
+          {(role === 'editor' || role === 'admin') && (
+            <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
+              <button
+                onClick={generateStory}
+                disabled={storyGenerating}
+                style={{
+                  width: '100%',
+                  background: 'rgba(196,150,42,0.12)',
+                  border: '1px solid rgba(196,150,42,0.35)',
+                  borderRadius: 4,
+                  color: 'var(--gold-light)',
+                  fontFamily: 'var(--font-sc)',
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.1em',
+                  padding: '0.5rem 0.4rem',
+                  cursor: storyGenerating ? 'wait' : 'pointer',
+                  lineHeight: 1.4,
+                  transition: 'background 0.15s',
+                }}
+              >
+                {storyGenerating ? 'Generating…' : 'Generate Story'}
+              </button>
+            </div>
+          )}
         </nav>
       )}
 

@@ -16,7 +16,7 @@ type Params = { params: Promise<{ treeId: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   const { treeId } = await params;
 
-  const auth = await requireTreeAccessOrToken(req, treeId, 'viewer');
+  const auth = await requireTreeAccessOrToken(req, treeId, 'editor');
   if (auth instanceof NextResponse) return auth;
 
   const { tree } = auth;

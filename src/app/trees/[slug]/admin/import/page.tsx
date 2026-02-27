@@ -7,6 +7,8 @@ export default function TreeImportPage() {
   const params = useParams();
   const treeSlug = params.slug as string;
 
+  const [exportLoading, setExportLoading] = useState(false);
+
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [result, setResult] = useState<{ people: number; families: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -43,11 +45,67 @@ export default function TreeImportPage() {
     }
   }
 
+  async function handleExport() {
+    setExportLoading(true);
+    try {
+      const res = await fetch(`/api/trees/${treeSlug}/export/gedcom`);
+      if (!res.ok) return;
+      const text = await res.text();
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `${treeSlug}.ged`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
   return (
     <div className="admin-page">
       <div className="admin-page-header">
-        <h1 className="admin-page-title">Import GEDCOM</h1>
+        <h1 className="admin-page-title">Import / Export</h1>
       </div>
+
+      {/* Export */}
+      <section
+        style={{
+          marginBottom: '2.5rem',
+          paddingBottom: '2.5rem',
+          borderBottom: '1px solid var(--border-light)',
+          maxWidth: 480,
+        }}
+      >
+        <p className="section-title" style={{ marginBottom: '0.5rem' }}>
+          Export GEDCOM
+        </p>
+        <p
+          style={{
+            fontSize: '0.85rem',
+            color: 'var(--sepia)',
+            marginBottom: '1.25rem',
+            lineHeight: 1.6,
+          }}
+        >
+          Download all people and family records as a standard GEDCOM 5.5.1
+          file, compatible with any genealogy application.
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={exportLoading}
+          onClick={handleExport}
+        >
+          {exportLoading ? 'Generating\u2026' : 'Download GEDCOM'}
+        </button>
+      </section>
+
+      {/* Import */}
+      <p className="section-title" style={{ marginBottom: '1.25rem' }}>
+        Import GEDCOM
+      </p>
 
       <form onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
         <div className="form-group" style={{ marginBottom: '1rem' }}>
