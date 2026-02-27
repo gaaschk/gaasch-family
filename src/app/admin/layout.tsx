@@ -46,10 +46,10 @@ export default async function SystemAdminLayout({ children }: { children: React.
           </Link>
 
           <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
-            Integrations
+            Configuration
           </span>
           <Link href="/admin/settings" className="admin-nav-link">
-            FamilySearch
+            AI &amp; Integrations
           </Link>
 
           <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
