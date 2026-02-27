@@ -6,8 +6,6 @@ import { requireRole } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const client = new Anthropic();
-
 function clean(name: string) {
   return name.replace(/\//g, '').replace(/\s+/g, ' ').trim();
 }
@@ -19,6 +17,22 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+
+  // Load API key + model from DB settings
+  const [apiKeySetting, modelSetting] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: 'anthropic_api_key' } }),
+    prisma.setting.findUnique({ where: { key: 'anthropic_model' } }),
+  ]);
+
+  if (!apiKeySetting?.value) {
+    return NextResponse.json(
+      { error: 'Anthropic API key not configured. Go to Admin → Settings.' },
+      { status: 503 },
+    );
+  }
+
+  const client = new Anthropic({ apiKey: apiKeySetting.value });
+  const model  = modelSetting?.value || 'claude-sonnet-4-6';
 
   const person = await prisma.person.findUnique({
     where: { id },
@@ -114,7 +128,7 @@ ${lines.join('\n')}`;
     async start(controller) {
       try {
         const claudeStream = client.messages.stream({
-          model:      'claude-sonnet-4-6',
+          model,
           max_tokens: 1500,
           messages:   [{ role: 'user', content: prompt }],
         });

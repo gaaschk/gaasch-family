@@ -52,6 +52,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link href="/admin/import" className="admin-nav-link">
                 Import GEDCOM
               </Link>
+              <Link href="/admin/settings" className="admin-nav-link">
+                Settings
+              </Link>
             </>
           )}
         </nav>
