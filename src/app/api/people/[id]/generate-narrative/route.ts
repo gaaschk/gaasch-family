@@ -123,6 +123,8 @@ Rules:
 Person data:
 ${lines.join('\n')}`;
 
+  const previousNarrative = person.narrative;
+
   const messageParams = {
     model,
     max_tokens: 1500,
@@ -141,7 +143,7 @@ ${lines.join('\n')}`;
         tableName: 'people',
         recordId:  id,
         action:    'generate-narrative',
-        oldData:   JSON.stringify({ narrative: person.narrative }),
+        oldData:   JSON.stringify({ narrative: previousNarrative }),
         newData:   JSON.stringify({ narrative: cleaned }),
         userId:    auth.userId === 'api' ? null : auth.userId,
       },
