@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Person } from '@/types';
+import ChatPanel from './ChatPanel';
 
 // ── Types from the enriched API response ─────────────────────────────────
 interface PersonRelation {
@@ -505,6 +506,13 @@ export default function TreeExplorer({
           </div>
         )}
       </div>
+
+      {/* ── AI Chat ── */}
+      <ChatPanel
+        treeSlug={treeSlug}
+        currentPersonId={currentId}
+        onNavigateTo={id => { navigateTo(id); }}
+      />
     </section>
   );
 }

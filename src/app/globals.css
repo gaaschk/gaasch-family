@@ -1530,3 +1530,13 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ─── AI Chat panel ─────────────────────────────────────────────────────── */
+.chat-person-link {
+  color: var(--rust);
+  text-decoration: underline;
+  text-decoration-color: rgba(139,69,19,0.35);
+  cursor: pointer;
+  font-weight: 500;
+}
+.chat-person-link:hover { text-decoration-color: var(--rust); }
