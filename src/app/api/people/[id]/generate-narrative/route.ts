@@ -153,7 +153,7 @@ ${lines.join('\n')}`;
             action:    'generate-narrative',
             oldData:   JSON.stringify({ narrative: person.narrative }),
             newData:   JSON.stringify({ narrative: fullText }),
-            userId:    auth.userId,
+            userId:    auth.userId === 'api' ? null : auth.userId,
           },
         });
       } catch (err) {
