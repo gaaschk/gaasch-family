@@ -288,7 +288,7 @@ export default function ChatPanel({
                   >
                     {msg.content}
                   </div>
-                ) : (
+                ) : msg.content ? (
                   <div
                     style={{
                       background:   'var(--parchment-deep)',
@@ -300,9 +300,21 @@ export default function ChatPanel({
                       fontSize:     '0.85rem',
                     }}
                     onClick={handleMessageClick}
-                    dangerouslySetInnerHTML={msg.content ? { __html: msg.content } : undefined}
+                    dangerouslySetInnerHTML={{ __html: msg.content }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      background:   'var(--parchment-deep)',
+                      border:       '1px solid var(--border-light)',
+                      borderLeft:   '3px solid var(--gold)',
+                      borderRadius: '2px 12px 12px 12px',
+                      padding:      '0.75rem 1rem',
+                      maxWidth:     '95%',
+                      fontSize:     '0.85rem',
+                    }}
                   >
-                    {!msg.content && streaming && (
+                    {streaming && (
                       <span style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>…</span>
                     )}
                   </div>
