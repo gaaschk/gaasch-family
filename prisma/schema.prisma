@@ -1,3 +1,17 @@
+// prisma/schema.final.prisma
+//
+// FINAL multi-tenant schema.
+// Copy this file to schema.prisma after running scripts/migrate-to-multi-tenant.ts,
+// then run: npm run db:migrate && npm run db:generate
+//
+// Changes from intermediate schema:
+//   - Person.treeId: String? → String (NOT NULL)
+//   - Person.id: adds @default(cuid()) (existing CUIDs are preserved)
+//   - Person: adds @@unique([treeId, gedcomId])
+//   - Family: same as Person
+//   - Setting: changes PK from key→id, adds @@unique([treeId, key]), treeId NOT NULL
+//   - AuditLog.treeId remains nullable (historical records may not have a tree)
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -44,9 +58,9 @@ model User {
   email         String    @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
-  role          String    @default("pending")  // "pending" | "viewer" | "editor" | "admin"
-  password      String?                        // bcrypt hash; null until /set-password step
-  tokenVersion  Int       @default(0)          // incremented to force re-login
+  role          String    @default("pending")
+  password      String?
+  tokenVersion  Int       @default(0)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -72,7 +86,7 @@ model VerificationToken {
 
 model Tree {
   id          String   @id @default(cuid())
-  slug        String   @unique          // URL-safe: "gaasch-family"
+  slug        String   @unique
   name        String
   description String?
   ownerId     String   @map("owner_id")
@@ -94,7 +108,7 @@ model TreeMember {
   id       String   @id @default(cuid())
   treeId   String   @map("tree_id")
   userId   String   @map("user_id")
-  role     String   @default("viewer")   // "viewer" | "editor" | "admin"
+  role     String   @default("viewer")
   joinedAt DateTime @default(now()) @map("joined_at")
 
   tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
@@ -121,15 +135,11 @@ model TreeInvite {
 }
 
 // ── Family history models ─────────────────────────────────────────────────────
-// NOTE: During the multi-tenancy migration (Phase 1), Person and Family keep
-// their existing GEDCOM-string IDs as PKs. After running
-// scripts/migrate-to-multi-tenant.ts, run `prisma migrate dev` again with the
-// final schema (treeId NOT NULL, id @default(cuid)) to complete the transition.
 
 model Person {
-  id          String   @id                     // GEDCOM ID during transition; becomes CUID after migration
-  treeId      String?  @map("tree_id")         // Nullable during migration; NOT NULL after
-  gedcomId    String?  @map("gedcom_id")        // Will hold original GEDCOM ID after PK change
+  id          String   @id @default(cuid())
+  treeId      String   @map("tree_id")
+  gedcomId    String?  @map("gedcom_id")
   name        String
   sex         String?
   birthDate   String?  @map("birth_date")
@@ -144,18 +154,19 @@ model Person {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tree      Tree?         @relation(fields: [treeId], references: [id])
+  tree      Tree          @relation(fields: [treeId], references: [id])
   asHusband Family[]      @relation("FamilyHusband")
   asWife    Family[]      @relation("FamilyWife")
   childIn   FamilyChild[]
 
+  @@unique([treeId, gedcomId])
   @@map("people")
 }
 
 model Family {
-  id        String   @id                    // GEDCOM ID during transition; becomes CUID after migration
-  treeId    String?  @map("tree_id")        // Nullable during migration; NOT NULL after
-  gedcomId  String?  @map("gedcom_id")       // Will hold original GEDCOM ID after PK change
+  id        String   @id @default(cuid())
+  treeId    String   @map("tree_id")
+  gedcomId  String?  @map("gedcom_id")
   husband   Person?  @relation("FamilyHusband", fields: [husbId], references: [id])
   husbId    String?  @map("husb_id")
   wife      Person?  @relation("FamilyWife", fields: [wifeId], references: [id])
@@ -165,9 +176,10 @@ model Family {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tree     Tree?        @relation(fields: [treeId], references: [id])
+  tree     Tree         @relation(fields: [treeId], references: [id])
   children FamilyChild[]
 
+  @@unique([treeId, gedcomId])
   @@map("families")
 }
 
@@ -182,13 +194,15 @@ model FamilyChild {
 }
 
 model Setting {
-  key       String   @id          // e.g. "anthropic_api_key", "anthropic_model"
-  treeId    String?  @map("tree_id")  // Nullable during migration; becomes part of PK after
+  id        String   @id @default(cuid())
+  treeId    String   @map("tree_id")
+  key       String
   value     String
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tree Tree? @relation(fields: [treeId], references: [id])
+  tree Tree @relation(fields: [treeId], references: [id])
 
+  @@unique([treeId, key])
   @@map("settings")
 }
 
@@ -196,10 +210,10 @@ model AuditLog {
   id        String   @id @default(cuid())
   tableName String   @map("table_name")
   recordId  String   @map("record_id")
-  action    String   // "create" | "update" | "delete" | "generate-narrative" | "import"
+  action    String
   oldData   String?  @map("old_data")
   newData   String?  @map("new_data")
-  treeId    String?  @map("tree_id")   // Nullable for historical records
+  treeId    String?  @map("tree_id")
   user      User?    @relation(fields: [userId], references: [id])
   userId    String?  @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
