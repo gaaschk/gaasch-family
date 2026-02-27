@@ -285,6 +285,31 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
           )}
         </div>
 
+        {/* Full-width header for DB/generic people (hardcoded narratives include their own) */}
+        {!loading && !hardcodedNarrative && (
+          <div className="chapter-header" style={{ padding: '2rem 2rem 2rem', textAlign: 'center' }}>
+            {(role === 'editor' || role === 'admin') && (
+              <a
+                href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
+                style={{
+                  display: 'inline-block',
+                  marginBottom: '1rem',
+                  fontSize: '0.78rem',
+                  color: 'var(--rust)',
+                  border: '1px solid rgba(139,69,19,0.3)',
+                  borderRadius: '4px',
+                  padding: '0.3rem 0.75rem',
+                  textDecoration: 'none',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Edit this person ›
+              </a>
+            )}
+            <h2>{nameClean}</h2>
+          </div>
+        )}
+
         {/* 3-col layout: parents | narrative | children */}
         <div className="chapter-layout">
           {/* Left: Parents */}
@@ -296,7 +321,7 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
 
           {/* Center: Narrative */}
           <div className="chapter-col-center">
-            {(role === 'editor' || role === 'admin') && (
+            {hardcodedNarrative && (role === 'editor' || role === 'admin') && (
               <a
                 href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
                 style={{
@@ -320,11 +345,8 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
               // Hardcoded narratives include their own header + key-facts
               hardcodedNarrative
             ) : (
-              // DB narrative or generic card — always render header from person data
+              // DB narrative or generic card — header is rendered full-width above
               <>
-                <div className="chapter-header">
-                  <h2>{nameClean}</h2>
-                </div>
                 <div className="key-facts">
                   {person.birthDate && (
                     <div className="key-fact">
