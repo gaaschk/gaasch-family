@@ -26,8 +26,8 @@ const DirectorySection = dynamic(
   }
 );
 
-export function PublicTreeExplorer({ treeSlug, role }: { treeSlug: string; role?: string }) {
-  return <TreeExplorer treeSlug={treeSlug} role={role} />;
+export function PublicTreeExplorer({ treeSlug, role, defaultPersonId }: { treeSlug: string; role?: string; defaultPersonId?: string }) {
+  return <TreeExplorer treeSlug={treeSlug} role={role} defaultPersonId={defaultPersonId} />;
 }
 
 export function PublicDirectorySection({ treeSlug }: { treeSlug: string }) {

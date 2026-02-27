@@ -47,6 +47,12 @@ export default async function TreePage({ params }: Props) {
 
   const isAdmin = treeRole === 'admin';
 
+  const defaultPersonSetting = await prisma.setting.findFirst({
+    where: { treeId: tree.id, key: 'default_person_id' },
+    select: { value: true },
+  });
+  const defaultPersonId = defaultPersonSetting?.value ?? undefined;
+
   return (
     <>
       <nav className="pub-nav">
@@ -66,7 +72,7 @@ export default async function TreePage({ params }: Props) {
       </nav>
 
       <div className="pub-page">
-        <PublicTreeExplorer treeSlug={tree.slug} role={treeRole} />
+        <PublicTreeExplorer treeSlug={tree.slug} role={treeRole} defaultPersonId={defaultPersonId} />
 
         <PublicDirectorySection treeSlug={tree.slug} />
 

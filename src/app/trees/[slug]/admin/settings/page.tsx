@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import PersonSearch from '@/components/PersonSearch';
+import type { Person } from '@/types';
 
 type Setting = { key: string; value: string };
 
@@ -25,6 +27,9 @@ export default function TreeSettingsPage() {
   const [newToken, setNewToken]       = useState('');
   const [tokenStatus, setTokenStatus] = useState<'idle' | 'generating' | 'copied'>('idle');
 
+  const [defaultPerson, setDefaultPerson] = useState<Person | null>(null);
+  const [defaultPersonStatus, setDefaultPersonStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
   useEffect(() => {
     fetch(`/api/trees/${treeSlug}/settings`)
       .then(r => r.json())
@@ -32,9 +37,17 @@ export default function TreeSettingsPage() {
         const k = data.find(s => s.key === 'anthropic_api_key');
         const m = data.find(s => s.key === 'anthropic_model');
         const t = data.find(s => s.key === 'api_token');
+        const d = data.find(s => s.key === 'default_person_id');
         if (k) setMaskedKey(k.value);
         if (m) setModel(m.value);
         if (t) setHasToken(true);
+        if (d?.value) {
+          // Fetch the current default person's name
+          fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(d.value)}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(p => { if (p) setDefaultPerson(p as Person); })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
   }, [treeSlug]);
@@ -181,6 +194,72 @@ export default function TreeSettingsPage() {
           {status === 'saving' ? 'Saving...' : 'Save settings'}
         </button>
       </form>
+
+      {/* Default Starting Person */}
+      <section
+        style={{
+          marginTop: '2.5rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid var(--border-light)',
+          maxWidth: 520,
+        }}
+      >
+        <p className="section-title" style={{ marginBottom: '0.5rem' }}>
+          Starting Person
+        </p>
+        <p
+          style={{
+            fontSize: '0.82rem',
+            color: 'var(--sepia)',
+            marginBottom: '1.25rem',
+            lineHeight: 1.6,
+          }}
+        >
+          This person opens by default when someone visits the tree. They also
+          serve as the root for the lineage trail shown when navigating to other
+          people.
+        </p>
+
+        <PersonSearch
+          treeSlug={treeSlug}
+          value={defaultPerson}
+          onChange={setDefaultPerson}
+          placeholder="Search for a person…"
+          label="Default person"
+        />
+
+        {defaultPersonStatus === 'saved' && (
+          <p
+            style={{
+              fontSize: '0.85rem',
+              color: 'var(--ink)',
+              marginTop: '0.5rem',
+            }}
+          >
+            Saved
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ marginTop: '1rem' }}
+          disabled={defaultPersonStatus === 'saving' || !defaultPerson}
+          onClick={async () => {
+            if (!defaultPerson) return;
+            setDefaultPersonStatus('saving');
+            await fetch(`/api/trees/${treeSlug}/settings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ key: 'default_person_id', value: defaultPerson.id }),
+            });
+            setDefaultPersonStatus('saved');
+            setTimeout(() => setDefaultPersonStatus('idle'), 2500);
+          }}
+        >
+          {defaultPersonStatus === 'saving' ? 'Saving…' : 'Save starting person'}
+        </button>
+      </section>
 
       {/* API Access Token */}
       <section

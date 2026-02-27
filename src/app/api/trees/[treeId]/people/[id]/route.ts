@@ -6,7 +6,76 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ treeId: string; id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+// BFS through family graph to find shortest path between two people
+async function computePathToRoot(
+  treeId: string,
+  fromId: string,
+  toId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  if (fromId === toId) return [];
+
+  const [families, familyChildren, allPeople] = await Promise.all([
+    prisma.family.findMany({
+      where: { treeId },
+      select: { id: true, husbId: true, wifeId: true },
+    }),
+    prisma.familyChild.findMany({
+      where: { family: { treeId } },
+      select: { familyId: true, personId: true },
+    }),
+    prisma.person.findMany({
+      where: { treeId },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  const nameMap = new Map(allPeople.map(p => [p.id, p.name]));
+
+  const adj = new Map<string, string[]>();
+  const addEdge = (a: string | null, b: string | null) => {
+    if (!a || !b || a === b) return;
+    adj.set(a, [...(adj.get(a) ?? []), b]);
+    adj.set(b, [...(adj.get(b) ?? []), a]);
+  };
+
+  const childrenByFamily = new Map<string, string[]>();
+  for (const c of familyChildren) {
+    const arr = childrenByFamily.get(c.familyId) ?? [];
+    arr.push(c.personId);
+    childrenByFamily.set(c.familyId, arr);
+  }
+
+  for (const f of families) {
+    addEdge(f.husbId, f.wifeId);
+    for (const childId of childrenByFamily.get(f.id) ?? []) {
+      addEdge(f.husbId, childId);
+      addEdge(f.wifeId, childId);
+    }
+  }
+
+  if (!adj.has(fromId) || !adj.has(toId)) return [];
+
+  const visited = new Set<string>([fromId]);
+  const queue: string[][] = [[fromId]];
+
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    const current = path[path.length - 1];
+    if (current === toId) {
+      return path.map(id => ({ id, name: nameMap.get(id) ?? '' }));
+    }
+    for (const neighbor of adj.get(current) ?? []) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      }
+    }
+  }
+
+  return [];
+}
+
+export async function GET(req: NextRequest, { params }: Params) {
   const { treeId, id } = await params;
 
   const auth = await requireTreeAccess(treeId, 'viewer');
@@ -14,34 +83,45 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { tree } = auth;
 
-  const person = await prisma.person.findFirst({
-    where: { id, treeId: tree.id },
-    include: {
-      childIn: {
-        include: {
-          family: { include: { husband: true, wife: true } },
+  const [person, defaultPersonSetting] = await Promise.all([
+    prisma.person.findFirst({
+      where: { id, treeId: tree.id },
+      include: {
+        childIn: {
+          include: {
+            family: { include: { husband: true, wife: true } },
+          },
+        },
+        asHusband: {
+          include: {
+            wife:     true,
+            children: { include: { person: true } },
+          },
+        },
+        asWife: {
+          include: {
+            husband:  true,
+            children: { include: { person: true } },
+          },
         },
       },
-      asHusband: {
-        include: {
-          wife:     true,
-          children: { include: { person: true } },
-        },
-      },
-      asWife: {
-        include: {
-          husband:  true,
-          children: { include: { person: true } },
-        },
-      },
-    },
-  });
+    }),
+    prisma.setting.findFirst({
+      where: { treeId: tree.id, key: 'default_person_id' },
+      select: { value: true },
+    }),
+  ]);
 
   if (!person) {
     return NextResponse.json({ error: 'Person not found' }, { status: 404 });
   }
 
-  return NextResponse.json(person);
+  const rootPersonId = defaultPersonSetting?.value ?? null;
+  const pathToRoot = rootPersonId && rootPersonId !== id
+    ? await computePathToRoot(tree.id, id, rootPersonId)
+    : [];
+
+  return NextResponse.json({ ...person, pathToRoot });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {

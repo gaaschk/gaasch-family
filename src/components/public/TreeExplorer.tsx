@@ -15,8 +15,14 @@ interface PersonRelation {
   occupation: string | null;
 }
 
+interface PathNode {
+  id: string;
+  name: string;
+}
+
 interface PersonFull extends PersonRelation {
   narrative: string | null;
+  pathToRoot?: PathNode[];
   // childIn: families where person is a child → gives parents
   childIn: {
     familyId: string;
@@ -100,14 +106,17 @@ export default function TreeExplorer({
   treeSlug,
   initialPerson,
   role,
+  defaultPersonId,
 }: {
   treeSlug: string;
   initialPerson?: PersonFull;
   role?: string;
+  defaultPersonId?: string;
 }) {
   const [currentId, setCurrentId] = useState<string | null>(initialPerson?.id ?? null);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
   const [loading, setLoading] = useState(!initialPerson);
+  const [pathToRoot, setPathToRoot] = useState<PathNode[]>([]);
   const cache = useRef<Map<string, PersonFull>>(new Map());
 
   // Search state
@@ -119,47 +128,53 @@ export default function TreeExplorer({
 
   const navigateTo = useCallback(async (id: string) => {
     if (cache.current.has(id)) {
-      setPerson(cache.current.get(id)!);
+      const cached = cache.current.get(id)!;
+      setPerson(cached);
       setCurrentId(id);
+      if (cached.pathToRoot) setPathToRoot(cached.pathToRoot);
       return;
     }
     setLoading(true);
     try {
       const res = await fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(id)}`);
       if (res.ok) {
-        const data = await res.json();
+        const data: PersonFull = await res.json();
         cache.current.set(id, data);
         setPerson(data);
         setCurrentId(id);
+        setPathToRoot(data.pathToRoot ?? []);
       }
     } finally {
       setLoading(false);
     }
   }, [treeSlug]);
 
-  // On mount: if no initialPerson, fetch the first person alphabetically from the tree
+  // On mount: navigate to defaultPersonId, or first alphabetically
   useEffect(() => {
     if (initialPerson) {
       cache.current.set(initialPerson.id, initialPerson);
       setCurrentId(initialPerson.id);
+      setPathToRoot(initialPerson.pathToRoot ?? []);
       return;
     }
     (async () => {
       setLoading(true);
       try {
-        const listRes = await fetch(`/api/trees/${treeSlug}/people?limit=1`);
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          const first: Person | undefined = listData.data?.[0];
-          if (first) {
-            await navigateTo(first.id);
+        if (defaultPersonId) {
+          await navigateTo(defaultPersonId);
+        } else {
+          const listRes = await fetch(`/api/trees/${treeSlug}/people?limit=1`);
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            const first: Person | undefined = listData.data?.[0];
+            if (first) await navigateTo(first.id);
           }
         }
       } finally {
         setLoading(false);
       }
     })();
-  }, [initialPerson, treeSlug, navigateTo]);
+  }, [initialPerson, treeSlug, navigateTo, defaultPersonId]);
 
   // Store fetched person in cache
   useEffect(() => {
@@ -200,6 +215,35 @@ export default function TreeExplorer({
 
   return (
     <section id="chapters" className="chapters-section">
+      {/* ── Lineage sidebar ── */}
+      {pathToRoot.length > 0 && (
+        <nav className="chapters-timeline" aria-label="Lineage path">
+          <div className="timeline-crumb">
+            {pathToRoot.map((node, i) => {
+              const isActive = node.id === currentId;
+              return (
+                <div key={node.id}>
+                  <button
+                    className={`crumb-node${isActive ? ' crumb-node--active' : ''}`}
+                    onClick={() => navigateTo(node.id)}
+                  >
+                    <span className="crumb-dot" />
+                    <span className="crumb-text">
+                      <span className="crumb-name">
+                        {node.name.replace(/\//g, '').replace(/\s+/g, ' ').trim()}
+                      </span>
+                    </span>
+                  </button>
+                  {i < pathToRoot.length - 1 && (
+                    <span className="crumb-arrow">↓</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </nav>
+      )}
+
       {/* ── Main chapter area ── */}
       <div className="chapters-main">
         {/* Search */}
