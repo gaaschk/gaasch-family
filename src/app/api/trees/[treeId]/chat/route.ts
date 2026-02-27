@@ -99,7 +99,7 @@ function buildTools(canEdit: boolean): Anthropic.Tool[] {
 // ── Tool implementations ────────────────────────────────────────────────────
 async function toolSearchPeople(treeId: string, query: string, limit = 8) {
   const people = await prisma.person.findMany({
-    where: { treeId, name: { contains: query, mode: 'insensitive' } },
+    where: { treeId, name: { contains: query } },
     select: { id: true, name: true, birthDate: true, deathDate: true, birthPlace: true },
     take: Math.min(limit, 20),
   });
