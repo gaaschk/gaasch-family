@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const session = await auth();
 
-  // Authenticated users go to their tree list
+  // Authenticated users go to their home page
   if (session?.user?.id) {
-    redirect('/dashboard');
+    redirect('/home');
   }
 
   return (

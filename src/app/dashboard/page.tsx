@@ -73,6 +73,18 @@ export default async function DashboardPage() {
           Family Trees
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Link
+            href="/home"
+            style={{
+              fontSize: '0.82rem',
+              color: 'var(--sepia)',
+              fontFamily: 'var(--font-sc)',
+              textDecoration: 'none',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Home
+          </Link>
           <span
             style={{
               fontSize: '0.82rem',

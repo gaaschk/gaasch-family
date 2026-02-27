@@ -108,6 +108,9 @@ export default async function TreeAdminLayout({ children, params }: Props) {
           <Link href={`/trees/${tree.slug}/`} className="admin-nav-link">
             View Tree &rarr;
           </Link>
+          <Link href="/home" className="admin-nav-link">
+            Home
+          </Link>
           <Link href="/dashboard" className="admin-nav-link">
             All Trees
           </Link>

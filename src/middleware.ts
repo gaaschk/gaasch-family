@@ -11,10 +11,11 @@ export default auth((req) => {
 
   const isAdminArea  = pathname.startsWith('/admin');
   const isDashboard  = pathname.startsWith('/dashboard');
+  const isHomePage   = pathname.startsWith('/home');
   const isTreeRoute  = pathname.startsWith('/trees/');
   const isInvite     = pathname.startsWith('/invite/');
 
-  const requiresAuth = isAdminArea || isDashboard || isTreeRoute || isInvite;
+  const requiresAuth = isAdminArea || isDashboard || isHomePage || isTreeRoute || isInvite;
 
   if (requiresAuth && !session?.user) {
     const loginUrl = new URL('/login', nextUrl);

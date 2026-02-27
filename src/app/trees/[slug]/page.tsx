@@ -65,14 +65,14 @@ export default async function TreePage({ params }: Props) {
               Admin
             </Link>
           )}
-          <Link href="/dashboard" className="pub-nav-admin">
-            My Trees
+          <Link href="/home" className="pub-nav-admin">
+            Home
           </Link>
         </div>
       </nav>
 
       <div className="pub-page">
-        <PublicTreeExplorer treeSlug={tree.slug} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} />
+        <PublicTreeExplorer treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} />
 
         <PublicDirectorySection treeSlug={tree.slug} />
 

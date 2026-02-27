@@ -55,8 +55,11 @@ export default async function SystemAdminLayout({ children }: { children: React.
           <span className="admin-nav-section" style={{ marginTop: '0.75rem' }}>
             Navigation
           </span>
+          <Link href="/home" className="admin-nav-link">
+            Home &rarr;
+          </Link>
           <Link href="/dashboard" className="admin-nav-link">
-            My Trees &rarr;
+            All Trees
           </Link>
         </nav>
 

@@ -105,12 +105,14 @@ function deriveRelations(p: PersonFull) {
 // ── Main component ────────────────────────────────────────────────────────
 export default function TreeExplorer({
   treeSlug,
+  treeName,
   initialPerson,
   role,
   defaultPersonId,
   userId,
 }: {
   treeSlug: string;
+  treeName?: string;
   initialPerson?: PersonFull;
   role?: string;
   defaultPersonId?: string;
@@ -143,6 +145,9 @@ export default function TreeExplorer({
       setPerson(cached);
       setCurrentId(id);
       if (cached.pathToRoot) setPathToRoot(cached.pathToRoot);
+      localStorage.setItem('lastViewed', JSON.stringify({
+        treeSlug, treeName: treeName ?? treeSlug, personId: id, personName: cleanName(cached.name),
+      }));
       return;
     }
     setLoading(true);
@@ -154,11 +159,14 @@ export default function TreeExplorer({
         setPerson(data);
         setCurrentId(id);
         setPathToRoot(data.pathToRoot ?? []);
+        localStorage.setItem('lastViewed', JSON.stringify({
+          treeSlug, treeName: treeName ?? treeSlug, personId: id, personName: cleanName(data.name),
+        }));
       }
     } finally {
       setLoading(false);
     }
-  }, [treeSlug, lsKey]);
+  }, [treeSlug, treeName, lsKey]);
 
   // On mount: restore last-viewed person, else default person, else first alphabetically
   useEffect(() => {
