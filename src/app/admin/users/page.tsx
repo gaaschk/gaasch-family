@@ -16,12 +16,18 @@ export default function SystemUsersPage() {
   const [users, setUsers]           = useState<User[]>([]);
   const [loading, setLoading]       = useState(true);
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     setLoading(true);
     fetch('/api/users')
       .then(r => r.json())
-      .then((data: User[]) => setUsers(data))
+      .then((data: User[]) => {
+        setUsers(data);
+        setPendingRoles(Object.fromEntries(
+          data.filter((u: User) => u.role === 'pending').map((u: User) => [u.id, 'viewer'])
+        ));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -97,16 +103,16 @@ export default function SystemUsersPage() {
                             <button
                               className="btn btn-primary btn-sm"
                               disabled={changingRole === u.id}
-                              onClick={() => handleRoleChange(u.id, 'viewer')}
+                              onClick={() => handleRoleChange(u.id, pendingRoles[u.id] ?? 'viewer')}
                             >
                               Approve
                             </button>
                             <select
                               className="form-select"
                               style={{ fontSize: '0.82rem', padding: '0.2rem 0.4rem' }}
-                              defaultValue="viewer"
+                              value={pendingRoles[u.id] ?? 'viewer'}
                               disabled={changingRole === u.id}
-                              onChange={e => handleRoleChange(u.id, e.target.value)}
+                              onChange={e => setPendingRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
                             >
                               {PLATFORM_ROLES.filter(r => r !== 'pending').map(r => (
                                 <option key={r} value={r}>{r}</option>

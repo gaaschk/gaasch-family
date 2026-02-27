@@ -2,10 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  PublicTreeExplorer,
-  PublicDirectorySection,
-} from '@/components/public/ClientSections';
+import { TreePageComponents } from '@/components/public/ClientSections';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,9 +76,7 @@ export default async function TreePage({ params }: Props) {
       </nav>
 
       <div className="pub-page">
-        <PublicTreeExplorer treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
-
-        <PublicDirectorySection treeSlug={tree.slug} />
+        <TreePageComponents treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
 
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>

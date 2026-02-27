@@ -2,13 +2,13 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 function LoginForm() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
   const verified     = searchParams.get('verified') === '1';
+  const callbackUrl  = searchParams.get('callbackUrl') || '/';
 
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +29,7 @@ function LoginForm() {
     if (!result?.error) {
       // Hard navigation avoids Next.js router getting stuck if middleware
       // redirects back to this same page before the admin page fully loads.
-      window.location.href = '/';
+      window.location.href = callbackUrl;
     } else {
       setStatus('error');
       setError('Invalid email or password.');
@@ -40,15 +40,12 @@ function LoginForm() {
     <main className="login-page">
       <div className="login-card">
         <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
-        <h1 className="login-title">The Gaasch Family</h1>
-        <p className="login-subtitle">Admin Access</p>
+        <h1 className="login-title">Family History</h1>
+        <p className="login-subtitle">Sign in to your account</p>
 
         {verified && (
           <div className="login-success" style={{ marginBottom: '1rem' }}>
             <p>Account created! You can now sign in.</p>
-            <p style={{ fontSize: '0.85rem', marginTop: '0.35rem', opacity: 0.8 }}>
-              Your account is pending admin approval. Once approved you&apos;ll have access.
-            </p>
           </div>
         )}
 

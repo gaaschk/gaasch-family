@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
 const TreeExplorer = dynamic(
@@ -26,10 +27,41 @@ const DirectorySection = dynamic(
   }
 );
 
-export function PublicTreeExplorer({ treeSlug, treeName, role, defaultPersonId, userId, hasFsConnection }: { treeSlug: string; treeName?: string; role?: string; defaultPersonId?: string; userId?: string; hasFsConnection?: boolean }) {
-  return <TreeExplorer treeSlug={treeSlug} treeName={treeName} role={role} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />;
-}
+export function TreePageComponents({
+  treeSlug,
+  treeName,
+  role,
+  defaultPersonId,
+  userId,
+  hasFsConnection,
+}: {
+  treeSlug: string;
+  treeName?: string;
+  role?: string;
+  defaultPersonId?: string;
+  userId?: string;
+  hasFsConnection?: boolean;
+}) {
+  const [externalPersonId, setExternalPersonId] = useState<string | null>(null);
 
-export function PublicDirectorySection({ treeSlug }: { treeSlug: string }) {
-  return <DirectorySection treeSlug={treeSlug} />;
+  return (
+    <>
+      <TreeExplorer
+        treeSlug={treeSlug}
+        treeName={treeName}
+        role={role}
+        defaultPersonId={defaultPersonId}
+        userId={userId}
+        hasFsConnection={hasFsConnection}
+        externalPersonId={externalPersonId ?? undefined}
+      />
+      <DirectorySection
+        treeSlug={treeSlug}
+        onSelectPerson={id => {
+          setExternalPersonId(id);
+          document.getElementById('chapters')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+    </>
+  );
 }

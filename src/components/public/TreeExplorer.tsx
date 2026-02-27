@@ -131,6 +131,7 @@ export default function TreeExplorer({
   defaultPersonId,
   userId,
   hasFsConnection,
+  externalPersonId,
 }: {
   treeSlug: string;
   treeName?: string;
@@ -139,6 +140,7 @@ export default function TreeExplorer({
   defaultPersonId?: string;
   userId?: string;
   hasFsConnection?: boolean;
+  externalPersonId?: string;
 }) {
   const [currentId, setCurrentId] = useState<string | null>(initialPerson?.id ?? null);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
@@ -240,6 +242,11 @@ export default function TreeExplorer({
       .catch(() => {});
   }, [currentId, treeSlug, role]);
 
+  // Navigate to externally-selected person (from directory clicks)
+  useEffect(() => {
+    if (externalPersonId) navigateTo(externalPersonId);
+  }, [externalPersonId, navigateTo]);
+
   function handleSearch(q: string) {
     setQuery(q);
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -338,7 +345,34 @@ export default function TreeExplorer({
     );
   }
 
-  if (!person) return null;
+  if (!person) {
+    const canEdit = role === 'editor' || role === 'admin';
+    return (
+      <section id="chapters" className="chapters-section">
+        <div className="chapters-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '40vh' }}>
+          <div style={{ textAlign: 'center', color: 'var(--sepia)', padding: '3rem 2rem' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', marginBottom: '0.75rem', color: 'var(--ink)' }}>
+              This tree has no people yet.
+            </p>
+            {canEdit ? (
+              <>
+                <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.7 }}>
+                  Add your first person to get started.
+                </p>
+                <a href={`/trees/${treeSlug}/admin/people/new`} className="btn btn-primary">
+                  Add a person
+                </a>
+              </>
+            ) : (
+              <p style={{ fontSize: '0.9rem', lineHeight: 1.7 }}>
+                Check back later — the tree administrator hasn&apos;t added anyone yet.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const { parents, spouses, children } = deriveRelations(person);
   const lifespan  = formatLifespan(person);
