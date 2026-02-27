@@ -32,7 +32,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const client = new Anthropic({ apiKey: apiKeySetting.value });
-  const model  = modelSetting?.value || 'claude-sonnet-4-6';
+  const modelOverride = new URL(req.url).searchParams.get('model');
+  const model = modelOverride || modelSetting?.value || 'claude-sonnet-4-6';
 
   const person = await prisma.person.findUnique({
     where: { id },
