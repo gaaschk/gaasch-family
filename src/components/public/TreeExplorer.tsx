@@ -324,13 +324,6 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
               <>
                 <div className="chapter-header">
                   <h2>{nameClean}</h2>
-                  {(lifespan || person.birthPlace) && (
-                    <p className="chapter-meta">
-                      {lifespan}
-                      {lifespan && person.birthPlace && ' · '}
-                      {shortPlace(person.birthPlace)}
-                    </p>
-                  )}
                 </div>
                 <div className="key-facts">
                   {person.birthDate && (
