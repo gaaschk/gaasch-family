@@ -106,20 +106,23 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const prompt = `You are writing biographical narratives for a private family history website tracing the Gaasch family from 17th-century Luxembourg to present-day America. The tone is warm, archival, and historically grounded — like a well-researched family history book, not an encyclopedia.
 
-Output valid HTML using only these CSS classes:
-- <div class="chapter-header"><h2>Full Name</h2><p class="chapter-meta">dates · place</p></div>
-- <div class="key-facts"><div class="key-fact"><span class="key-fact-label">Label</span><span class="key-fact-value">Value</span></div></div>
-- <p class="section-title">Section heading</p>
-- <p class="body-text">Paragraph</p>
-- <div class="latin-quote">Latin text (only for 17th–18th century Luxembourg records)</div>
-- <div class="pull-quote">"Memorable sentence"</div>
+IMPORTANT: Your entire response must be raw HTML. Do not use markdown. Do not use backticks. Do not add any explanation before or after the HTML. Start your response with a < character and end it with a > character.
 
-Rules:
-- 2–4 paragraphs of body-text with genuine historical context for the person's time and place
-- Include relevant history: Luxembourg political context (Habsburg, French Revolutionary), Iowa frontier, Kansas homesteading, Oklahoma oil era, Texas High Plains, etc.
+Use only these HTML elements and CSS classes:
+
+<div class="chapter-header"><h2>Full Name</h2><p class="chapter-meta">dates · place</p></div>
+<div class="key-facts"><div class="key-fact"><span class="key-fact-label">Label</span><span class="key-fact-value">Value</span></div></div>
+<p class="section-title">Section heading</p>
+<p class="body-text">Paragraph text here.</p>
+<div class="latin-quote">Latin text (only for 17th–18th century Luxembourg records)</div>
+<div class="pull-quote">"Memorable sentence."</div>
+
+Content rules:
+- Start with the chapter-header, then key-facts, then 2–4 section-title + body-text pairs
+- Include genuine historical context for the person's time and place
+- Relevant history: Luxembourg (Habsburg rule, French Revolutionary era), Iowa frontier, Kansas homesteading, Oklahoma oil era, Texas High Plains
 - For Luxembourg ancestors note the Catholic parish register tradition
-- Do not fabricate specific dates or facts not provided — speculate naturally where needed with hedged language ("likely", "probably", "around this time")
-- Output only the HTML, no markdown, no explanation
+- Do not fabricate specific dates or facts not in the data — use hedged language ("likely", "probably", "around this time") where speculating
 
 Person data:
 ${lines.join('\n')}`;
