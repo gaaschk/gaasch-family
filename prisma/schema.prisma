@@ -101,7 +101,8 @@ model Tree {
   families  Family[]
   settings  Setting[]
   auditLogs AuditLog[]
-  fsMatches FamilySearchMatch[]
+  fsMatches      FamilySearchMatch[]
+  lineageStories LineageStory[]
 
   @@map("trees")
 }
@@ -250,6 +251,20 @@ model SystemSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+model LineageStory {
+  id           String   @id @default(cuid())
+  treeId       String   @map("tree_id")
+  personIdsKey String   @map("person_ids_key")
+  html         String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@unique([treeId, personIdsKey])
+  @@map("lineage_stories")
 }
 
 model AuditLog {

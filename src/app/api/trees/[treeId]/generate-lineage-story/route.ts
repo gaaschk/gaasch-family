@@ -13,6 +13,29 @@ function clean(name: string) {
 
 type Params = { params: Promise<{ treeId: string }> };
 
+// ── GET: return cached story if it exists ────────────────────────────────────
+export async function GET(req: NextRequest, { params }: Params) {
+  const { treeId } = await params;
+
+  const auth = await requireTreeAccessOrToken(req, treeId, 'viewer');
+  if (auth instanceof NextResponse) return auth;
+
+  const { tree } = auth;
+
+  const personIdsKey = req.nextUrl.searchParams.get('personIds');
+  if (!personIdsKey) {
+    return NextResponse.json({ error: 'personIds required' }, { status: 400 });
+  }
+
+  const story = await prisma.lineageStory.findUnique({
+    where: { treeId_personIdsKey: { treeId: tree.id, personIdsKey } },
+  });
+
+  if (!story) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ html: story.html });
+}
+
+// ── POST: generate (stream) + save ───────────────────────────────────────────
 export async function POST(req: NextRequest, { params }: Params) {
   const { treeId } = await params;
 
@@ -37,6 +60,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!Array.isArray(body.personIds) || body.personIds.length === 0) {
     return NextResponse.json({ error: 'personIds required' }, { status: 400 });
   }
+
+  const personIdsKey = body.personIds.join(',');
 
   // Load all people with family context
   const people = await prisma.person.findMany({
@@ -144,6 +169,7 @@ ${summaries.map((s, i) => `--- Person ${i + 1} ---\n${s}`).join('\n\n')}`;
 
   const stream = new ReadableStream({
     async start(controller) {
+      let accumulated = '';
       try {
         const claudeStream = client.messages.stream({
           model,
@@ -157,7 +183,23 @@ ${summaries.map((s, i) => `--- Person ${i + 1} ---\n${s}`).join('\n\n')}`;
             event.delta.type === 'text_delta'
           ) {
             controller.enqueue(encoder.encode(event.delta.text));
+            accumulated += event.delta.text;
           }
+        }
+
+        // Strip code fences if model wraps in them
+        accumulated = accumulated
+          .replace(/^```(?:html)?\n?/i, '')
+          .replace(/\n?```\s*$/i, '')
+          .trim();
+
+        // Save to DB (upsert so re-generation overwrites)
+        if (accumulated && !accumulated.includes('__ERROR__')) {
+          await prisma.lineageStory.upsert({
+            where:  { treeId_personIdsKey: { treeId: tree.id, personIdsKey } },
+            create: { treeId: tree.id, personIdsKey, html: accumulated },
+            update: { html: accumulated },
+          });
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Generation failed';
