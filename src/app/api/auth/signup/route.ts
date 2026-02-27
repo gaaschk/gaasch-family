@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { email?: string };
-  const email = (body.email ?? '').trim().toLowerCase();
+  const body = await req.json() as { email?: string; callbackUrl?: string };
+  const email       = (body.email ?? '').trim().toLowerCase();
+  const callbackUrl = body.callbackUrl ?? '';
 
   if (!email || !email.includes('@')) {
     return NextResponse.json({ error: 'Valid email required' }, { status: 400 });
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   await prisma.verificationToken.create({ data: { identifier: email, token, expires } });
 
-  await sendVerificationEmail(email, token);
+  await sendVerificationEmail(email, token, callbackUrl);
 
   // Always return 200 — don't reveal whether the email already had an account
   return NextResponse.json({ ok: true });

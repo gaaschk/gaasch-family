@@ -82,7 +82,12 @@ function LoginForm() {
           <Link href="/forgot-password" style={{ color: 'var(--rust)' }}>Forgot password?</Link>
           {' · '}
           New here?{' '}
-          <Link href="/signup" style={{ color: 'var(--rust)' }}>Request access</Link>
+          <Link
+            href={callbackUrl !== '/' ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/signup'}
+            style={{ color: 'var(--rust)' }}
+          >
+            Request access
+          </Link>
         </p>
       </div>
     </main>

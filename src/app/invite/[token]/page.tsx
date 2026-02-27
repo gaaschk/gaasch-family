@@ -119,6 +119,37 @@ export default async function InvitePage({ params }: Props) {
     );
   }
 
+  // Email mismatch — user is signed in as the wrong account
+  if (invite.email.toLowerCase() !== (session.user.email ?? '').toLowerCase()) {
+    return (
+      <Card>
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.4rem',
+            color: 'var(--ink)',
+            marginBottom: '0.75rem',
+          }}
+        >
+          Wrong account
+        </h1>
+        <p style={{ color: 'var(--sepia)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+          This invite was sent to <strong>{invite.email}</strong>.
+        </p>
+        <p style={{ color: 'var(--sepia)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+          You are signed in as <strong>{session.user.email}</strong>. Sign in with
+          the correct account to accept this invitation.
+        </p>
+        <a
+          href={`/login?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
+          className="btn btn-primary"
+        >
+          Sign in as {invite.email}
+        </a>
+      </Card>
+    );
+  }
+
   // Valid invite — show accept UI
   return (
     <Card>

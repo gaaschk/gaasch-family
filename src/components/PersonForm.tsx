@@ -27,14 +27,17 @@ export default function PersonForm({ treeSlug, person }: PersonFormProps) {
     narrative:   person?.narrative   ?? '',
   });
 
+  const [dirty, setDirty]           = useState(false);
   const [status, setStatus]         = useState<'idle' | 'saving' | 'error'>('idle');
   const [error, setError]           = useState('');
   const [genStatus, setGenStatus]   = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
   const [genError, setGenError]     = useState('');
 
   function set(field: keyof typeof fields) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      setDirty(true);
       setFields(f => ({ ...f, [field]: e.target.value }));
+    };
   }
 
   async function generateNarrative() {
@@ -295,7 +298,17 @@ export default function PersonForm({ treeSlug, person }: PersonFormProps) {
         <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
           {status === 'saving' ? 'Saving…' : isNew ? 'Create person' : 'Save changes'}
         </button>
-        <a href={`/trees/${treeSlug}/admin/people`} className="btn btn-secondary">Cancel</a>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            if (!dirty || window.confirm('Discard unsaved changes?')) {
+              router.push(`/trees/${treeSlug}/admin/people`);
+            }
+          }}
+        >
+          Cancel
+        </button>
       </div>
     </form>
   );

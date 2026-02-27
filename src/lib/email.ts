@@ -4,9 +4,10 @@ function createTransport() {
   return nodemailer.createTransport(process.env.EMAIL_SERVER as string);
 }
 
-export async function sendVerificationEmail(to: string, token: string) {
-  const base = process.env.AUTH_URL ?? 'http://localhost:3000';
-  const url  = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}`;
+export async function sendVerificationEmail(to: string, token: string, callbackUrl?: string) {
+  const base  = process.env.AUTH_URL ?? 'http://localhost:3000';
+  const cbParam = callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : '';
+  const url   = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}${cbParam}`;
   await createTransport().sendMail({
     from:    process.env.EMAIL_FROM,
     to,

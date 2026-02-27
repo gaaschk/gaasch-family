@@ -338,17 +338,19 @@ function TreeCard({
         <Link
           href={`/trees/${slug}/`}
           className="btn btn-primary btn-sm"
-          style={{ flex: 1, textAlign: 'center' }}
+          style={{ flex: badge === 'viewer' ? undefined : 1, textAlign: 'center' }}
         >
           View tree
         </Link>
-        <Link
-          href={`/trees/${slug}/admin`}
-          className="btn btn-secondary btn-sm"
-          style={{ flex: 1, textAlign: 'center' }}
-        >
-          Admin
-        </Link>
+        {badge !== 'viewer' && (
+          <Link
+            href={`/trees/${slug}/admin`}
+            className="btn btn-secondary btn-sm"
+            style={{ flex: 1, textAlign: 'center' }}
+          >
+            Admin
+          </Link>
+        )}
       </div>
     </div>
   );

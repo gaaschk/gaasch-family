@@ -52,6 +52,7 @@ export default async function TreeAdminLayout({ children, params }: Props) {
   }
 
   if (!treeRole) redirect('/dashboard');
+  if (treeRole === 'viewer') redirect(`/trees/${tree.slug}/`);
 
   const isAdmin = treeRole === 'admin';
   const isPlatformAdmin = session.user.role === 'admin';

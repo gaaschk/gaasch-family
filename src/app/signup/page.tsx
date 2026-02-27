@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-export default function SignupPage() {
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const callbackUrl  = searchParams.get('callbackUrl') || '';
+
   const [email, setEmail]     = useState('');
   const [status, setStatus]   = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -16,7 +20,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email }),
+        body:    JSON.stringify({ email, callbackUrl }),
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (res.status === 409) {
@@ -34,11 +38,15 @@ export default function SignupPage() {
     }
   }
 
+  const signInHref = callbackUrl
+    ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : '/login';
+
   return (
     <main className="login-page">
       <div className="login-card">
         <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
-        <h1 className="login-title">The Gaasch Family</h1>
+        <h1 className="login-title">Family History</h1>
         <p className="login-subtitle">Create an Account</p>
 
         {status === 'sent' ? (
@@ -74,9 +82,17 @@ export default function SignupPage() {
 
         <p style={{ marginTop: '1.25rem', fontSize: '0.85rem', textAlign: 'center', color: 'var(--sepia)' }}>
           Already have an account?{' '}
-          <Link href="/login" style={{ color: 'var(--rust)' }}>Sign in</Link>
+          <Link href={signInHref} style={{ color: 'var(--rust)' }}>Sign in</Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }

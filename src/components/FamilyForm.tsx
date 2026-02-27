@@ -23,23 +23,30 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
   const [marrDate, setMarrDate] = useState(family?.marrDate ?? '');
   const [marrPlace, setMarrPlace] = useState(family?.marrPlace ?? '');
 
+  function markDirty<T>(setter: (v: T) => void) {
+    return (v: T) => { setDirty(true); setter(v); };
+  }
+
   const [children, setChildren] = useState<Person[]>(() => {
     if (!family?.children) return [];
     return family.children.flatMap(c => (c.person ? [c.person] : []));
   });
   const [childToAdd, setChildToAdd] = useState<Person | null>(null);
 
+  const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [error, setError] = useState('');
 
   function addChild(p: Person | null) {
     if (!p) return;
     if (children.some(c => c.id === p.id)) return;
+    setDirty(true);
     setChildren(prev => [...prev, p]);
     setChildToAdd(null);
   }
 
   function removeChild(id: string) {
+    setDirty(true);
     setChildren(prev => prev.filter(c => c.id !== id));
   }
 
@@ -102,7 +109,7 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
             treeSlug={treeSlug}
             label="Husband"
             value={husband}
-            onChange={setHusband}
+            onChange={markDirty(setHusband)}
             placeholder="Search for husband…"
           />
         </div>
@@ -112,7 +119,7 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
             treeSlug={treeSlug}
             label="Wife"
             value={wife}
-            onChange={setWife}
+            onChange={markDirty(setWife)}
             placeholder="Search for wife…"
           />
         </div>
@@ -123,7 +130,7 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
             id="ff-marr-date"
             className="form-input"
             value={marrDate}
-            onChange={e => setMarrDate(e.target.value)}
+            onChange={e => { setDirty(true); setMarrDate(e.target.value); }}
             placeholder="Jan 8, 1747"
           />
         </div>
@@ -134,7 +141,7 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
             id="ff-marr-place"
             className="form-input"
             value={marrPlace}
-            onChange={e => setMarrPlace(e.target.value)}
+            onChange={e => { setDirty(true); setMarrPlace(e.target.value); }}
             placeholder="Alzingen"
           />
         </div>
@@ -179,7 +186,17 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
         <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
           {status === 'saving' ? 'Saving…' : isNew ? 'Create family' : 'Save changes'}
         </button>
-        <a href={`/trees/${treeSlug}/admin/families`} className="btn btn-secondary">Cancel</a>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            if (!dirty || window.confirm('Discard unsaved changes?')) {
+              router.push(`/trees/${treeSlug}/admin/families`);
+            }
+          }}
+        >
+          Cancel
+        </button>
       </div>
     </form>
   );

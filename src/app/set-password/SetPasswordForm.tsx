@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 interface Props {
   token: string;
   email: string;
+  callbackUrl?: string;
 }
 
-export default function SetPasswordForm({ token, email }: Props) {
+export default function SetPasswordForm({ token, email, callbackUrl }: Props) {
   const router = useRouter();
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
@@ -37,7 +38,10 @@ export default function SetPasswordForm({ token, email }: Props) {
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (res.ok) {
-        router.push('/login?verified=1');
+        const dest = callbackUrl
+          ? `/login?verified=1&callbackUrl=${encodeURIComponent(callbackUrl)}`
+          : '/login?verified=1';
+        router.push(dest);
       } else {
         setStatus('error');
         setError(data.error ?? 'Something went wrong. Please try again.');
