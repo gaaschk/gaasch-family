@@ -61,6 +61,7 @@ let ok = 0, failed = 0;
 async function generate(id, attempt = 1) {
   const url = new URL(`/api/people/${encodeURIComponent(id)}/generate-narrative`, BASE_URL);
   if (MODEL) url.searchParams.set('model', MODEL);
+  url.searchParams.set('stream', 'false');
 
   try {
     const res = await fetch(url.toString(), {
@@ -82,22 +83,12 @@ async function generate(id, attempt = 1) {
       return;
     }
 
-    // Consume the stream
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let full = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      full += decoder.decode(value, { stream: true });
-    }
-
-    if (full.includes('__ERROR__')) {
-      const errMsg = full.split('__ERROR__:')[1]?.trim().slice(0, 100) || 'unknown error';
-      console.log(`  ${id.padEnd(14)} ❌  ${errMsg}`);
+    const json = await res.json();
+    if (json.error) {
+      console.log(`  ${id.padEnd(14)} ❌  ${json.error.slice(0, 100)}`);
       failed++;
     } else {
-      console.log(`  ${id.padEnd(14)} ✅  ${full.length} chars`);
+      console.log(`  ${id.padEnd(14)} ✅  ${json.narrative.length} chars`);
       ok++;
     }
   } catch (err) {

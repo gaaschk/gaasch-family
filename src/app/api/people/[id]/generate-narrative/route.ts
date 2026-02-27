@@ -32,8 +32,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const client = new Anthropic({ apiKey: apiKeySetting.value });
-  const modelOverride = new URL(req.url).searchParams.get('model');
+  const searchParams = new URL(req.url).searchParams;
+  const modelOverride = searchParams.get('model');
   const model = modelOverride || modelSetting?.value || 'claude-sonnet-4-6';
+  const streaming = searchParams.get('stream') !== 'false';
 
   const person = await prisma.person.findUnique({
     where: { id },
@@ -121,18 +123,56 @@ Rules:
 Person data:
 ${lines.join('\n')}`;
 
-  // Stream Claude's response to the client, accumulate full text, then save to DB
+  const messageParams = {
+    model,
+    max_tokens: 1500,
+    messages:   [{ role: 'user' as const, content: prompt }],
+  };
+
+  function stripFences(text: string) {
+    return text.replace(/^```(?:html)?\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+  }
+
+  async function saveNarrative(raw: string) {
+    const cleaned = stripFences(raw);
+    await prisma.person.update({ where: { id }, data: { narrative: cleaned } });
+    await prisma.auditLog.create({
+      data: {
+        tableName: 'people',
+        recordId:  id,
+        action:    'generate-narrative',
+        oldData:   JSON.stringify({ narrative: person.narrative }),
+        newData:   JSON.stringify({ narrative: cleaned }),
+        userId:    auth.userId === 'api' ? null : auth.userId,
+      },
+    });
+    return cleaned;
+  }
+
+  // ── Non-streaming (script / API callers) ──────────────────────────────────
+  if (!streaming) {
+    try {
+      const message = await client.messages.create(messageParams);
+      const raw = message.content
+        .filter(b => b.type === 'text')
+        .map(b => (b as { type: 'text'; text: string }).text)
+        .join('');
+      const cleaned = await saveNarrative(raw);
+      return NextResponse.json({ narrative: cleaned });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Generation failed';
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
+  // ── Streaming (browser UI) ─────────────────────────────────────────────────
   const encoder = new TextEncoder();
   let fullText = '';
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const claudeStream = client.messages.stream({
-          model,
-          max_tokens: 1500,
-          messages:   [{ role: 'user', content: prompt }],
-        });
+        const claudeStream = client.messages.stream(messageParams);
 
         for await (const event of claudeStream) {
           if (
@@ -144,22 +184,7 @@ ${lines.join('\n')}`;
           }
         }
 
-        // Strip markdown code fences if the model wrapped its output
-        const cleaned = fullText.replace(/^```(?:html)?\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-
-        // Save to DB once generation is complete
-        await prisma.person.update({ where: { id }, data: { narrative: cleaned } });
-
-        await prisma.auditLog.create({
-          data: {
-            tableName: 'people',
-            recordId:  id,
-            action:    'generate-narrative',
-            oldData:   JSON.stringify({ narrative: person.narrative }),
-            newData:   JSON.stringify({ narrative: cleaned }),
-            userId:    auth.userId === 'api' ? null : auth.userId,
-          },
-        });
+        await saveNarrative(fullText);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Generation failed';
         controller.enqueue(encoder.encode(`\n__ERROR__: ${msg}`));
