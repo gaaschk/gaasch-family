@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   await prisma.setting.upsert({
-    where:  { key },
+    where:  { treeId_key: { treeId: tree.id, key } },
     create: { key, treeId: tree.id, value: value ?? '' },
     update: { value: value ?? '' },
   });
