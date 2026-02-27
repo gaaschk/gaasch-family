@@ -69,6 +69,7 @@ model User {
   auditLogs   AuditLog[]
   ownedTrees  Tree[]       @relation("TreeOwner")
   treeMembers TreeMember[]
+  fsToken     FamilySearchToken?
 
   @@map("users")
 }
@@ -204,6 +205,22 @@ model Setting {
 
   @@unique([treeId, key])
   @@map("settings")
+}
+
+model FamilySearchToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  accessToken  String   @map("access_token")
+  refreshToken String?  @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  displayName  String?  @map("display_name")
+  fsCisId      String?  @map("fs_cis_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("familysearch_tokens")
 }
 
 model AuditLog {

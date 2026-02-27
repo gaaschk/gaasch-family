@@ -1,0 +1,287 @@
+/**
+ * FamilySearch API client
+ * Docs: https://www.familysearch.org/developers/docs/api/
+ */
+import { prisma } from './prisma';
+
+const IS_SANDBOX = process.env.FAMILYSEARCH_ENV === 'sandbox';
+
+export const FS_API   = IS_SANDBOX ? 'https://beta.familysearch.org' : 'https://api.familysearch.org';
+const FS_AUTH_BASE    = IS_SANDBOX ? 'https://identbeta.familysearch.org' : 'https://ident.familysearch.org';
+const FS_TOKEN_URL    = `${FS_AUTH_BASE}/cis-web/oauth2/v3/token`;
+const FS_AUTH_URL     = `${FS_AUTH_BASE}/cis-web/oauth2/v3/authorization`;
+
+function redirectUri() {
+  return `${process.env.AUTH_URL}/api/auth/familysearch/callback`;
+}
+
+// ── OAuth ──────────────────────────────────────────────────────────────────
+
+export function getFsAuthUrl(state: string) {
+  const p = new URLSearchParams({
+    response_type: 'code',
+    client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
+    redirect_uri:  redirectUri(),
+    scope:         'openid profile',
+    state,
+  });
+  return `${FS_AUTH_URL}?${p}`;
+}
+
+export async function exchangeCode(code: string) {
+  const res = await fetch(FS_TOKEN_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'authorization_code',
+      code,
+      client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
+      client_secret: process.env.FAMILYSEARCH_CLIENT_SECRET!,
+      redirect_uri:  redirectUri(),
+    }),
+  });
+  if (!res.ok) throw new Error(`Token exchange failed: ${res.status}`);
+  return res.json() as Promise<{
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+    id_token?: string;
+  }>;
+}
+
+async function doRefresh(refreshToken: string) {
+  const res = await fetch(FS_TOKEN_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'refresh_token',
+      refresh_token: refreshToken,
+      client_id:     process.env.FAMILYSEARCH_CLIENT_ID!,
+      client_secret: process.env.FAMILYSEARCH_CLIENT_SECRET!,
+    }),
+  });
+  if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
+  return res.json() as Promise<{
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+  }>;
+}
+
+// ── Token management ────────────────────────────────────────────────────────
+
+/** Returns a valid access token for the user, refreshing if needed. */
+export async function getAccessToken(userId: string): Promise<string | null> {
+  const record = await prisma.familySearchToken.findUnique({ where: { userId } });
+  if (!record) return null;
+
+  // If token expires in more than 5 min, use it
+  if (record.expiresAt.getTime() - Date.now() > 5 * 60 * 1000) {
+    return record.accessToken;
+  }
+
+  // Try to refresh
+  if (!record.refreshToken) return null;
+  try {
+    const tokens = await doRefresh(record.refreshToken);
+    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+    await prisma.familySearchToken.update({
+      where: { userId },
+      data: {
+        accessToken:  tokens.access_token,
+        refreshToken: tokens.refresh_token ?? record.refreshToken,
+        expiresAt,
+        updatedAt: new Date(),
+      },
+    });
+    return tokens.access_token;
+  } catch {
+    return null;
+  }
+}
+
+// ── API calls ──────────────────────────────────────────────────────────────
+
+export async function fsGet<T = unknown>(path: string, accessToken: string): Promise<T> {
+  const res = await fetch(`${FS_API}${path}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept:        'application/x-fs-v1+json',
+    },
+  });
+  if (res.status === 401) throw new Error('FamilySearch token expired or invalid');
+  if (!res.ok) throw new Error(`FamilySearch API error: ${res.status} ${path}`);
+  return res.json() as Promise<T>;
+}
+
+// ── Data mappers ───────────────────────────────────────────────────────────
+
+const FS_BIRTH      = 'http://gedcomx.org/Birth';
+const FS_DEATH      = 'http://gedcomx.org/Death';
+const FS_BURIAL     = 'http://gedcomx.org/Burial';
+const FS_OCCUPATION = 'http://gedcomx.org/Occupation';
+const FS_MALE       = 'http://gedcomx.org/Male';
+const FS_FEMALE     = 'http://gedcomx.org/Female';
+
+interface FsPerson {
+  id: string;
+  names?: { nameForms?: { fullText?: string }[] }[];
+  gender?: { type?: string };
+  facts?: {
+    type?: string;
+    date?:  { original?: string };
+    place?: { original?: string };
+    value?: string;
+  }[];
+}
+
+export interface FsPersonSummary {
+  pid:        string;
+  name:       string;
+  sex:        string | null;
+  birthDate:  string | null;
+  birthPlace: string | null;
+  deathDate:  string | null;
+  deathPlace: string | null;
+  burialDate: string | null;
+  burialPlace: string | null;
+  occupation: string | null;
+}
+
+export function mapFsPerson(p: FsPerson): FsPersonSummary {
+  const name  = p.names?.[0]?.nameForms?.[0]?.fullText ?? '(unknown)';
+  const facts = p.facts ?? [];
+  const birth  = facts.find(f => f.type === FS_BIRTH);
+  const death  = facts.find(f => f.type === FS_DEATH);
+  const burial = facts.find(f => f.type === FS_BURIAL);
+  const occ    = facts.find(f => f.type === FS_OCCUPATION);
+  const gender = p.gender?.type;
+  return {
+    pid:        p.id,
+    name,
+    sex:        gender === FS_MALE ? 'M' : gender === FS_FEMALE ? 'F' : null,
+    birthDate:  birth?.date?.original  ?? null,
+    birthPlace: birth?.place?.original ?? null,
+    deathDate:  death?.date?.original  ?? null,
+    deathPlace: death?.place?.original ?? null,
+    burialDate: burial?.date?.original ?? null,
+    burialPlace: burial?.place?.original ?? null,
+    occupation: occ?.value ?? null,
+  };
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────
+
+export interface FsSearchEntry {
+  id:    string;          // FamilySearch PID
+  score: number;
+  person: FsPersonSummary;
+}
+
+interface FsSearchResult {
+  entries?: {
+    id: string;
+    score: number;
+    content?: { gedcomx?: { persons?: FsPerson[] } };
+  }[];
+}
+
+export async function searchFamilySearch(
+  accessToken: string,
+  query: string,
+  count = 10,
+): Promise<FsSearchEntry[]> {
+  const params = new URLSearchParams({ 'q.name': query, count: String(count) });
+  const data = await fsGet<FsSearchResult>(`/platform/tree/search?${params}`, accessToken);
+  return (data.entries ?? []).map(e => ({
+    id:     e.id,
+    score:  e.score,
+    person: mapFsPerson(e.content?.gedcomx?.persons?.[0] ?? { id: e.id }),
+  }));
+}
+
+// ── Ancestry (pedigree) ────────────────────────────────────────────────────
+
+interface FsAncestryResult {
+  persons?: (FsPerson & { display?: { ascendancyNumber?: string } })[];
+}
+
+export async function fetchAncestry(
+  accessToken: string,
+  pid: string,
+  generations = 4,
+): Promise<FsPersonSummary[]> {
+  const params = new URLSearchParams({ person: pid, generations: String(generations) });
+  const data = await fsGet<FsAncestryResult>(`/platform/tree/ancestry?${params}`, accessToken);
+  return (data.persons ?? []).map(p => mapFsPerson(p));
+}
+
+// ── Relationships (for building families) ─────────────────────────────────
+
+interface FsRelResult {
+  relationships?: {
+    type?: string;
+    person1?: { resourceId?: string };
+    person2?: { resourceId?: string };
+    facts?: { type?: string; date?: { original?: string }; place?: { original?: string } }[];
+  }[];
+}
+
+interface FsParentsResult {
+  childAndParentsRelationships?: {
+    parent1?: { resourceId?: string };
+    parent2?: { resourceId?: string };
+    child?:   { resourceId?: string };
+    facts?:   unknown[];
+  }[];
+  persons?: FsPerson[];
+}
+
+export async function fetchParentRelationships(
+  accessToken: string,
+  pid: string,
+): Promise<{ fatherId: string | null; motherId: string | null }> {
+  try {
+    const data = await fsGet<FsParentsResult>(
+      `/platform/tree/persons/${pid}/parents`,
+      accessToken,
+    );
+    const rel = data.childAndParentsRelationships?.[0];
+    if (!rel) return { fatherId: null, motherId: null };
+    return {
+      fatherId: rel.parent1?.resourceId ?? null,
+      motherId: rel.parent2?.resourceId ?? null,
+    };
+  } catch {
+    return { fatherId: null, motherId: null };
+  }
+}
+
+export async function fetchSpouseRelationships(
+  accessToken: string,
+  pid: string,
+): Promise<{
+  spouseId: string | null;
+  marrDate: string | null;
+  marrPlace: string | null;
+}[]> {
+  try {
+    const data = await fsGet<FsRelResult>(
+      `/platform/tree/persons/${pid}/spouses`,
+      accessToken,
+    );
+    return (data.relationships ?? []).map(r => {
+      const marrFact = r.facts?.find(f => f.type === 'http://gedcomx.org/Marriage');
+      const spouseId = r.person1?.resourceId === pid
+        ? (r.person2?.resourceId ?? null)
+        : (r.person1?.resourceId ?? null);
+      return {
+        spouseId,
+        marrDate:  marrFact?.date?.original  ?? null,
+        marrPlace: marrFact?.place?.original ?? null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}

@@ -91,6 +91,9 @@ export default async function TreeAdminLayout({ children, params }: Props) {
               <Link href={`${base}/settings`} className="admin-nav-link">
                 Settings
               </Link>
+              <Link href={`${base}/familysearch`} className="admin-nav-link">
+                FamilySearch
+              </Link>
             </>
           )}
 
