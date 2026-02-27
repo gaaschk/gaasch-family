@@ -126,7 +126,7 @@ function deriveRelations(p: PersonFull) {
 // ── Main component ────────────────────────────────────────────────────────
 const KEVIN_ID = '@I500001@';
 
-export default function TreeExplorer({ initialPerson }: { initialPerson?: PersonFull }) {
+export default function TreeExplorer({ initialPerson, role }: { initialPerson?: PersonFull; role?: string }) {
   const [currentId, setCurrentId] = useState(KEVIN_ID);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
   const [loading, setLoading] = useState(!initialPerson);
@@ -296,6 +296,24 @@ export default function TreeExplorer({ initialPerson }: { initialPerson?: Person
 
           {/* Center: Narrative */}
           <div className="chapter-col-center">
+            {(role === 'editor' || role === 'admin') && (
+              <a
+                href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
+                style={{
+                  display: 'inline-block',
+                  marginBottom: '1.25rem',
+                  fontSize: '0.78rem',
+                  color: 'var(--rust)',
+                  border: '1px solid rgba(139,69,19,0.3)',
+                  borderRadius: '4px',
+                  padding: '0.3rem 0.75rem',
+                  textDecoration: 'none',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Edit this person ›
+              </a>
+            )}
             {loading ? (
               <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
             ) : narrative ? (

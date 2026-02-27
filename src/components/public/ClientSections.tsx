@@ -38,8 +38,8 @@ const DirectorySection = dynamic(
   }
 );
 
-export function PublicTreeExplorer() {
-  return <TreeExplorer />;
+export function PublicTreeExplorer({ role }: { role?: string }) {
+  return <TreeExplorer role={role} />;
 }
 
 export function PublicMapsSection() {

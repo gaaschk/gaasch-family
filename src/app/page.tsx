@@ -218,7 +218,7 @@ export default async function HomePage() {
         </section>
 
         {/* ── Chapters + Tree Explorer ── */}
-        <PublicTreeExplorer />
+        <PublicTreeExplorer role={session.user.role} />
 
         {/* ── Maps ── */}
         <PublicMapsSection />
