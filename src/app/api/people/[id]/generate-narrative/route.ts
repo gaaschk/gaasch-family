@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
-import { requireRole } from '@/lib/auth';
+import { requireRoleOrToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -12,8 +12,8 @@ function clean(name: string) {
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(_req: NextRequest, { params }: Params) {
-  const auth = await requireRole('editor');
+export async function POST(req: NextRequest, { params }: Params) {
+  const auth = await requireRoleOrToken(req, 'editor');
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;

@@ -11,10 +11,11 @@ export async function GET(_req: NextRequest) {
 
   const settings = await prisma.setting.findMany();
 
+  const SENSITIVE = ['key', 'secret', 'token'];
   // Mask sensitive values: show only last 4 chars
   const masked = settings.map(s => ({
     key: s.key,
-    value: s.key.includes('key') || s.key.includes('secret')
+    value: SENSITIVE.some(k => s.key.includes(k))
       ? (s.value.length > 4 ? `${'•'.repeat(s.value.length - 4)}${s.value.slice(-4)}` : '••••')
       : s.value,
     updatedAt: s.updatedAt,

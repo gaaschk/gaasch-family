@@ -17,14 +17,21 @@ export default function SettingsPage() {
   const [status, setStatus]       = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError]         = useState('');
 
+  // API token state
+  const [hasToken, setHasToken]       = useState(false);
+  const [newToken, setNewToken]       = useState('');
+  const [tokenStatus, setTokenStatus] = useState<'idle' | 'generating' | 'copied'>('idle');
+
   useEffect(() => {
     fetch('/api/settings')
       .then(r => r.json())
       .then((data: Setting[]) => {
         const k = data.find(s => s.key === 'anthropic_api_key');
         const m = data.find(s => s.key === 'anthropic_model');
+        const t = data.find(s => s.key === 'api_token');
         if (k) setMaskedKey(k.value);
         if (m) setModel(m.value);
+        if (t) setHasToken(true);
       })
       .catch(() => {});
   }, []);
@@ -124,6 +131,82 @@ export default function SettingsPage() {
           {status === 'saving' ? 'Saving...' : 'Save settings'}
         </button>
       </form>
+
+      {/* ── API Access Token ── */}
+      <section style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)', maxWidth: 520 }}>
+        <p className="section-title" style={{ marginBottom: '0.5rem' }}>API Access Token</p>
+        <p style={{ fontSize: '0.82rem', color: 'var(--sepia)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+          Use this token to call{' '}
+          <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em', background: 'rgba(0,0,0,0.05)', padding: '0 0.25em', borderRadius: 3 }}>
+            POST /api/people/&#123;id&#125;/generate-narrative
+          </code>{' '}
+          from scripts or external tools without a browser session.
+          Pass it as{' '}
+          <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em', background: 'rgba(0,0,0,0.05)', padding: '0 0.25em', borderRadius: 3 }}>
+            Authorization: Bearer &lt;token&gt;
+          </code>.
+        </p>
+
+        {newToken ? (
+          <div style={{ marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--rust)', marginBottom: '0.4rem' }}>
+              Copy your token now — it will be masked after you leave this page.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                readOnly
+                value={newToken}
+                style={{
+                  flex: 1,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.8rem',
+                  padding: '0.4rem 0.6rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  background: 'var(--parchment)',
+                  color: 'var(--ink)',
+                }}
+              />
+              <button
+                className="btn btn-primary"
+                style={{ whiteSpace: 'nowrap' }}
+                onClick={() => {
+                  navigator.clipboard.writeText(newToken);
+                  setTokenStatus('copied');
+                  setTimeout(() => setTokenStatus('idle'), 2000);
+                }}
+              >
+                {tokenStatus === 'copied' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          hasToken && (
+            <p style={{ fontSize: '0.82rem', color: 'var(--sepia)', marginBottom: '1rem' }}>
+              A token is currently set.
+            </p>
+          )
+        )}
+
+        <button
+          className="btn btn-primary"
+          disabled={tokenStatus === 'generating'}
+          onClick={async () => {
+            setTokenStatus('generating');
+            const token = crypto.randomUUID();
+            await fetch('/api/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ key: 'api_token', value: token }),
+            });
+            setNewToken(token);
+            setHasToken(true);
+            setTokenStatus('idle');
+          }}
+        >
+          {tokenStatus === 'generating' ? 'Generating…' : hasToken ? 'Regenerate token' : 'Generate token'}
+        </button>
+      </section>
     </div>
   );
 }

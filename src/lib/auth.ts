@@ -37,3 +37,35 @@ export async function requireRole(
 
   return { userId: user.id, email: user.email, role: user.role as UserRole };
 }
+
+/**
+ * Like requireRole, but also accepts an `Authorization: Bearer <token>` header
+ * validated against the `api_token` setting in the database.
+ *
+ * On valid token, returns `{ userId: 'api', email: 'api-token', role: 'editor' }`.
+ */
+export async function requireRoleOrToken(
+  req: Request,
+  minRole: UserRole,
+): Promise<{ userId: string; email: string; role: UserRole } | NextResponse> {
+  // Try session first
+  const sessionResult = await requireRole(minRole);
+  if (!(sessionResult instanceof NextResponse)) return sessionResult;
+
+  // Fall back to Bearer token
+  const bearer = req.headers.get('authorization');
+  if (!bearer?.startsWith('Bearer ')) return sessionResult;
+
+  const token = bearer.slice(7).trim();
+  const setting = await prisma.setting.findUnique({ where: { key: 'api_token' } });
+
+  if (!setting?.value || setting.value !== token) {
+    return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
+  }
+
+  if (ROLE_ORDER['editor'] < ROLE_ORDER[minRole]) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  return { userId: 'api', email: 'api-token', role: 'editor' };
+}
