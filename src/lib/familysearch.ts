@@ -3,16 +3,9 @@
  * Docs: https://www.familysearch.org/developers/docs/api/
  */
 import { prisma } from './prisma';
+import { getSystemSetting } from './settings';
 
 const IS_SANDBOX = process.env.FAMILYSEARCH_ENV === 'sandbox';
-
-async function getSystemSetting(key: string, envFallback: string): Promise<string> {
-  try {
-    const row = await prisma.systemSetting.findUnique({ where: { key } });
-    if (row?.value) return row.value;
-  } catch { /* DB not available during build */ }
-  return process.env[envFallback] ?? '';
-}
 
 export const FS_API   = IS_SANDBOX ? 'https://beta.familysearch.org' : 'https://api.familysearch.org';
 const FS_AUTH_BASE    = IS_SANDBOX ? 'https://identbeta.familysearch.org' : 'https://ident.familysearch.org';

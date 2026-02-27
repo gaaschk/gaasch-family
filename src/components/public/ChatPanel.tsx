@@ -59,9 +59,14 @@ export default function ChatPanel({
       });
 
       if (!res.ok || !res.body) {
+        let errMsg = 'Something went wrong. Please try again.';
+        try {
+          const errBody = await res.json() as { error?: string };
+          if (errBody.error) errMsg = errBody.error;
+        } catch { /* ignore */ }
         setMessages(prev => {
           const copy = [...prev];
-          copy[copy.length - 1] = { ...copy[copy.length - 1], content: '<p class="body-text" style="color:var(--rust)">Something went wrong. Please try again.</p>' };
+          copy[copy.length - 1] = { ...copy[copy.length - 1], content: `<p class="body-text" style="color:var(--rust)">${errMsg}</p>` };
           return copy;
         });
         return;

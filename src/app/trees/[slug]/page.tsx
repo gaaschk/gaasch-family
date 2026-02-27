@@ -47,11 +47,18 @@ export default async function TreePage({ params }: Props) {
 
   const isAdmin = treeRole === 'admin';
 
-  const defaultPersonSetting = await prisma.setting.findFirst({
-    where: { treeId: tree.id, key: 'default_person_id' },
-    select: { value: true },
-  });
-  const defaultPersonId = defaultPersonSetting?.value ?? undefined;
+  const [defaultPersonSetting, fsToken] = await Promise.all([
+    prisma.setting.findFirst({
+      where: { treeId: tree.id, key: 'default_person_id' },
+      select: { value: true },
+    }),
+    prisma.familySearchToken.findUnique({
+      where:  { userId },
+      select: { id: true },
+    }),
+  ]);
+  const defaultPersonId  = defaultPersonSetting?.value ?? undefined;
+  const hasFsConnection  = !!fsToken;
 
   return (
     <>
@@ -72,7 +79,7 @@ export default async function TreePage({ params }: Props) {
       </nav>
 
       <div className="pub-page">
-        <PublicTreeExplorer treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} />
+        <PublicTreeExplorer treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
 
         <PublicDirectorySection treeSlug={tree.slug} />
 

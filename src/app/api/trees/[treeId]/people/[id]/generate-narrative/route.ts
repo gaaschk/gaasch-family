@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { requireTreeAccessOrToken } from '@/lib/auth';
 import { buildNarrativePrompt } from '@/lib/narrative';
+import { getSystemSetting } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -18,23 +19,23 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { tree } = auth;
   const authorId = auth.userId === 'api' ? null : auth.userId;
 
-  // Load API key + model from tree-scoped settings
-  const [apiKeySetting, modelSetting] = await Promise.all([
-    prisma.setting.findFirst({ where: { treeId: tree.id, key: 'anthropic_api_key' } }),
-    prisma.setting.findFirst({ where: { treeId: tree.id, key: 'anthropic_model' } }),
+  // Load API key + model from global system settings
+  const [apiKey, modelValue] = await Promise.all([
+    getSystemSetting('anthropic_api_key', 'ANTHROPIC_API_KEY'),
+    getSystemSetting('anthropic_model',   'ANTHROPIC_MODEL'),
   ]);
 
-  if (!apiKeySetting?.value) {
+  if (!apiKey) {
     return NextResponse.json(
-      { error: 'Anthropic API key not configured. Go to Admin → Settings.' },
+      { error: 'Anthropic API key not configured. Go to System Admin → Settings.' },
       { status: 503 },
     );
   }
 
-  const client = new Anthropic({ apiKey: apiKeySetting.value });
+  const client = new Anthropic({ apiKey });
   const searchParams = new URL(req.url).searchParams;
   const modelOverride = searchParams.get('model');
-  const model = modelOverride || modelSetting?.value || 'claude-sonnet-4-6';
+  const model = modelOverride || modelValue || 'claude-sonnet-4-6';
   const streaming = searchParams.get('stream') !== 'false';
 
   const person = await prisma.person.findFirst({

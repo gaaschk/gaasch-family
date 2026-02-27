@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { requireTreeAccessOrToken } from '@/lib/auth';
+import { getSystemSetting } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -20,14 +21,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { tree } = auth;
 
-  const [apiKeySetting, modelSetting] = await Promise.all([
-    prisma.setting.findFirst({ where: { treeId: tree.id, key: 'anthropic_api_key' } }),
-    prisma.setting.findFirst({ where: { treeId: tree.id, key: 'anthropic_model' } }),
+  const [apiKey, modelValue] = await Promise.all([
+    getSystemSetting('anthropic_api_key', 'ANTHROPIC_API_KEY'),
+    getSystemSetting('anthropic_model',   'ANTHROPIC_MODEL'),
   ]);
 
-  if (!apiKeySetting?.value) {
+  if (!apiKey) {
     return NextResponse.json(
-      { error: 'Anthropic API key not configured. Go to Admin → Settings.' },
+      { error: 'Anthropic API key not configured. Go to System Admin → Settings.' },
       { status: 503 },
     );
   }
@@ -136,8 +137,8 @@ Lineage data (oldest ancestor first):
 
 ${summaries.map((s, i) => `--- Person ${i + 1} ---\n${s}`).join('\n\n')}`;
 
-  const client = new Anthropic({ apiKey: apiKeySetting.value });
-  const model = modelSetting?.value || 'claude-sonnet-4-6';
+  const client = new Anthropic({ apiKey });
+  const model = modelValue || 'claude-sonnet-4-6';
 
   const encoder = new TextEncoder();
 

@@ -130,6 +130,7 @@ export default function TreeExplorer({
   role,
   defaultPersonId,
   userId,
+  hasFsConnection,
 }: {
   treeSlug: string;
   treeName?: string;
@@ -137,6 +138,7 @@ export default function TreeExplorer({
   role?: string;
   defaultPersonId?: string;
   userId?: string;
+  hasFsConnection?: boolean;
 }) {
   const [currentId, setCurrentId] = useState<string | null>(initialPerson?.id ?? null);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
@@ -570,24 +572,26 @@ export default function TreeExplorer({
                         ⟷ {fsMatches.length} FamilySearch {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
                       </button>
                     )}
-                    <button
-                      onClick={handleFsSearch}
-                      disabled={fsActing === 'search'}
-                      style={{
-                        background: 'none',
-                        border: '1px solid rgba(122,92,46,0.3)',
-                        borderRadius: 20,
-                        padding: '0.3rem 0.85rem',
-                        color: 'var(--sepia)',
-                        fontFamily: 'var(--font-sc)',
-                        fontSize: '0.63rem',
-                        letterSpacing: '0.07em',
-                        cursor: fsActing === 'search' ? 'wait' : 'pointer',
-                        opacity: fsActing === 'search' ? 0.6 : 1,
-                      }}
-                    >
-                      {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search' : 'Search FamilySearch'}
-                    </button>
+                    {hasFsConnection && (
+                      <button
+                        onClick={handleFsSearch}
+                        disabled={fsActing === 'search'}
+                        style={{
+                          background: 'none',
+                          border: '1px solid rgba(122,92,46,0.3)',
+                          borderRadius: 20,
+                          padding: '0.3rem 0.85rem',
+                          color: 'var(--sepia)',
+                          fontFamily: 'var(--font-sc)',
+                          fontSize: '0.63rem',
+                          letterSpacing: '0.07em',
+                          cursor: fsActing === 'search' ? 'wait' : 'pointer',
+                          opacity: fsActing === 'search' ? 0.6 : 1,
+                        }}
+                      >
+                        {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search' : 'Search FamilySearch'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
