@@ -336,10 +336,16 @@ Guidelines:
 - Format your responses as HTML using these CSS classes: <p class="body-text">, <p class="section-title">, <div class="pull-quote">
 - When mentioning a specific person from the database, make their name a clickable link: <a class="chat-person-link" data-id="THEIR_CUID">Their Name</a>
 - Be conversational and warm, like a knowledgeable family historian
-- For lists of people (e.g. a paternal line), present them as a clear, readable list${canEdit ? '\n- When generating narratives for multiple people, call generate_narrative once per person in sequence' : ''}`;
+- For lists of people (e.g. a paternal line), present them as a readable <ul> list using <li> elements
+- NEVER use markdown — no **bold**, no *italic*, no ## headings, no backticks${canEdit ? '\n- When generating narratives for multiple people, call generate_narrative once per person in sequence' : ''}`;
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Keep the connection alive during long Anthropic calls (prevents 524s)
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(encode({ t: 'k' })); } catch { /* stream closed */ }
+      }, 5000);
+
       try {
         // Build conversation history for Claude
         const messages: Anthropic.MessageParam[] = body.messages.map(m => ({
@@ -437,6 +443,7 @@ Guidelines:
         const msg = err instanceof Error ? err.message : 'Chat error';
         controller.enqueue(encode({ t: 'e', v: msg }));
       } finally {
+        clearInterval(heartbeat);
         controller.close();
       }
     },
