@@ -104,24 +104,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     children.length   ? `Children (${children.length}): ${children.slice(0, 12).join(', ')}${children.length > 12 ? ` …and ${children.length - 12} more` : ''}` : '',
   ].filter(Boolean);
 
-  const prompt = `You are writing biographical narratives for a private family history website tracing the Gaasch family from 17th-century Luxembourg to present-day America. The tone is warm, archival, and historically grounded — like a well-researched family history book, not an encyclopedia.
+  const prompt = `You are writing biographical narrative text for a private family history website tracing the Gaasch family from 17th-century Luxembourg to present-day America. The tone is warm, archival, and historically grounded — like a well-researched family history book, not an encyclopedia.
+
+The person's name, dates, and key facts are already displayed on the page. Your job is to write only the narrative body — historical context, prose, and memorable passages.
 
 IMPORTANT: Your entire response must be raw HTML. Do not use markdown. Do not use backticks. Do not add any explanation before or after the HTML. Start your response with a < character and end it with a > character.
 
 Use only these HTML elements and CSS classes:
 
-<div class="chapter-header"><h2>Full Name</h2><p class="chapter-meta">dates · place</p></div>
-<div class="key-facts"><div class="key-fact"><span class="key-fact-label">Label</span><span class="key-fact-value">Value</span></div></div>
 <p class="section-title">Section heading</p>
 <p class="body-text">Paragraph text here.</p>
-<div class="latin-quote">Latin text (only for 17th–18th century Luxembourg records)</div>
-<div class="pull-quote">"Memorable sentence."</div>
+<div class="latin-quote">Latin text (only for 17th–18th century Luxembourg parish records)</div>
+<div class="pull-quote">"A single memorable sentence."</div>
 
 Content rules:
-- Start with the chapter-header, then key-facts, then 2–4 section-title + body-text pairs
-- Include genuine historical context for the person's time and place
+- Write 2–4 section-title + body-text pairs covering the person's historical context and life
 - Relevant history: Luxembourg (Habsburg rule, French Revolutionary era), Iowa frontier, Kansas homesteading, Oklahoma oil era, Texas High Plains
 - For Luxembourg ancestors note the Catholic parish register tradition
+- Include a latin-quote only when actual Latin text from a parish record is provided in the data
+- Include one pull-quote with a resonant observation about the person's life or era
 - Do not fabricate specific dates or facts not in the data — use hedged language ("likely", "probably", "around this time") where speculating
 
 Person data:

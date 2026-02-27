@@ -201,10 +201,10 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
   if (!person) return null;
 
   const { parents, spouses, children } = deriveRelations(person);
-  // DB narrative takes precedence over hardcoded chapters
-  const narrative = person.narrative
-    ? <div dangerouslySetInnerHTML={{ __html: person.narrative }} />
-    : CHAPTER_NARRATIVES[person.id];
+  // Hardcoded chapter narratives include their own header/key-facts
+  // DB narratives contain only prose — header is rendered from person data below
+  const hardcodedNarrative = CHAPTER_NARRATIVES[person.id];
+  const dbNarrative        = person.narrative;
   const lifespan  = formatLifespan(person);
   const nameClean = cleanName(person.name);
   const isDirect  = DIRECT_LINE_IDS.has(person.id);
@@ -316,10 +316,11 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
             )}
             {loading ? (
               <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
-            ) : narrative ? (
-              narrative
+            ) : hardcodedNarrative ? (
+              // Hardcoded narratives include their own header + key-facts
+              hardcodedNarrative
             ) : (
-              // Generic person card
+              // DB narrative or generic card — always render header from person data
               <>
                 <div className="chapter-header">
                   <h2>{nameClean}</h2>
@@ -357,6 +358,9 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
                     </div>
                   )}
                 </div>
+                {dbNarrative && (
+                  <div dangerouslySetInnerHTML={{ __html: dbNarrative }} />
+                )}
               </>
             )}
           </div>
