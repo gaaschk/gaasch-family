@@ -24,6 +24,13 @@ export default function SystemSettingsPage() {
   const [aiStatus, setAiStatus]         = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [aiError, setAiError]           = useState('');
 
+  const [emailServer, setEmailServer]   = useState('');
+  const [maskedServer, setMaskedServer] = useState('');
+  const [showServer, setShowServer]     = useState(false);
+  const [emailFrom, setEmailFrom]       = useState('');
+  const [emailStatus, setEmailStatus]   = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [emailError, setEmailError]     = useState('');
+
   const [loading, setLoading]           = useState(true);
 
   useEffect(() => {
@@ -35,9 +42,41 @@ export default function SystemSettingsPage() {
         setClientSecret(byKey['fs_client_secret'] ?? '');
         if (byKey['anthropic_api_key']) setMaskedKey('(saved)');
         if (byKey['anthropic_model'])   setModel(byKey['anthropic_model']);
+        if (byKey['email_server'])      setMaskedServer('(saved)');
+        if (byKey['email_from'])        setEmailFrom(byKey['email_from']);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  async function saveEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailStatus('saving');
+    setEmailError('');
+    try {
+      // Save from address always
+      await fetch('/api/admin/settings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key: 'email_from', value: emailFrom.trim() }),
+      });
+      // Save server only if the user typed something new
+      if (emailServer.trim()) {
+        const res = await fetch('/api/admin/settings', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ key: 'email_server', value: emailServer.trim() }),
+        });
+        if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? 'Save failed');
+        setEmailServer('');
+        setMaskedServer('(saved)');
+      }
+      setEmailStatus('saved');
+      setTimeout(() => setEmailStatus('idle'), 3000);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Save failed');
+      setEmailStatus('error');
+    }
+  }
 
   async function saveFamilySearch(e: React.FormEvent) {
     e.preventDefault();
@@ -164,6 +203,75 @@ export default function SystemSettingsPage() {
               </button>
               {aiStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
               {aiStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{aiError}</span>}
+            </div>
+          </form>
+
+          {/* ── Email ── */}
+          <form onSubmit={saveEmail}>
+            <section
+              style={{
+                padding: '1.25rem',
+                border: '1px solid var(--border-light)',
+                borderRadius: 8,
+                background: '#fff',
+                marginBottom: '1rem',
+              }}
+            >
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', marginBottom: '0.25rem' }}>
+                Email (SMTP)
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--sepia)', marginBottom: '1.25rem' }}>
+                Values set here override the{' '}
+                <code style={{ fontSize: '0.8rem' }}>EMAIL_SERVER</code> /{' '}
+                <code style={{ fontSize: '0.8rem' }}>EMAIL_FROM</code> environment variables.
+              </p>
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" htmlFor="email-server">
+                  SMTP Server URL
+                  {maskedServer && (
+                    <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
+                      current: {maskedServer}
+                    </span>
+                  )}
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    id="email-server"
+                    type={showServer ? 'text' : 'password'}
+                    className="form-input"
+                    value={emailServer}
+                    onChange={e => setEmailServer(e.target.value)}
+                    placeholder={maskedServer ? 'Leave blank to keep current' : 'smtp://user:pass@host:587'}
+                    autoComplete="new-password"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowServer(s => !s)} style={{ flexShrink: 0 }}>
+                    {showServer ? 'Hide' : 'Reveal'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="email-from">From Address</label>
+                <input
+                  id="email-from"
+                  type="text"
+                  className="form-input"
+                  value={emailFrom}
+                  onChange={e => setEmailFrom(e.target.value)}
+                  placeholder='Family History <no-reply@example.com>'
+                  autoComplete="off"
+                />
+              </div>
+            </section>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={emailStatus === 'saving'}>
+                {emailStatus === 'saving' ? 'Saving…' : 'Save'}
+              </button>
+              {emailStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
+              {emailStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{emailError}</span>}
             </div>
           </form>
 

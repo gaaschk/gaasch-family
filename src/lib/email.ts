@@ -1,15 +1,22 @@
 import nodemailer from 'nodemailer';
+import { getSystemSetting } from './settings';
 
-function createTransport() {
-  return nodemailer.createTransport(process.env.EMAIL_SERVER as string);
+async function createTransport() {
+  const server = await getSystemSetting('email_server', 'EMAIL_SERVER');
+  return nodemailer.createTransport(server);
+}
+
+async function getFrom() {
+  return await getSystemSetting('email_from', 'EMAIL_FROM');
 }
 
 export async function sendVerificationEmail(to: string, token: string, callbackUrl?: string) {
   const base  = process.env.AUTH_URL ?? 'http://localhost:3000';
   const cbParam = callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : '';
   const url   = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}${cbParam}`;
-  await createTransport().sendMail({
-    from:    process.env.EMAIL_FROM,
+  const transport = await createTransport();
+  await transport.sendMail({
+    from:    await getFrom(),
     to,
     subject: 'Verify your email — Family History',
     text:    `Click the link below to create your password:\n\n${url}\n\nThis link expires in 24 hours.`,
@@ -25,8 +32,9 @@ export async function sendVerificationEmail(to: string, token: string, callbackU
 export async function sendPasswordResetEmail(to: string, token: string) {
   const base = process.env.AUTH_URL ?? 'http://localhost:3000';
   const url  = `${base}/set-password?token=${token}&email=${encodeURIComponent(to)}&reset=1`;
-  await createTransport().sendMail({
-    from:    process.env.EMAIL_FROM,
+  const transport = await createTransport();
+  await transport.sendMail({
+    from:    await getFrom(),
     to,
     subject: 'Reset your password — Family History',
     text:    `Click the link below to reset your password:\n\n${url}\n\nThis link expires in 1 hour. If you did not request this, you can ignore this email.`,
@@ -51,8 +59,9 @@ export async function sendTreeInviteEmail(
   const base   = process.env.AUTH_URL ?? 'http://localhost:3000';
   const url    = `${base}/invite/${opts.token}`;
   const roleLabel = opts.role.charAt(0).toUpperCase() + opts.role.slice(1);
-  await createTransport().sendMail({
-    from:    process.env.EMAIL_FROM,
+  const transport = await createTransport();
+  await transport.sendMail({
+    from:    await getFrom(),
     to,
     subject: `You've been invited to ${opts.treeName} — Family History`,
     text:    [
