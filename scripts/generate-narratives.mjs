@@ -74,8 +74,20 @@ const BRITTON_LINE = [
   '@I501731@', // Hanna Achea
 ];
 
+// Chambliss paternal line (Lula's maternal grandmother's line)
+// Bertha M Chambless → Lorenzo Dow Chambliss → Greenberry Young Chambliss → Littleton Martin Chambliss
+const CHAMBLISS_LINE = [
+  '@I500977@', // Bertha M Chambless (Lula's maternal grandmother)
+  '@I501032@', // Lucinda Mae Lula Thornton (her mother)
+  '@I501031@', // Lorenzo Dow Chambliss
+  '@I501165@', // Mary Ann Fisher
+  '@I501164@', // Greenberry Young Chambliss
+  '@I501592@', // Elizabeth Williams
+  '@I501591@', // Littleton Martin Chambliss (earliest, b. 1792 Georgia)
+];
+
 // Deduplicated combined list
-const DEFAULT_IDS = [...new Set([...GAASCH_LINE, ...BRITTON_LINE])];
+const DEFAULT_IDS = [...new Set([...GAASCH_LINE, ...BRITTON_LINE, ...CHAMBLISS_LINE])];
 
 const ids = IDS_ARG ? IDS_ARG.split(',').map(s => s.trim()) : DEFAULT_IDS;
 const modelNote = MODEL ? ` (model: ${MODEL})` : '';
