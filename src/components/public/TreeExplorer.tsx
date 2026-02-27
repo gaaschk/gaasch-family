@@ -287,51 +287,58 @@ export default function TreeExplorer({ initialPerson, role }: { initialPerson?: 
 
         {/* Full-width header for DB/generic people (hardcoded narratives include their own) */}
         {!loading && !hardcodedNarrative && (
-          <div className="chapter-header" style={{ padding: '2rem 2rem 2rem', textAlign: 'center' }}>
-            {(role === 'editor' || role === 'admin') && (
-              <a
-                href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
-                style={{
-                  display: 'inline-block',
-                  marginBottom: '1rem',
-                  fontSize: '0.78rem',
-                  color: 'var(--rust)',
-                  border: '1px solid rgba(139,69,19,0.3)',
-                  borderRadius: '4px',
-                  padding: '0.3rem 0.75rem',
-                  textDecoration: 'none',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Edit this person ›
-              </a>
-            )}
-            <h2>{nameClean}</h2>
-            <div className="key-facts" style={{ marginTop: '1.5rem' }}>
-              {person.birthDate && (
-                <div className="key-fact">
-                  <span className="key-fact-label">Born</span>
-                  <span className="key-fact-value">
-                    {person.birthDate}
-                    {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
-                  </span>
+          <div className="chapter-header" style={{ padding: '2rem 2rem 2rem' }}>
+            {/* Mirror the chapter-layout grid so content aligns with the center column */}
+            <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr 170px', gap: '1.5rem 2.5rem' }}>
+              <div />
+              <div style={{ textAlign: 'center' }}>
+                {(role === 'editor' || role === 'admin') && (
+                  <a
+                    href={`/admin/people/${encodeURIComponent(person.id)}/edit`}
+                    style={{
+                      display: 'inline-block',
+                      marginBottom: '1rem',
+                      fontSize: '0.78rem',
+                      color: 'var(--rust)',
+                      border: '1px solid rgba(139,69,19,0.3)',
+                      borderRadius: '4px',
+                      padding: '0.3rem 0.75rem',
+                      textDecoration: 'none',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    Edit this person ›
+                  </a>
+                )}
+                <h2>{nameClean}</h2>
+                <div className="key-facts" style={{ marginTop: '1.5rem' }}>
+                  {person.birthDate && (
+                    <div className="key-fact">
+                      <span className="key-fact-label">Born</span>
+                      <span className="key-fact-value">
+                        {person.birthDate}
+                        {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
+                      </span>
+                    </div>
+                  )}
+                  {person.deathDate && (
+                    <div className="key-fact">
+                      <span className="key-fact-label">Died</span>
+                      <span className="key-fact-value">
+                        {person.deathDate}
+                        {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
+                      </span>
+                    </div>
+                  )}
+                  {person.occupation && (
+                    <div className="key-fact">
+                      <span className="key-fact-label">Occupation</span>
+                      <span className="key-fact-value">{person.occupation}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {person.deathDate && (
-                <div className="key-fact">
-                  <span className="key-fact-label">Died</span>
-                  <span className="key-fact-value">
-                    {person.deathDate}
-                    {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
-                  </span>
-                </div>
-              )}
-              {person.occupation && (
-                <div className="key-fact">
-                  <span className="key-fact-label">Occupation</span>
-                  <span className="key-fact-value">{person.occupation}</span>
-                </div>
-              )}
+              </div>
+              <div />
             </div>
           </div>
         )}
