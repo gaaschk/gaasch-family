@@ -94,13 +94,14 @@ model Tree {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  owner     User         @relation("TreeOwner", fields: [ownerId], references: [id])
+  owner     User                @relation("TreeOwner", fields: [ownerId], references: [id])
   members   TreeMember[]
   invites   TreeInvite[]
   people    Person[]
   families  Family[]
   settings  Setting[]
   auditLogs AuditLog[]
+  fsMatches FamilySearchMatch[]
 
   @@map("trees")
 }
@@ -152,16 +153,36 @@ model Person {
   occupation  String?
   notes       String?
   narrative   String?
+  fsPid       String?  @map("fs_pid")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tree      Tree          @relation(fields: [treeId], references: [id])
-  asHusband Family[]      @relation("FamilyHusband")
-  asWife    Family[]      @relation("FamilyWife")
+  tree      Tree                @relation(fields: [treeId], references: [id])
+  asHusband Family[]            @relation("FamilyHusband")
+  asWife    Family[]            @relation("FamilyWife")
   childIn   FamilyChild[]
+  fsMatches FamilySearchMatch[]
 
   @@unique([treeId, gedcomId])
   @@map("people")
+}
+
+model FamilySearchMatch {
+  id        String   @id @default(cuid())
+  personId  String   @map("person_id")
+  treeId    String   @map("tree_id")
+  fsPid     String   @map("fs_pid")
+  score     Float
+  fsData    String   @map("fs_data")   // JSON: FsPersonSummary
+  status    String   @default("pending") // pending | accepted | rejected
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  tree   Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, fsPid])
+  @@map("familysearch_matches")
 }
 
 model Family {

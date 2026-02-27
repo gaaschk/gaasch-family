@@ -4,6 +4,26 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Person } from '@/types';
 import ChatPanel from './ChatPanel';
 
+// ── FamilySearch match types ──────────────────────────────────────────────
+interface FsMatch {
+  id:      string;
+  fsPid:   string;
+  score:   number;
+  fsData:  string; // JSON: FsPersonSummary
+  status:  string;
+}
+
+interface FsPersonData {
+  pid:         string;
+  name:        string;
+  sex:         string | null;
+  birthDate:   string | null;
+  birthPlace:  string | null;
+  deathDate:   string | null;
+  deathPlace:  string | null;
+  occupation:  string | null;
+}
+
 // ── Types from the enriched API response ─────────────────────────────────
 interface PersonRelation {
   id: string;
@@ -129,6 +149,11 @@ export default function TreeExplorer({
   const [storyHtml, setStoryHtml] = useState('');
   const [storyGenerating, setStoryGenerating] = useState(false);
 
+  // FamilySearch hints
+  const [fsMatches, setFsMatches]     = useState<FsMatch[]>([]);
+  const [fsOpen, setFsOpen]           = useState(false);
+  const [fsActing, setFsActing]       = useState<string | null>(null); // matchId being processed
+
   // Search state
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Person[]>([]);
@@ -202,6 +227,17 @@ export default function TreeExplorer({
     if (person) cache.current.set(person.id, person);
   }, [person]);
 
+  // Fetch FamilySearch hints when person changes
+  useEffect(() => {
+    setFsMatches([]);
+    setFsOpen(false);
+    if (!currentId || (role !== 'editor' && role !== 'admin')) return;
+    fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/fs-matches`)
+      .then(r => r.ok ? r.json() : { matches: [] })
+      .then((d: { matches: FsMatch[] }) => setFsMatches(d.matches ?? []))
+      .catch(() => {});
+  }, [currentId, treeSlug, role]);
+
   function handleSearch(q: string) {
     setQuery(q);
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -249,6 +285,46 @@ export default function TreeExplorer({
       setStoryHtml(accumulated);
     } finally {
       setStoryGenerating(false);
+    }
+  }
+
+  async function handleFsAction(matchId: string, action: 'accept' | 'reject', updateFields = false) {
+    setFsActing(matchId);
+    try {
+      const res = await fetch(
+        `/api/trees/${treeSlug}/people/${encodeURIComponent(currentId!)}/fs-matches/${matchId}`,
+        {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ action, updateFields }),
+        },
+      );
+      if (res.ok) {
+        const data = await res.json() as { person?: PersonFull };
+        setFsMatches(prev => prev.filter(m => m.id !== matchId));
+        // If fields were updated, refresh the person view
+        if (data.person && currentId) await navigateTo(currentId);
+      }
+    } finally {
+      setFsActing(null);
+    }
+  }
+
+  async function handleFsSearch() {
+    if (!currentId) return;
+    setFsActing('search');
+    try {
+      const res = await fetch(
+        `/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/fs-matches`,
+        { method: 'POST' },
+      );
+      if (res.ok) {
+        const data = await res.json() as { matches: FsMatch[] };
+        setFsMatches(data.matches ?? []);
+        setFsOpen(true);
+      }
+    } finally {
+      setFsActing(null);
     }
   }
 
@@ -471,9 +547,172 @@ export default function TreeExplorer({
                     </div>
                   )}
                 </div>
+
+                {/* FamilySearch hints badge */}
+                {(role === 'editor' || role === 'admin') && (
+                  <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {fsMatches.length > 0 && (
+                      <button
+                        onClick={() => setFsOpen(o => !o)}
+                        style={{
+                          background: fsOpen ? 'rgba(196,150,42,0.18)' : 'rgba(196,150,42,0.08)',
+                          border: '1px solid rgba(196,150,42,0.4)',
+                          borderRadius: 20,
+                          padding: '0.3rem 0.85rem',
+                          color: 'var(--gold)',
+                          fontFamily: 'var(--font-sc)',
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.07em',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                        }}
+                      >
+                        ⟷ {fsMatches.length} FamilySearch {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleFsSearch}
+                      disabled={fsActing === 'search'}
+                      style={{
+                        background: 'none',
+                        border: '1px solid rgba(122,92,46,0.3)',
+                        borderRadius: 20,
+                        padding: '0.3rem 0.85rem',
+                        color: 'var(--sepia)',
+                        fontFamily: 'var(--font-sc)',
+                        fontSize: '0.63rem',
+                        letterSpacing: '0.07em',
+                        cursor: fsActing === 'search' ? 'wait' : 'pointer',
+                        opacity: fsActing === 'search' ? 0.6 : 1,
+                      }}
+                    >
+                      {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search' : 'Search FamilySearch'}
+                    </button>
+                  </div>
+                )}
               </div>
               <div />
             </div>
+          </div>
+        )}
+
+        {/* FamilySearch hints panel */}
+        {fsOpen && fsMatches.length > 0 && (
+          <div
+            style={{
+              margin: '0 2rem 1.5rem',
+              border: '1px solid rgba(196,150,42,0.3)',
+              borderRadius: 8,
+              overflow: 'hidden',
+            }}
+          >
+            {fsMatches.map((match, i) => {
+              const fs = JSON.parse(match.fsData) as FsPersonData;
+              const isActing = fsActing === match.id;
+              return (
+                <div
+                  key={match.id}
+                  style={{
+                    padding: '1rem 1.25rem',
+                    borderTop: i > 0 ? '1px solid rgba(196,150,42,0.2)' : undefined,
+                    background: i % 2 === 0 ? 'rgba(242,232,213,0.4)' : 'rgba(255,255,255,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1.25rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {/* Match info */}
+                  <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
+                      {fs.name.replace(/\//g, '').trim()}
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
+                      {[
+                        fs.birthDate  && `b. ${fs.birthDate}`,
+                        fs.birthPlace && shortPlace(fs.birthPlace),
+                        fs.deathDate  && `d. ${fs.deathDate}`,
+                        fs.deathPlace && shortPlace(fs.deathPlace),
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                    {fs.occupation && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
+                    )}
+                  </div>
+
+                  {/* Score */}
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sc)',
+                      fontSize: '0.65rem',
+                      color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
+                      letterSpacing: '0.05em',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {Math.round(match.score)}% match
+                  </span>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
+                    <button
+                      disabled={isActing}
+                      onClick={() => handleFsAction(match.id, 'accept', true)}
+                      style={{
+                        background: 'var(--rust)',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '0.3rem 0.75rem',
+                        color: '#fff',
+                        fontFamily: 'var(--font-sc)',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.07em',
+                        cursor: isActing ? 'wait' : 'pointer',
+                        opacity: isActing ? 0.6 : 1,
+                      }}
+                    >
+                      Link &amp; Update
+                    </button>
+                    <button
+                      disabled={isActing}
+                      onClick={() => handleFsAction(match.id, 'accept', false)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--rust)',
+                        borderRadius: 4,
+                        padding: '0.3rem 0.75rem',
+                        color: 'var(--rust)',
+                        fontFamily: 'var(--font-sc)',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.07em',
+                        cursor: isActing ? 'wait' : 'pointer',
+                        opacity: isActing ? 0.6 : 1,
+                      }}
+                    >
+                      Link only
+                    </button>
+                    <button
+                      disabled={isActing}
+                      onClick={() => handleFsAction(match.id, 'reject')}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(122,92,46,0.3)',
+                        borderRadius: 4,
+                        padding: '0.3rem 0.75rem',
+                        color: 'var(--sepia)',
+                        fontFamily: 'var(--font-sc)',
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.07em',
+                        cursor: isActing ? 'wait' : 'pointer',
+                        opacity: isActing ? 0.6 : 1,
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

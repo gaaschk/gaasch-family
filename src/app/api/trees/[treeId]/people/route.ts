@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireTreeAccess } from '@/lib/auth';
+import { searchAndStoreMatches } from '@/lib/familysearch';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +134,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       userId,
     },
   });
+
+  // Background: search FamilySearch for potential matches (fire and forget)
+  after(searchAndStoreMatches(person.id, tree.id, userId));
 
   return NextResponse.json(person, { status: 201 });
 }

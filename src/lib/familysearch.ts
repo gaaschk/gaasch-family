@@ -187,6 +187,40 @@ export function mapFsPerson(p: FsPerson): FsPersonSummary {
   };
 }
 
+// ── Background match search ────────────────────────────────────────────────
+
+/**
+ * Search FamilySearch for a person and store potential matches.
+ * Silently no-ops if the user has no FS token or the person doesn't exist.
+ */
+export async function searchAndStoreMatches(
+  personId: string,
+  treeId:   string,
+  userId:   string,
+): Promise<void> {
+  const accessToken = await getAccessToken(userId);
+  if (!accessToken) return;
+
+  const person = await prisma.person.findUnique({ where: { id: personId } });
+  if (!person) return;
+
+  const cleanName = person.name.replace(/\//g, '').replace(/\s+/g, ' ').trim();
+  if (!cleanName) return;
+
+  try {
+    const results = await searchFamilySearch(accessToken, cleanName, 5);
+    for (const result of results) {
+      await prisma.familySearchMatch.upsert({
+        where:  { personId_fsPid: { personId, fsPid: result.id } },
+        update: { score: result.score, fsData: JSON.stringify(result.person) },
+        create: { personId, treeId, fsPid: result.id, score: result.score, fsData: JSON.stringify(result.person) },
+      });
+    }
+  } catch {
+    // Silently ignore — FS may be unavailable or token expired
+  }
+}
+
 // ── Search ─────────────────────────────────────────────────────────────────
 
 export interface FsSearchEntry {
