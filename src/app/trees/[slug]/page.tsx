@@ -72,7 +72,7 @@ export default async function TreePage({ params }: Props) {
       </nav>
 
       <div className="pub-page">
-        <PublicTreeExplorer treeSlug={tree.slug} role={treeRole} defaultPersonId={defaultPersonId} />
+        <PublicTreeExplorer treeSlug={tree.slug} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} />
 
         <PublicDirectorySection treeSlug={tree.slug} />
 

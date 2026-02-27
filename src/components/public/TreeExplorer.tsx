@@ -107,11 +107,13 @@ export default function TreeExplorer({
   initialPerson,
   role,
   defaultPersonId,
+  userId,
 }: {
   treeSlug: string;
   initialPerson?: PersonFull;
   role?: string;
   defaultPersonId?: string;
+  userId?: string;
 }) {
   const [currentId, setCurrentId] = useState<string | null>(initialPerson?.id ?? null);
   const [person, setPerson] = useState<PersonFull | null>(initialPerson ?? null);
@@ -131,7 +133,7 @@ export default function TreeExplorer({
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const lsKey = `tree:${treeSlug}:lastPerson`;
+  const lsKey = `tree:${treeSlug}:${userId ?? 'anon'}:lastPerson`;
 
   const navigateTo = useCallback(async (id: string) => {
     localStorage.setItem(`tree:${treeSlug}:lastPerson`, id);
