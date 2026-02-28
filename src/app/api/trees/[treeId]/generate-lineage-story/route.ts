@@ -136,9 +136,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     return lines.join('\n');
   });
 
-  const prompt = `You are writing a multi-generational family history narrative for a private family history website. The tone is warm, literary, and historically grounded — like a well-researched family history book.
+  const endPerson = sorted[sorted.length - 1];
+  const endName = clean(endPerson.name).split(' ')[0];
 
-You will be given data for ${sorted.length} people who form a direct lineage, from the oldest ancestor down to the most recent. Write a flowing story that weaves these lives together across generations, showing how each person's story connects to the next.
+  const prompt = `You are writing narrative nonfiction in the tradition of David McCullough — authoritative, vivid, and deeply human. Your subject is a multi-generational family lineage ending with ${clean(endPerson.name)}.
+
+The central question this story answers is: How did the world produce ${endName}?
+
+You have data for ${sorted.length} people who form a direct lineage, oldest ancestor first. Each generation is a chapter in a larger drama of geography, history, and human will.
 
 IMPORTANT: Your entire response must be raw HTML. Do not use markdown. Do not use backticks. Do not add any explanation before or after the HTML. Start your response with a < character and end it with a > character.
 
@@ -148,15 +153,33 @@ Use only these HTML elements and CSS classes:
 <div class="latin-quote">Latin text (only for 17th–18th century parish records)</div>
 <div class="pull-quote">"A single memorable sentence."</div>
 
-Content rules:
-- Open with a section-title that names the lineage (e.g. "From [oldest] to [youngest]")
-- Write 2–3 paragraphs per person, weaving in historical context and connecting each life to the next generation
-- Relevant history: Luxembourg (Habsburg rule, French Revolutionary era), Iowa frontier, Kansas homesteading, Oklahoma oil era, Texas High Plains
-- For Luxembourg ancestors note the Catholic parish register tradition
-- Include a latin-quote only when actual Latin text from a parish record is provided in the data
-- Include 2–3 pull-quotes at natural moments — resonant observations about people or eras
-- Close with a brief paragraph reflecting on the full arc of the lineage
-- Do not fabricate specific dates or facts not in the data — use hedged language ("likely", "probably", "around this time") where speculating
+STRUCTURE — follow this arc:
+
+Opening: One paragraph establishing the question — the world is about to produce ${endName}, and we must go back to the beginning to understand how.
+
+For each generation (oldest to most recent):
+1. WORLD FIRST: What era is this? What political, economic, or geographic forces are shaping ordinary life? Be specific — not "difficult times" but "the 1848 revolutions that swept the Rhineland left Luxembourg's peasant farmers facing a stark choice."
+2. THE PERSON: Who are they within that world? What did they do, endure, build, or choose?
+3. THE PASSAGE: What do they pass to the next generation — literally (a farm, a crossing, a trade) or thematically (a pattern of movement, of faith, of stubbornness)?
+
+GEOGRAPHIC SPINE — migrations are cause and effect, not just facts:
+- Luxembourg: centuries of Habsburg rule, French annexation and re-annexation, the poverty-driven emigration wave of the 1840s–1860s, the pull of America as genuine promise
+- The Atlantic crossing: what it meant to leave everything — language, graves, parish, kin — for a country you'd never seen
+- Iowa/Illinois frontier settlement: land that was cheap but demanded everything; Catholic immigrant communities rebuilding their parishes from scratch
+- Kansas homesteading and the Great Plains: the Homestead Act's promise, the reality of drought and wind and isolation, the farming culture that shaped a generation
+- Oklahoma Territory and oil: the land runs, the statehood era, the early oil economy and what it meant for families who arrived just as the world industrialized
+- Texas High Plains: cotton and cattle, the Dust Bowl shadow, the mid-20th century transformation of rural America
+
+HISTORICAL TEXTURE:
+- For Luxembourg ancestors: the Catholic parish register tradition (baptismal records, godparents, community witness); the villages that defined identity before surnames had modern form
+- Use hedged language for speculation: "likely," "probably," "the records suggest," "around this time" — never fabricate specific dates or facts not in the data
+- Include a latin-quote only if actual Latin text from a parish record is present in the data
+
+PULL-QUOTES: Place 2–4 pull-quotes at moments of historical drama or emotional weight — resonant observations about a person, an era, or what was risked and gained.
+
+CLOSING: Land on ${endName} as the culmination. "And so ${endName} came into the world carrying all of this: [a brief, specific list of what the lineage built, moved through, survived]. The arc from [oldest ancestor's world] to [end person's world] is not merely a family story — it is a small history of [the larger theme: migration, faith, the American interior, whatever fits]."
+
+Do not editorialize or moralize. Let the facts, placed in context, carry the weight.
 
 Lineage data (oldest ancestor first):
 
@@ -173,7 +196,7 @@ ${summaries.map((s, i) => `--- Person ${i + 1} ---\n${s}`).join('\n\n')}`;
       try {
         const claudeStream = client.messages.stream({
           model,
-          max_tokens: 4000,
+          max_tokens: 6000,
           messages: [{ role: 'user', content: prompt }],
         });
 

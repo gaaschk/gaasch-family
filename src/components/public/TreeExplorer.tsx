@@ -148,12 +148,6 @@ export default function TreeExplorer({
   const [pathToRoot, setPathToRoot] = useState<PathNode[]>([]);
   const cache = useRef<Map<string, PersonFull>>(new Map());
 
-  // Lineage story modal
-  const [storyOpen, setStoryOpen]           = useState(false);
-  const [storyHtml, setStoryHtml]           = useState('');
-  const [storyGenerating, setStoryGenerating] = useState(false);
-  const [storyFromCache, setStoryFromCache] = useState(false);
-
   // FamilySearch hints
   const [fsMatches, setFsMatches]     = useState<FsMatch[]>([]);
   const [fsOpen, setFsOpen]           = useState(false);
@@ -267,84 +261,6 @@ export default function TreeExplorer({
     navigateTo(p.id);
   }
 
-  async function generateStory(force = false) {
-    if (pathToRoot.length === 0) return;
-    const personIdsKey = pathToRoot.map(n => n.id).join(',');
-
-    // Check for a cached story first (unless the user forced a regeneration)
-    if (!force) {
-      try {
-        const cached = await fetch(
-          `/api/trees/${treeSlug}/generate-lineage-story?personIds=${encodeURIComponent(personIdsKey)}`,
-        );
-        if (cached.ok) {
-          const data = await cached.json() as { html: string };
-          setStoryHtml(data.html);
-          setStoryFromCache(true);
-          setStoryOpen(true);
-          return;
-        }
-      } catch { /* fall through to generation */ }
-    }
-
-    setStoryHtml('');
-    setStoryFromCache(false);
-    setStoryGenerating(true);
-    setStoryOpen(true);
-    try {
-      const res = await fetch(`/api/trees/${treeSlug}/generate-lineage-story`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personIds: pathToRoot.map(n => n.id) }),
-      });
-      if (!res.ok || !res.body) {
-        setStoryHtml('<p class="body-text">Failed to generate story.</p>');
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setStoryHtml(accumulated);
-      }
-      // Strip code fences if model wraps in them
-      accumulated = accumulated.replace(/^```(?:html)?\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      setStoryHtml(accumulated);
-    } finally {
-      setStoryGenerating(false);
-    }
-  }
-
-  function downloadStoryAsPdf() {
-    const win = window.open('', '_blank');
-    if (!win) return;
-    const lineageName = pathToRoot.length > 0
-      ? `${cleanName(pathToRoot[0].name)} – ${cleanName(pathToRoot[pathToRoot.length - 1].name)}`
-      : 'Lineage Story';
-    win.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${lineageName}</title>
-  <style>
-    body{font-family:Georgia,serif;max-width:700px;margin:2cm auto;color:#1a1208;line-height:1.7;font-size:11pt}
-    .section-title{font-variant:small-caps;letter-spacing:.1em;font-size:1.05rem;color:#7a5c2e;margin:2rem 0 .5rem;font-weight:normal}
-    .body-text{margin:0 0 1rem}
-    .latin-quote{font-style:italic;color:#7a5c2e;border-left:2px solid #c4962a;padding-left:1rem;margin:1.25rem 0}
-    .pull-quote{font-size:1.1rem;font-style:italic;text-align:center;border-top:1px solid #c4962a;border-bottom:1px solid #c4962a;padding:.75rem 1.5rem;margin:1.5rem 0}
-    @media print{body{margin:0}}
-  </style>
-</head>
-<body>${storyHtml}</body>
-</html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 250);
-  }
-
   async function handleFsAction(matchId: string, action: 'accept' | 'reject', updateFields = false) {
     setFsActing(matchId);
     setFsActionError('');
@@ -428,6 +344,7 @@ export default function TreeExplorer({
   const { parents, spouses, children } = deriveRelations(person);
   const lifespan  = formatLifespan(person);
   const nameClean = cleanName(person.name);
+  const firstName = nameClean.split(' ')[0];
 
   return (
     <section id="chapters" className="chapters-section">
@@ -458,108 +375,17 @@ export default function TreeExplorer({
             })}
           </div>
 
-          {/* Generate lineage story button — editors/admins only */}
-          {(role === 'editor' || role === 'admin') && (
-            <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
-              <button
-                onClick={() => generateStory()}
-                disabled={storyGenerating}
-                style={{
-                  width: '100%',
-                  background: 'rgba(196,150,42,0.12)',
-                  border: '1px solid rgba(196,150,42,0.35)',
-                  borderRadius: 4,
-                  color: 'var(--gold-light)',
-                  fontFamily: 'var(--font-sc)',
-                  fontSize: '0.6rem',
-                  letterSpacing: '0.1em',
-                  padding: '0.5rem 0.4rem',
-                  cursor: storyGenerating ? 'wait' : 'pointer',
-                  lineHeight: 1.4,
-                  transition: 'background 0.15s',
-                }}
-              >
-                {storyGenerating ? 'Generating…' : 'Generate Story'}
-              </button>
-            </div>
-          )}
-        </nav>
-      )}
-
-      {/* ── Lineage story modal ── */}
-      {storyOpen && (
-        <div
-          onClick={e => { if (e.target === e.currentTarget) setStoryOpen(false); }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            background: 'rgba(26,18,8,0.75)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            padding: '3rem 1rem',
-            overflowY: 'auto',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--parchment)',
-              border: '2px solid var(--gold)',
-              borderRadius: 6,
-              maxWidth: 720,
-              width: '100%',
-              padding: '2.5rem 2.5rem 3rem',
-            }}
-          >
-            {/* Modal toolbar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {storyHtml && !storyGenerating && (
-                  <button onClick={downloadStoryAsPdf} className="btn btn-secondary btn-sm">
-                    Download PDF
-                  </button>
-                )}
-                {!storyGenerating && (role === 'editor' || role === 'admin') && (
-                  <button onClick={() => generateStory(true)} className="btn btn-secondary btn-sm">
-                    Regenerate
-                  </button>
-                )}
-                {storyFromCache && !storyGenerating && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--sepia)', fontStyle: 'italic' }}>
-                    saved
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => setStoryOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--sepia)',
-                  fontSize: '1.4rem',
-                  lineHeight: 1,
-                  flexShrink: 0,
-                  marginLeft: '1rem',
-                }}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            {storyGenerating && !storyHtml && (
-              <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>
-                Generating lineage story…
-              </p>
-            )}
-
-            {storyHtml && (
-              <div dangerouslySetInnerHTML={{ __html: storyHtml }} />
-            )}
+          {/* Read story link — all roles */}
+          <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
+            <a
+              href={`/trees/${treeSlug}/stories/${encodeURIComponent(pathToRoot[pathToRoot.length - 1].id)}`}
+              className="story-cta-link"
+              style={{ display: 'block', textAlign: 'center' }}
+            >
+              Read story &rarr;
+            </a>
           </div>
-        </div>
+        </nav>
       )}
 
       {/* ── Main chapter area ── */}
@@ -654,6 +480,18 @@ export default function TreeExplorer({
                     </div>
                   )}
                 </div>
+
+                {/* Read story CTA */}
+                {pathToRoot.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <a
+                      href={`/trees/${treeSlug}/stories/${encodeURIComponent(person.id)}`}
+                      className="story-cta-link"
+                    >
+                      Read {firstName}&rsquo;s story &rarr;
+                    </a>
+                  </div>
+                )}
 
                 {/* FamilySearch hints badge */}
                 {(role === 'editor' || role === 'admin') && (

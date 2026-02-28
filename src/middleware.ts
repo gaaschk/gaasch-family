@@ -14,8 +14,9 @@ export default auth((req) => {
   const isHomePage   = pathname.startsWith('/home');
   const isTreeRoute  = pathname.startsWith('/trees/');
   const isInvite     = pathname.startsWith('/invite/');
+  const isStoryPage  = /^\/trees\/[^/]+\/stories(\/|$)/.test(pathname);
 
-  const requiresAuth = isAdminArea || isDashboard || isHomePage || isTreeRoute || isInvite;
+  const requiresAuth = !isStoryPage && (isAdminArea || isDashboard || isHomePage || isTreeRoute || isInvite);
 
   if (requiresAuth && !session?.user) {
     const loginUrl = new URL('/login', nextUrl);

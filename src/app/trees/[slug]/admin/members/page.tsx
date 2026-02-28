@@ -38,6 +38,10 @@ export default function TreeMembersPage() {
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking]               = useState(false);
 
+  // Resend invite
+  const [resendingId, setResendingId]   = useState<string | null>(null);
+  const [resentId, setResentId]         = useState<string | null>(null);
+
   const load = useCallback(() => {
     setLoading(true);
     fetch(`/api/trees/${treeSlug}/members`)
@@ -120,6 +124,16 @@ export default function TreeMembersPage() {
     setConfirmRevokeId(null);
     setRevoking(false);
     load();
+  }
+
+  async function handleResend(inviteId: string) {
+    setResendingId(inviteId);
+    setResentId(null);
+    await fetch(`/api/trees/${treeSlug}/invites/${inviteId}`, { method: 'POST' });
+    setResendingId(null);
+    setResentId(inviteId);
+    load();
+    setTimeout(() => setResentId(null), 3000);
   }
 
   return (
@@ -340,7 +354,7 @@ export default function TreeMembersPage() {
                       <th>Email</th>
                       <th>Role</th>
                       <th>Expires</th>
-                      <th style={{ width: 120 }}>Actions</th>
+                      <th style={{ width: 160 }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -362,31 +376,46 @@ export default function TreeMembersPage() {
                           {new Date(inv.expiresAt).toLocaleDateString()}
                         </td>
                         <td>
-                          {confirmRevokeId === inv.id ? (
-                            <span className="inline-confirm">
-                              Sure?{' '}
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleRevoke(inv.id)}
-                                disabled={revoking}
-                              >
-                                Yes
-                              </button>
+                          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {resentId === inv.id ? (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--sepia)', fontStyle: 'italic' }}>
+                                Sent ✓
+                              </span>
+                            ) : (
                               <button
                                 className="btn btn-secondary btn-sm"
-                                onClick={() => setConfirmRevokeId(null)}
+                                disabled={resendingId === inv.id}
+                                onClick={() => handleResend(inv.id)}
                               >
-                                No
+                                {resendingId === inv.id ? 'Sending…' : 'Resend'}
                               </button>
-                            </span>
-                          ) : (
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={() => setConfirmRevokeId(inv.id)}
-                            >
-                              Revoke
-                            </button>
-                          )}
+                            )}
+                            {confirmRevokeId === inv.id ? (
+                              <span className="inline-confirm">
+                                Sure?{' '}
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleRevoke(inv.id)}
+                                  disabled={revoking}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => setConfirmRevokeId(null)}
+                                >
+                                  No
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => setConfirmRevokeId(inv.id)}
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

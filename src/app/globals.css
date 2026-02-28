@@ -1540,3 +1540,57 @@ body {
   font-weight: 500;
 }
 .chat-person-link:hover { text-decoration-color: var(--rust); }
+
+/* ── Story reading page ─────────────────────────────── */
+.story-page { min-height: 100vh; background: var(--parchment); }
+
+.story-header {
+  max-width: 680px; margin: 0 auto;
+  padding: 3rem 2rem 2rem;
+  border-bottom: 1px solid var(--border-light);
+  text-align: center;
+}
+.story-header h1 {
+  font-family: var(--font-display);
+  font-size: 2.4rem; font-weight: 400;
+  color: var(--ink); margin: 0.75rem 0 0.5rem;
+}
+.story-meta {
+  font-family: var(--font-sc); font-size: 0.72rem;
+  letter-spacing: 0.1em; color: var(--sepia);
+  text-transform: uppercase; margin-bottom: 1.5rem;
+}
+.story-lineage-path {
+  display: inline-flex; flex-direction: column;
+  align-items: center; gap: 0.2rem;
+  font-size: 0.82rem; color: var(--sepia);
+  border-left: 2px solid var(--gold); padding-left: 0.75rem;
+  text-align: left; margin: 0 auto;
+}
+
+.story-body {
+  max-width: 680px; margin: 0 auto;
+  padding: 3rem 2rem 4rem;
+}
+.story-body .body-text { font-size: 1.08rem; line-height: 1.85; margin-bottom: 1.4rem; }
+.story-body .pull-quote { font-size: 1.25rem; padding: 1.75rem 2.5rem; margin: 2.5rem 0; }
+.story-body .section-title { font-size: 1.15rem; margin: 3rem 0 0.75rem; }
+
+.story-footer {
+  max-width: 680px; margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+  border-top: 1px solid var(--border-light);
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+
+.story-cta-link {
+  display: inline-block; margin-top: 0.5rem;
+  font-family: var(--font-sc); font-size: 0.7rem;
+  letter-spacing: 0.08em; color: var(--gold-light);
+  text-decoration: none;
+  border: 1px solid rgba(196,150,42,0.4);
+  border-radius: 4px; padding: 0.35rem 0.9rem;
+  transition: background 0.15s;
+}
+.story-cta-link:hover { background: rgba(196,150,42,0.1); }
