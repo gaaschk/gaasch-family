@@ -353,6 +353,8 @@ export default function TreeMembersPage() {
                     <tr>
                       <th>Email</th>
                       <th>Role</th>
+                      <th>Sent</th>
+                      <th>Last sent</th>
                       <th>Expires</th>
                       <th style={{ width: 160 }}>Actions</th>
                     </tr>
@@ -365,6 +367,24 @@ export default function TreeMembersPage() {
                           <span className={`admin-role-badge ${inv.role}`}>
                             {inv.role}
                           </span>
+                        </td>
+                        <td
+                          style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--sepia)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {inv.sentCount} {inv.sentCount === 1 ? 'time' : 'times'}
+                        </td>
+                        <td
+                          style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--sepia)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {new Date(inv.lastSentAt).toLocaleDateString()}
                         </td>
                         <td
                           style={{

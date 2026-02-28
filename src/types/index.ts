@@ -96,6 +96,8 @@ export interface TreeInvite {
   expiresAt: string;
   acceptedAt: string | null;
   createdAt: string;
+  lastSentAt: string;
+  sentCount: number;
 }
 
 // API response wrappers
