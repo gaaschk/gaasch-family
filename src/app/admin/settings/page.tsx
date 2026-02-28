@@ -28,6 +28,7 @@ export default function SystemSettingsPage() {
   const [maskedServer, setMaskedServer] = useState('');
   const [showServer, setShowServer]     = useState(false);
   const [emailFrom, setEmailFrom]       = useState('');
+  const [emailBcc, setEmailBcc]         = useState('');
   const [emailStatus, setEmailStatus]   = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [emailError, setEmailError]     = useState('');
 
@@ -44,6 +45,7 @@ export default function SystemSettingsPage() {
         if (byKey['anthropic_model'])   setModel(byKey['anthropic_model']);
         if (byKey['email_server'])      setMaskedServer('(saved)');
         if (byKey['email_from'])        setEmailFrom(byKey['email_from']);
+        if (byKey['email_bcc'])         setEmailBcc(byKey['email_bcc']);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -53,11 +55,16 @@ export default function SystemSettingsPage() {
     setEmailStatus('saving');
     setEmailError('');
     try {
-      // Save from address always
+      // Save from + bcc addresses always
       await fetch('/api/admin/settings', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ key: 'email_from', value: emailFrom.trim() }),
+      });
+      await fetch('/api/admin/settings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key: 'email_bcc', value: emailBcc.trim() }),
       });
       // Save server only if the user typed something new
       if (emailServer.trim()) {
@@ -252,7 +259,7 @@ export default function SystemSettingsPage() {
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group">
                 <label className="form-label" htmlFor="email-from">From Address</label>
                 <input
                   id="email-from"
@@ -261,6 +268,24 @@ export default function SystemSettingsPage() {
                   value={emailFrom}
                   onChange={e => setEmailFrom(e.target.value)}
                   placeholder='Family History <no-reply@example.com>'
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="email-bcc">
+                  BCC Address
+                  <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
+                    — receives a copy of every outgoing email (leave blank to disable)
+                  </span>
+                </label>
+                <input
+                  id="email-bcc"
+                  type="text"
+                  className="form-input"
+                  value={emailBcc}
+                  onChange={e => setEmailBcc(e.target.value)}
+                  placeholder='you@example.com'
                   autoComplete="off"
                 />
               </div>

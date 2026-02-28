@@ -10,6 +10,11 @@ async function getFrom() {
   return await getSystemSetting('email_from', 'EMAIL_FROM');
 }
 
+async function getBcc(): Promise<string | undefined> {
+  const bcc = await getSystemSetting('email_bcc');
+  return bcc || undefined;
+}
+
 export async function sendVerificationEmail(to: string, token: string, callbackUrl?: string) {
   const base  = process.env.AUTH_URL ?? 'http://localhost:3000';
   const cbParam = callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : '';
@@ -17,6 +22,7 @@ export async function sendVerificationEmail(to: string, token: string, callbackU
   const transport = await createTransport();
   await transport.sendMail({
     from:    await getFrom(),
+    bcc:     await getBcc(),
     to,
     subject: 'Verify your email — Family History',
     text:    `Click the link below to create your password:\n\n${url}\n\nThis link expires in 24 hours.`,
@@ -35,6 +41,7 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   const transport = await createTransport();
   await transport.sendMail({
     from:    await getFrom(),
+    bcc:     await getBcc(),
     to,
     subject: 'Reset your password — Family History',
     text:    `Click the link below to reset your password:\n\n${url}\n\nThis link expires in 1 hour. If you did not request this, you can ignore this email.`,
@@ -62,6 +69,7 @@ export async function sendTreeInviteEmail(
   const transport = await createTransport();
   await transport.sendMail({
     from:    await getFrom(),
+    bcc:     await getBcc(),
     to,
     subject: `You've been invited to ${opts.treeName} — Family History`,
     text:    [
