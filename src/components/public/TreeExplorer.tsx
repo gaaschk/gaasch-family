@@ -346,6 +346,14 @@ export default function TreeExplorer({
   const nameClean = cleanName(person.name);
   const firstName = nameClean.split(' ')[0];
 
+  const canEdit = role === 'editor' || role === 'admin';
+  // Pre-fill the new family form with the current person in the right slot
+  const parentSlot = person.sex === 'F' ? 'wifeId' : 'husbId';
+  const familyNewBase = `/trees/${treeSlug}/admin/families/new`;
+  const parentAddHref  = canEdit ? `${familyNewBase}?childId=${person.id}` : undefined;
+  const childAddHref   = canEdit ? `${familyNewBase}?${parentSlot}=${person.id}` : undefined;
+  const spouseAddHref  = canEdit ? `${familyNewBase}?${parentSlot}=${person.id}` : undefined;
+
   return (
     <section id="chapters" className="chapters-section">
       {/* ── Lineage sidebar ── */}
@@ -673,9 +681,7 @@ export default function TreeExplorer({
         <div className="chapter-layout">
           {/* Left: Parents */}
           <div className="chapter-col-side">
-            {parents.length > 0 && (
-              <ConnGroup label="Parents" people={parents} navigate={navigateTo} />
-            )}
+            <ConnGroup label="Parents" people={parents} navigate={navigateTo} addHref={parentAddHref} />
           </div>
 
           {/* Center: Narrative */}
@@ -693,16 +699,14 @@ export default function TreeExplorer({
 
           {/* Right: Children */}
           <div className="chapter-col-side">
-            {children.length > 0 && (
-              <ConnGroup label="Children" people={children} navigate={navigateTo} max={30} />
-            )}
+            <ConnGroup label="Children" people={children} navigate={navigateTo} max={30} addHref={childAddHref} />
           </div>
         </div>
 
         {/* Below: Spouses */}
-        {spouses.length > 0 && (
+        {(spouses.length > 0 || canEdit) && (
           <div className="chapter-below">
-            <ConnGroup label="Spouses" people={spouses} navigate={navigateTo} />
+            <ConnGroup label="Spouses" people={spouses} navigate={navigateTo} addHref={spouseAddHref} />
           </div>
         )}
       </div>
@@ -719,34 +723,60 @@ export default function TreeExplorer({
 
 // ── Connection group ──────────────────────────────────────────────────────
 function ConnGroup({
-  label, people, navigate, max = 20,
+  label, people, navigate, max = 20, addHref,
 }: {
   label: string;
   people: PersonRelation[];
   navigate: (id: string) => void;
   max?: number;
+  addHref?: string;
 }) {
-  if (people.length === 0) return null;
+  if (people.length === 0 && !addHref) return null;
   const shown = people.slice(0, max);
   return (
     <div className="ch-conn-group">
-      <span className="ch-conn-label">{label} ({people.length})</span>
-      <div className="ch-conn-cards">
-        {shown.map(p => (
-          <button
-            key={p.id}
-            className="ch-nav-card"
-            onClick={() => navigate(p.id)}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <span className="ch-conn-label" style={{ marginBottom: 0 }}>{label}{people.length > 0 ? ` (${people.length})` : ''}</span>
+        {addHref && (
+          <a
+            href={addHref}
+            style={{
+              fontFamily: 'var(--font-sc)',
+              fontSize: '0.6rem',
+              letterSpacing: '0.08em',
+              color: 'var(--sepia)',
+              textDecoration: 'none',
+              border: '1px solid rgba(122,92,46,0.3)',
+              borderRadius: 4,
+              padding: '0.2rem 0.5rem',
+              flexShrink: 0,
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(122,92,46,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '')}
           >
-            <span className="ch-nav-name">{cleanName(p.name)}</span>
-            {formatLifespan(p) && <span className="ch-nav-life">{formatLifespan(p)}</span>}
-            {p.birthPlace && <span className="ch-nav-place">{shortPlace(p.birthPlace)}</span>}
-          </button>
-        ))}
-        {people.length > max && (
-          <span className="ch-nav-empty">…and {people.length - max} more</span>
+            + Add
+          </a>
         )}
       </div>
+      {people.length > 0 && (
+        <div className="ch-conn-cards">
+          {shown.map(p => (
+            <button
+              key={p.id}
+              className="ch-nav-card"
+              onClick={() => navigate(p.id)}
+            >
+              <span className="ch-nav-name">{cleanName(p.name)}</span>
+              {formatLifespan(p) && <span className="ch-nav-life">{formatLifespan(p)}</span>}
+              {p.birthPlace && <span className="ch-nav-place">{shortPlace(p.birthPlace)}</span>}
+            </button>
+          ))}
+          {people.length > max && (
+            <span className="ch-nav-empty">…and {people.length - max} more</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

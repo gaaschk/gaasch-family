@@ -12,14 +12,17 @@ interface FamilyFormProps {
     wife?: Person | null;
     children?: { familyId?: string; personId?: string; person?: Person }[];
   };
+  initialHusband?: Person | null;
+  initialWife?: Person | null;
+  initialChild?: Person | null;
 }
 
-export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
+export default function FamilyForm({ treeSlug, family, initialHusband, initialWife, initialChild }: FamilyFormProps) {
   const router = useRouter();
   const isNew = !family;
 
-  const [husband, setHusband] = useState<Person | null>(family?.husband ?? null);
-  const [wife, setWife] = useState<Person | null>(family?.wife ?? null);
+  const [husband, setHusband] = useState<Person | null>(family?.husband ?? initialHusband ?? null);
+  const [wife, setWife] = useState<Person | null>(family?.wife ?? initialWife ?? null);
   const [marrDate, setMarrDate] = useState(family?.marrDate ?? '');
   const [marrPlace, setMarrPlace] = useState(family?.marrPlace ?? '');
 
@@ -28,8 +31,9 @@ export default function FamilyForm({ treeSlug, family }: FamilyFormProps) {
   }
 
   const [children, setChildren] = useState<Person[]>(() => {
-    if (!family?.children) return [];
-    return family.children.flatMap(c => (c.person ? [c.person] : []));
+    if (family?.children) return family.children.flatMap(c => (c.person ? [c.person] : []));
+    if (initialChild) return [initialChild];
+    return [];
   });
   const [childToAdd, setChildToAdd] = useState<Person | null>(null);
 
