@@ -23,15 +23,20 @@ echo "→ Generating Prisma client..."
 npx prisma generate
 
 echo "→ Resolving any stuck failed migrations before deploy..."
-# If a migration failed mid-run (e.g. the 20260228 invite-tracking migration
-# which used CURRENT_TIMESTAMP — forbidden as a DEFAULT in SQLite ALTER TABLE),
-# it will be marked started-but-not-finished and prisma migrate deploy will
-# refuse to continue.  Use prisma's own tooling (no sqlite3 binary required)
-# to mark the specific known-bad migration as rolled-back so the corrected
-# SQL in the repo can be re-applied cleanly.
-npx prisma migrate resolve \
-  --rolled-back 20260228000000_add_invite_tracking \
-  2>/dev/null || true
+# If a migration failed mid-run it is stored in _prisma_migrations with
+# started_at set but finished_at/rolled_back_at NULL.  prisma migrate deploy
+# refuses to continue past such rows.  Use the already-generated Prisma client
+# to mark them as rolled-back via direct SQL (no sqlite3 binary required).
+node -e "
+  const { PrismaClient } = require('@prisma/client');
+  const p = new PrismaClient();
+  p.\$executeRawUnsafe(
+    \"UPDATE _prisma_migrations SET rolled_back_at = datetime('now') WHERE finished_at IS NULL AND rolled_back_at IS NULL\"
+  )
+    .then(n => { console.log('  Resolved ' + n + ' stuck migration(s)'); return p.\$disconnect(); })
+    .then(() => process.exit(0))
+    .catch(e => { console.error('  Resolve warning: ' + e.message); return p.\$disconnect().then(() => process.exit(0)); });
+" || true
 
 echo "→ Running database migrations..."
 npx prisma migrate deploy
