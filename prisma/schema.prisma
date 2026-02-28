@@ -131,6 +131,8 @@ model TreeInvite {
   expiresAt  DateTime  @map("expires_at")
   acceptedAt DateTime? @map("accepted_at")
   createdAt  DateTime  @default(now()) @map("created_at")
+  lastSentAt DateTime  @default(now()) @map("last_sent_at")
+  sentCount  Int       @default(1)     @map("sent_count")
 
   tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
 

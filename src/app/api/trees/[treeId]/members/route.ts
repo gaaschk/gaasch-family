@@ -100,11 +100,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const invite = await prisma.treeInvite.create({
     data: {
-      treeId:    tree.id,
+      treeId:     tree.id,
       email,
       role,
-      invitedBy: auth.userId,
+      invitedBy:  auth.userId,
       expiresAt,
+      lastSentAt: new Date(),
+      sentCount:  1,
     },
   });
 

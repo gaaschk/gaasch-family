@@ -29,7 +29,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   const updated = await prisma.treeInvite.update({
     where: { id: invite.id },
-    data: { expiresAt },
+    data: { expiresAt, lastSentAt: new Date(), sentCount: { increment: 1 } },
   });
 
   sendTreeInviteEmail(invite.email, {
