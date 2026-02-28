@@ -22,14 +22,15 @@ npm install --silent
 echo "→ Generating Prisma client..."
 npx prisma generate
 
-echo "→ Resolving any failed migrations before deploy..."
-# SQLite forbids CURRENT_TIMESTAMP as a DEFAULT in ALTER TABLE ADD COLUMN.
-# If a migration fails mid-run it is marked started-but-not-finished in
-# _prisma_migrations; prisma migrate deploy refuses to continue until it
-# is resolved.  Mark any such rows as rolled-back so the corrected SQL
-# can be re-applied cleanly.
-sqlite3 "$APP_DIR/prisma/dev.db" \
-  "UPDATE _prisma_migrations SET rolled_back_at = datetime('now') WHERE finished_at IS NULL AND rolled_back_at IS NULL;" \
+echo "→ Resolving any stuck failed migrations before deploy..."
+# If a migration failed mid-run (e.g. the 20260228 invite-tracking migration
+# which used CURRENT_TIMESTAMP — forbidden as a DEFAULT in SQLite ALTER TABLE),
+# it will be marked started-but-not-finished and prisma migrate deploy will
+# refuse to continue.  Use prisma's own tooling (no sqlite3 binary required)
+# to mark the specific known-bad migration as rolled-back so the corrected
+# SQL in the repo can be re-applied cleanly.
+npx prisma migrate resolve \
+  --rolled-back 20260228000000_add_invite_tracking \
   2>/dev/null || true
 
 echo "→ Running database migrations..."
