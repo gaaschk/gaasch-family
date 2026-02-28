@@ -10,9 +10,13 @@ type Params = { params: Promise<{ token: string }> };
 export async function POST(_req: NextRequest, { params }: Params) {
   const { token } = await params;
 
-  // Any authenticated user can accept an invite
-  const auth = await requireRole('viewer');
+  // Any authenticated user can accept an invite — including pending users,
+  // who will be promoted to viewer upon acceptance
+  const auth = await requireRole('pending');
   if (auth instanceof NextResponse) return auth;
+
+  const user = await prisma.user.findUnique({ where: { id: auth.userId } });
+  if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const invite = await prisma.treeInvite.findUnique({ where: { token } });
 
@@ -48,7 +52,8 @@ export async function POST(_req: NextRequest, { params }: Params) {
     );
   }
 
-  // Create the membership and mark the invite as accepted
+  // Create the membership and mark the invite as accepted.
+  // If the user is pending, promote them to viewer so they can access the tree.
   await prisma.$transaction([
     prisma.treeMember.create({
       data: {
@@ -61,6 +66,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
       where: { token },
       data:  { acceptedAt: new Date() },
     }),
+    ...(user.role === 'pending'
+      ? [prisma.user.update({ where: { id: user.id }, data: { role: 'viewer' } })]
+      : []),
   ]);
 
   // Look up the tree slug so the client can redirect

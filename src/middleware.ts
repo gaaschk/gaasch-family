@@ -24,7 +24,8 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (requiresAuth && session?.user?.role === 'pending') {
+  // Pending users can still accept invites — the invite page handles the upgrade
+  if (requiresAuth && !isInvite && session?.user?.role === 'pending') {
     return NextResponse.redirect(new URL('/awaiting-approval', nextUrl));
   }
 
