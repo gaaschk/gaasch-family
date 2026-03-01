@@ -135,6 +135,8 @@ interface GeniProfile {
 
 interface GeniSearchResult {
   results?: GeniProfile[];
+  // Geni returns a single profile object (not wrapped in results[]) when only one match is found
+  id?: string;
 }
 
 function formatGeniDate(d?: { year?: number; month?: number; day?: number }): string | null {
@@ -169,12 +171,21 @@ export async function searchGeni(
   query: string,
   count = 10,
 ): Promise<FsSearchEntry[]> {
-  const params = new URLSearchParams({ q: query, per_page: String(count) });
-  const data = await geniGet<GeniSearchResult>(`/search?${params}`, accessToken);
-  const results = data.results ?? [];
+  const params = new URLSearchParams({ names: query });
+  const data = await geniGet<GeniSearchResult>(`/profile/search?${params}`, accessToken);
+
+  // Geni returns a bare profile object (not { results: [] }) when exactly one match is found
+  let profiles: GeniProfile[];
+  if (Array.isArray(data.results)) {
+    profiles = data.results.slice(0, count);
+  } else if (data.id) {
+    profiles = [data as unknown as GeniProfile];
+  } else {
+    profiles = [];
+  }
 
   // Assign descending scores (Geni returns results in relevance order but no score)
-  return results.map((p, i) => ({
+  return profiles.map((p, i) => ({
     id:     p.id,
     score:  Math.max(80 - i * 5, 40),
     person: mapGeniProfile(p),
