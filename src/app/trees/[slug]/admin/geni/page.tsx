@@ -50,9 +50,20 @@ export default function GeniPage() {
         </p>
 
         {geniError && (
-          <p style={{ color: 'var(--rust)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-            Geni error: {geniError}
-          </p>
+          <div style={{
+            background: 'rgba(180,60,30,0.08)',
+            border: '1px solid rgba(180,60,30,0.3)',
+            borderRadius: 6,
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+          }}>
+            <p style={{ color: 'var(--rust)', fontSize: '0.85rem', margin: 0, fontWeight: 600 }}>
+              Connection failed
+            </p>
+            <p style={{ color: 'var(--rust)', fontSize: '0.8rem', margin: '0.3rem 0 0', opacity: 0.85 }}>
+              {decodeURIComponent(geniError)}
+            </p>
+          </div>
         )}
         {geniConnected && (
           <p style={{ color: 'var(--ink)', fontSize: '0.85rem', marginBottom: '1rem' }}>

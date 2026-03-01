@@ -7,7 +7,7 @@ import { getSystemSetting } from './settings';
 import type { FsPersonSummary, FsSearchEntry } from './familysearch';
 
 const GENI_AUTH_URL  = 'https://www.geni.com/platform/oauth/authorize';
-const GENI_TOKEN_URL = 'https://www.geni.com/platform/oauth/token';
+const GENI_TOKEN_URL = 'https://www.geni.com/platform/oauth/request_token'; // Geni-specific endpoint
 const GENI_API_BASE  = 'https://www.geni.com/api';
 
 function redirectUri() {
@@ -22,7 +22,6 @@ export async function getGeniAuthUrl(state: string): Promise<string> {
     response_type: 'code',
     client_id:     clientId,
     redirect_uri:  redirectUri(),
-    scope:         'basic',
     state,
   });
   return `${GENI_AUTH_URL}?${p}`;
@@ -37,14 +36,16 @@ export async function exchangeGeniCode(code: string) {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type:    'authorization_code',
       code,
       client_id:     clientId,
       client_secret: clientSecret,
       redirect_uri:  redirectUri(),
     }),
   });
-  if (!res.ok) throw new Error(`Geni token exchange failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Geni token exchange failed: ${res.status} ${body}`);
+  }
   return res.json() as Promise<{
     access_token:  string;
     refresh_token?: string;
@@ -61,7 +62,6 @@ async function doGeniRefresh(refreshToken: string) {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type:    'refresh_token',
       refresh_token: refreshToken,
       client_id:     clientId,
       client_secret: clientSecret,
