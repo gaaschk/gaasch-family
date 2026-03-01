@@ -165,6 +165,8 @@ export default function TreeExplorer({
   const [fsOpen, setFsOpen]           = useState(false);
   const [fsActing, setFsActing]       = useState<string | null>(null); // matchId being processed
   const [fsActionError, setFsActionError] = useState('');
+  const [fsSearchMsg, setFsSearchMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const fsSearchMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -243,6 +245,8 @@ export default function TreeExplorer({
   useEffect(() => {
     setFsMatches([]);
     setFsOpen(false);
+    setFsSearchMsg(null);
+    if (fsSearchMsgTimer.current) clearTimeout(fsSearchMsgTimer.current);
     if (!currentId || (role !== 'editor' && role !== 'admin')) return;
     fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/fs-matches`)
       .then(r => r.ok ? r.json() : { matches: [] })
@@ -298,9 +302,16 @@ export default function TreeExplorer({
     }
   }
 
+  function showSearchMsg(text: string, ok: boolean) {
+    setFsSearchMsg({ text, ok });
+    if (fsSearchMsgTimer.current) clearTimeout(fsSearchMsgTimer.current);
+    fsSearchMsgTimer.current = setTimeout(() => setFsSearchMsg(null), 5000);
+  }
+
   async function handleFsSearch() {
     if (!currentId) return;
     setFsActing('search');
+    setFsSearchMsg(null);
     try {
       const res = await fetch(
         `/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/fs-matches`,
@@ -308,9 +319,19 @@ export default function TreeExplorer({
       );
       if (res.ok) {
         const data = await res.json() as { matches: FsMatch[] };
-        setFsMatches(data.matches ?? []);
-        setFsOpen(true);
+        const matches = data.matches ?? [];
+        setFsMatches(matches);
+        if (matches.length > 0) {
+          setFsOpen(true);
+          showSearchMsg(`Found ${matches.length} record ${matches.length === 1 ? 'hint' : 'hints'}`, true);
+        } else {
+          showSearchMsg('No matches found', false);
+        }
+      } else {
+        showSearchMsg('Search failed — please try again', false);
       }
+    } catch {
+      showSearchMsg('Search failed — please try again', false);
     } finally {
       setFsActing(null);
     }
@@ -515,6 +536,7 @@ export default function TreeExplorer({
 
                 {/* FamilySearch hints badge */}
                 {(role === 'editor' || role === 'admin') && (
+                  <>
                   <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {fsMatches.length > 0 && (
                       <button
@@ -554,6 +576,19 @@ export default function TreeExplorer({
                       {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search all sources' : 'Search all sources'}
                     </button>
                   </div>
+                  {fsSearchMsg && (
+                    <p style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-sc)',
+                      letterSpacing: '0.04em',
+                      color: fsSearchMsg.ok ? 'var(--ink)' : 'var(--sepia)',
+                      opacity: 0.85,
+                    }}>
+                      {fsSearchMsg.ok ? '✓ ' : ''}{fsSearchMsg.text}
+                    </p>
+                  )}
+                  </>
                 )}
               </div>
               <div />
