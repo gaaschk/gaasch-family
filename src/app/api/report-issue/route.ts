@@ -33,12 +33,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Title and description are required.' }, { status: 400 });
   }
 
-  const labelMap: Record<string, string> = {
-    bug:     'bug',
-    feature: 'enhancement',
-    other:   'question',
-  };
-  const label  = labelMap[type] ?? 'question';
   const typeLabel = type === 'bug' ? 'Bug' : type === 'feature' ? 'Feature Request' : 'Other';
 
   const issueBody = [
@@ -51,6 +45,7 @@ export async function POST(req: NextRequest) {
     `**Submitted:** ${new Date().toISOString()}`,
   ].filter(Boolean).join('\n');
 
+  // No labels — avoids 422 errors when labels don't exist in the repo
   const ghRes = await fetch(`https://api.github.com/repos/${repo}/issues`, {
     method:  'POST',
     headers: {
@@ -59,7 +54,7 @@ export async function POST(req: NextRequest) {
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type':         'application/json',
     },
-    body: JSON.stringify({ title: title.trim(), body: issueBody, labels: [label] }),
+    body: JSON.stringify({ title: title.trim(), body: issueBody }),
   });
 
   if (!ghRes.ok) {
