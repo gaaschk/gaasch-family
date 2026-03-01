@@ -23,6 +23,13 @@ export default function SystemSettingsPage() {
   const [geniStatus, setGeniStatus]             = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [geniError, setGeniError]               = useState('');
 
+  const [githubToken, setGithubToken]   = useState('');
+  const [githubRepo, setGithubRepo]     = useState('');
+  const [maskedToken, setMaskedToken]   = useState('');
+  const [showToken, setShowToken]       = useState(false);
+  const [ghStatus, setGhStatus]         = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [ghError, setGhError]           = useState('');
+
   const [apiKey, setApiKey]             = useState('');
   const [maskedKey, setMaskedKey]       = useState('');
   const [showApiKey, setShowApiKey]     = useState(false);
@@ -54,6 +61,8 @@ export default function SystemSettingsPage() {
         if (byKey['email_server'])      setMaskedServer('(saved)');
         if (byKey['email_from'])        setEmailFrom(byKey['email_from']);
         if (byKey['email_bcc'])         setEmailBcc(byKey['email_bcc']);
+        if (byKey['github_token'])      setMaskedToken('(saved)');
+        if (byKey['github_repo'])       setGithubRepo(byKey['github_repo']);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -168,6 +177,36 @@ export default function SystemSettingsPage() {
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Save failed');
       setAiStatus('error');
+    }
+  }
+
+  async function saveGithub(e: React.FormEvent) {
+    e.preventDefault();
+    setGhStatus('saving');
+    setGhError('');
+    try {
+      // Save repo always
+      await fetch('/api/admin/settings', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key: 'github_repo', value: githubRepo.trim() }),
+      });
+      // Save token only if the user typed something new
+      if (githubToken.trim()) {
+        const res = await fetch('/api/admin/settings', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ key: 'github_token', value: githubToken.trim() }),
+        });
+        if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? 'Save failed');
+        setGithubToken('');
+        setMaskedToken('(saved)');
+      }
+      setGhStatus('saved');
+      setTimeout(() => setGhStatus('idle'), 3000);
+    } catch (err) {
+      setGhError(err instanceof Error ? err.message : 'Save failed');
+      setGhStatus('error');
     }
   }
 
@@ -453,6 +492,76 @@ export default function SystemSettingsPage() {
               </button>
               {geniStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
               {geniStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{geniError}</span>}
+            </div>
+          </form>
+
+          {/* ── GitHub ── */}
+          <form onSubmit={saveGithub}>
+            <section
+              style={{
+                padding: '1.25rem',
+                border: '1px solid var(--border-light)',
+                borderRadius: 8,
+                background: '#fff',
+                marginBottom: '1rem',
+              }}
+            >
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', marginBottom: '0.25rem' }}>
+                GitHub Issue Reporting
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--sepia)', marginBottom: '1.25rem' }}>
+                Allows users to submit bug reports and feature requests directly to a GitHub repository.
+                Create a fine-grained Personal Access Token with <strong>Issues: Read &amp; Write</strong> permission.
+              </p>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="gh-repo">
+                  Repository
+                </label>
+                <input
+                  id="gh-repo"
+                  type="text"
+                  className="form-input"
+                  value={githubRepo}
+                  onChange={e => setGithubRepo(e.target.value)}
+                  placeholder="owner/repo-name"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="gh-token">
+                  Personal Access Token
+                  {maskedToken && (
+                    <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'var(--sepia)', fontSize: '0.8em' }}>
+                      current: {maskedToken}
+                    </span>
+                  )}
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    id="gh-token"
+                    type={showToken ? 'text' : 'password'}
+                    className="form-input"
+                    value={githubToken}
+                    onChange={e => setGithubToken(e.target.value)}
+                    placeholder={maskedToken ? 'Leave blank to keep current token' : 'github_pat_…'}
+                    autoComplete="new-password"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowToken(s => !s)} style={{ flexShrink: 0 }}>
+                    {showToken ? 'Hide' : 'Reveal'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={ghStatus === 'saving'}>
+                {ghStatus === 'saving' ? 'Saving…' : 'Save'}
+              </button>
+              {ghStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
+              {ghStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{ghError}</span>}
             </div>
           </form>
 
