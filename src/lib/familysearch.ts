@@ -4,6 +4,8 @@
  */
 import { prisma } from './prisma';
 import { getSystemSetting } from './settings';
+import { searchWikiTree } from './wikitree';
+import { getGeniAccessToken, searchGeni } from './geni';
 
 const IS_SANDBOX = process.env.FAMILYSEARCH_ENV === 'sandbox';
 
@@ -182,36 +184,68 @@ export function mapFsPerson(p: FsPerson): FsPersonSummary {
 
 // ── Background match search ────────────────────────────────────────────────
 
+async function storeMatches(
+  source:   string,
+  personId: string,
+  treeId:   string,
+  entries:  FsSearchEntry[],
+): Promise<void> {
+  for (const e of entries) {
+    await prisma.familySearchMatch.upsert({
+      where:  { personId_source_fsPid: { personId, source, fsPid: e.id } },
+      update: { score: e.score, fsData: JSON.stringify(e.person) },
+      create: { personId, treeId, source, fsPid: e.id, score: e.score, fsData: JSON.stringify(e.person) },
+    });
+  }
+}
+
 /**
- * Search FamilySearch for a person and store potential matches.
- * Silently no-ops if the user has no FS token or the person doesn't exist.
+ * Search all configured sources (FamilySearch, WikiTree, Geni) for a person
+ * and store potential matches. Sources are queried in parallel.
+ * Silently no-ops if the person doesn't exist.
  */
 export async function searchAndStoreMatches(
   personId: string,
   treeId:   string,
   userId:   string,
 ): Promise<void> {
-  const accessToken = await getAccessToken(userId);
-  if (!accessToken) return;
-
   const person = await prisma.person.findUnique({ where: { id: personId } });
   if (!person) return;
 
   const cleanName = person.name.replace(/\//g, '').replace(/\s+/g, ' ').trim();
   if (!cleanName) return;
 
-  try {
-    const results = await searchFamilySearch(accessToken, cleanName, 5);
-    for (const result of results) {
-      await prisma.familySearchMatch.upsert({
-        where:  { personId_fsPid: { personId, fsPid: result.id } },
-        update: { score: result.score, fsData: JSON.stringify(result.person) },
-        create: { personId, treeId, fsPid: result.id, score: result.score, fsData: JSON.stringify(result.person) },
-      });
-    }
-  } catch {
-    // Silently ignore — FS may be unavailable or token expired
-  }
+  const [first, ...rest] = cleanName.split(' ');
+  const last = rest.join(' ');
+  const birthYear = person.birthDate?.match(/\d{4}/)?.[0]
+    ? parseInt(person.birthDate!.match(/\d{4}/)![0], 10)
+    : undefined;
+
+  const [fsToken, geniToken] = await Promise.all([
+    getAccessToken(userId),
+    getGeniAccessToken(userId),
+  ]);
+
+  await Promise.allSettled([
+    // FamilySearch (requires connection)
+    fsToken
+      ? searchFamilySearch(fsToken, cleanName, 5)
+          .then(r => storeMatches('familysearch', personId, treeId, r))
+      : Promise.resolve(),
+
+    // WikiTree (always available — no auth)
+    searchWikiTree(first, last, birthYear, 5, {
+      birthPlace: person.birthPlace,
+      deathDate:  person.deathDate,
+      deathPlace: person.deathPlace,
+    }).then(r => storeMatches('wikitree', personId, treeId, r)),
+
+    // Geni (requires connection)
+    geniToken
+      ? searchGeni(geniToken, cleanName, 5)
+          .then(r => storeMatches('geni', personId, treeId, r))
+      : Promise.resolve(),
+  ]);
 }
 
 // ── Search ─────────────────────────────────────────────────────────────────

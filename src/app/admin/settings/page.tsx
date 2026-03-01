@@ -17,6 +17,12 @@ export default function SystemSettingsPage() {
   const [fsStatus, setFsStatus]         = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [fsError, setFsError]           = useState('');
 
+  const [geniClientId, setGeniClientId]         = useState('');
+  const [geniClientSecret, setGeniClientSecret] = useState('');
+  const [showGeniSecret, setShowGeniSecret]     = useState(false);
+  const [geniStatus, setGeniStatus]             = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [geniError, setGeniError]               = useState('');
+
   const [apiKey, setApiKey]             = useState('');
   const [maskedKey, setMaskedKey]       = useState('');
   const [showApiKey, setShowApiKey]     = useState(false);
@@ -41,6 +47,8 @@ export default function SystemSettingsPage() {
         const byKey = Object.fromEntries(rows.map(r => [r.key, r.value]));
         setClientId(byKey['fs_client_id'] ?? '');
         setClientSecret(byKey['fs_client_secret'] ?? '');
+        setGeniClientId(byKey['geni_client_id'] ?? '');
+        setGeniClientSecret(byKey['geni_client_secret'] ?? '');
         if (byKey['anthropic_api_key']) setMaskedKey('(saved)');
         if (byKey['anthropic_model'])   setModel(byKey['anthropic_model']);
         if (byKey['email_server'])      setMaskedServer('(saved)');
@@ -106,6 +114,30 @@ export default function SystemSettingsPage() {
     } catch (err) {
       setFsError(err instanceof Error ? err.message : 'Save failed');
       setFsStatus('error');
+    }
+  }
+
+  async function saveGeni(e: React.FormEvent) {
+    e.preventDefault();
+    setGeniStatus('saving');
+    setGeniError('');
+    try {
+      for (const payload of [
+        { key: 'geni_client_id',     value: geniClientId.trim() },
+        { key: 'geni_client_secret', value: geniClientSecret.trim() },
+      ]) {
+        const res = await fetch('/api/admin/settings', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? 'Save failed');
+      }
+      setGeniStatus('saved');
+      setTimeout(() => setGeniStatus('idle'), 3000);
+    } catch (err) {
+      setGeniError(err instanceof Error ? err.message : 'Save failed');
+      setGeniStatus('error');
     }
   }
 
@@ -359,6 +391,68 @@ export default function SystemSettingsPage() {
               </button>
               {fsStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
               {fsStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{fsError}</span>}
+            </div>
+          </form>
+
+          {/* ── Geni ── */}
+          <form onSubmit={saveGeni}>
+            <section
+              style={{
+                padding: '1.25rem',
+                border: '1px solid var(--border-light)',
+                borderRadius: 8,
+                background: '#fff',
+                marginBottom: '1rem',
+              }}
+            >
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', marginBottom: '0.25rem' }}>
+                Geni OAuth Credentials
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--sepia)', marginBottom: '1.25rem' }}>
+                Register an app at{' '}
+                <code style={{ fontSize: '0.8rem' }}>geni.com/platform/developer</code>{' '}
+                to obtain a client ID and secret.
+              </p>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="geni-client-id">Client ID</label>
+                <input
+                  id="geni-client-id"
+                  type="text"
+                  className="form-input"
+                  value={geniClientId}
+                  onChange={e => setGeniClientId(e.target.value)}
+                  placeholder="e.g. 12345678"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="geni-client-secret">Client Secret</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    id="geni-client-secret"
+                    type={showGeniSecret ? 'text' : 'password'}
+                    className="form-input"
+                    value={geniClientSecret}
+                    onChange={e => setGeniClientSecret(e.target.value)}
+                    placeholder="Client secret"
+                    autoComplete="new-password"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowGeniSecret(s => !s)} style={{ flexShrink: 0 }}>
+                    {showGeniSecret ? 'Hide' : 'Reveal'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={geniStatus === 'saving'}>
+                {geniStatus === 'saving' ? 'Saving…' : 'Save'}
+              </button>
+              {geniStatus === 'saved' && <span style={{ color: 'var(--ink)', fontSize: '0.875rem' }}>Saved.</span>}
+              {geniStatus === 'error'  && <span style={{ color: 'var(--rust)', fontSize: '0.875rem' }}>{geniError}</span>}
             </div>
           </form>
 

@@ -4,14 +4,26 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Person } from '@/types';
 import ChatPanel from './ChatPanel';
 
-// ── FamilySearch match types ──────────────────────────────────────────────
+// ── Record match types ────────────────────────────────────────────────────
 interface FsMatch {
   id:      string;
   fsPid:   string;
+  source:  string;
   score:   number;
   fsData:  string; // JSON: FsPersonSummary
   status:  string;
 }
+
+const SOURCE_LABELS: Record<string, string> = {
+  familysearch: 'FamilySearch',
+  wikitree:     'WikiTree',
+  geni:         'Geni',
+};
+const SOURCE_COLORS: Record<string, string> = {
+  familysearch: '#4a7c59',
+  wikitree:     '#5b7fa6',
+  geni:         '#8c5c9e',
+};
 
 interface FsPersonData {
   pid:         string;
@@ -520,29 +532,27 @@ export default function TreeExplorer({
                           transition: 'background 0.15s',
                         }}
                       >
-                        ⟷ {fsMatches.length} FamilySearch {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
+                        ⟷ {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
                       </button>
                     )}
-                    {hasFsConnection && (
-                      <button
-                        onClick={handleFsSearch}
-                        disabled={fsActing === 'search'}
-                        style={{
-                          background: 'none',
-                          border: '1px solid rgba(122,92,46,0.3)',
-                          borderRadius: 20,
-                          padding: '0.3rem 0.85rem',
-                          color: 'var(--sepia)',
-                          fontFamily: 'var(--font-sc)',
-                          fontSize: '0.63rem',
-                          letterSpacing: '0.07em',
-                          cursor: fsActing === 'search' ? 'wait' : 'pointer',
-                          opacity: fsActing === 'search' ? 0.6 : 1,
-                        }}
-                      >
-                        {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search' : 'Search FamilySearch'}
-                      </button>
-                    )}
+                    <button
+                      onClick={handleFsSearch}
+                      disabled={fsActing === 'search'}
+                      style={{
+                        background: 'none',
+                        border: '1px solid rgba(122,92,46,0.3)',
+                        borderRadius: 20,
+                        padding: '0.3rem 0.85rem',
+                        color: 'var(--sepia)',
+                        fontFamily: 'var(--font-sc)',
+                        fontSize: '0.63rem',
+                        letterSpacing: '0.07em',
+                        cursor: fsActing === 'search' ? 'wait' : 'pointer',
+                        opacity: fsActing === 'search' ? 0.6 : 1,
+                      }}
+                    >
+                      {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search all sources' : 'Search all sources'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -581,6 +591,20 @@ export default function TreeExplorer({
                   <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                     <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
                       {fs.name.replace(/\//g, '').trim()}
+                      <span style={{
+                        fontSize: '0.58rem',
+                        fontFamily: 'var(--font-sc)',
+                        letterSpacing: '0.06em',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: 3,
+                        marginLeft: '0.5rem',
+                        background: SOURCE_COLORS[match.source] ?? '#888',
+                        color: '#fff',
+                        opacity: 0.9,
+                        verticalAlign: 'middle',
+                      }}>
+                        {SOURCE_LABELS[match.source] ?? match.source}
+                      </span>
                     </p>
                     <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
                       {[

@@ -35,8 +35,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (action === 'accept') {
     const fsData = JSON.parse(match.fsData) as FsPersonSummary;
 
-    // Build person update data
-    const personUpdate: Record<string, string | null> = { fsPid: match.fsPid };
+    // Only set fsPid for FamilySearch matches (it's a FS-specific identifier)
+    const personUpdate: Record<string, string | null> = match.source === 'familysearch'
+      ? { fsPid: match.fsPid }
+      : {};
 
     if (updateFields) {
       // Fetch current person to only fill empty fields

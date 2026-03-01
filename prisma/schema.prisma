@@ -70,6 +70,7 @@ model User {
   ownedTrees  Tree[]       @relation("TreeOwner")
   treeMembers TreeMember[]
   fsToken     FamilySearchToken?
+  geniToken   GeniToken?
 
   @@map("users")
 }
@@ -174,6 +175,7 @@ model FamilySearchMatch {
   id        String   @id @default(cuid())
   personId  String   @map("person_id")
   treeId    String   @map("tree_id")
+  source    String   @default("familysearch") @map("source")
   fsPid     String   @map("fs_pid")
   score     Float
   fsData    String   @map("fs_data")   // JSON: FsPersonSummary
@@ -184,7 +186,7 @@ model FamilySearchMatch {
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
   tree   Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
 
-  @@unique([personId, fsPid])
+  @@unique([personId, source, fsPid])
   @@map("familysearch_matches")
 }
 
@@ -245,6 +247,22 @@ model FamilySearchToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("familysearch_tokens")
+}
+
+model GeniToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  accessToken  String   @map("access_token")
+  refreshToken String?  @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  displayName  String?  @map("display_name")
+  geniId       String?  @map("geni_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("geni_tokens")
 }
 
 model SystemSetting {
