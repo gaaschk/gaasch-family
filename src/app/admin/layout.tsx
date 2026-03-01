@@ -24,7 +24,12 @@ export default async function SystemAdminLayout({ children }: { children: React.
   if (session.user.role !== 'admin') redirect('/dashboard');
 
   return (
-    <div className="admin-shell">
+    <>
+      <input type="checkbox" id="admin-nav-toggle" className="admin-nav-toggle" />
+
+      <div className="admin-shell">
+        <label htmlFor="admin-nav-toggle" className="admin-mobile-backdrop" aria-hidden="true" />
+
       {/* Sidebar */}
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
@@ -73,7 +78,18 @@ export default async function SystemAdminLayout({ children }: { children: React.
       </aside>
 
       {/* Main content */}
-      <main className="admin-content">{children}</main>
+      <main className="admin-content">
+        <div className="admin-mobile-header">
+          <label htmlFor="admin-nav-toggle" className="admin-hamburger" aria-label="Open navigation">
+            <span />
+            <span />
+            <span />
+          </label>
+          <span className="admin-mobile-title">System Admin</span>
+        </div>
+        {children}
+      </main>
     </div>
+    </>
   );
 }

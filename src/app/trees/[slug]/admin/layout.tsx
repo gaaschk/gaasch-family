@@ -59,7 +59,14 @@ export default async function TreeAdminLayout({ children, params }: Props) {
   const base = `/trees/${tree.slug}/admin`;
 
   return (
-    <div className="admin-shell">
+    <>
+      {/* CSS-only drawer toggle — must be a sibling of .admin-shell */}
+      <input type="checkbox" id="admin-nav-toggle" className="admin-nav-toggle" />
+
+      <div className="admin-shell">
+        {/* Clicking the backdrop closes the drawer on mobile */}
+        <label htmlFor="admin-nav-toggle" className="admin-mobile-backdrop" aria-hidden="true" />
+
       {/* Sidebar */}
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
@@ -147,7 +154,19 @@ export default async function TreeAdminLayout({ children, params }: Props) {
       </aside>
 
       {/* Main content */}
-      <main className="admin-content">{children}</main>
+      <main className="admin-content">
+        {/* Mobile top bar — hidden on desktop via CSS */}
+        <div className="admin-mobile-header">
+          <label htmlFor="admin-nav-toggle" className="admin-hamburger" aria-label="Open navigation">
+            <span />
+            <span />
+            <span />
+          </label>
+          <span className="admin-mobile-title">{tree.name}</span>
+        </div>
+        {children}
+      </main>
     </div>
+    </>
   );
 }

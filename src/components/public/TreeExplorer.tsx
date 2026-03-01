@@ -450,9 +450,9 @@ export default function TreeExplorer({
 
         {/* Full-width chapter header */}
         {!loading && (
-          <div className="chapter-header" style={{ padding: '2rem 2rem 2rem' }}>
+          <div className="chapter-header">
             {/* Mirror the chapter-layout grid so content aligns with the center column */}
-            <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr 170px', gap: '1.5rem 2.5rem' }}>
+            <div className="chapter-header-grid">
               <div />
               <div style={{ textAlign: 'center' }}>
                 {(role === 'editor' || role === 'admin') && (
