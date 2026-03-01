@@ -20,6 +20,7 @@ interface WikiTreePerson {
 }
 
 interface WikiTreeSearchResponse {
+  status:   number;
   matches?: WikiTreePerson[];
 }
 
@@ -117,8 +118,9 @@ export async function searchWikiTree(
   });
   if (!res.ok) throw new Error(`WikiTree API error: ${res.status}`);
 
-  const data = await res.json() as WikiTreeSearchResponse;
-  const matches = data.matches ?? [];
+  // WikiTree returns an array: [{ status, matches, total, ... }]
+  const raw = await res.json() as WikiTreeSearchResponse[];
+  const matches = raw[0]?.matches ?? [];
 
   const deathYear = treePerson?.deathDate
     ? parseInt(treePerson.deathDate.match(/\d{4}/)?.[0] ?? '', 10) || undefined
