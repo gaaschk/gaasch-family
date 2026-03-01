@@ -54,6 +54,44 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   });
 }
 
+export async function sendIssueConfirmationEmail(
+  to: string,
+  opts: {
+    title:       string;
+    type:        string;
+    number:      number;
+    url:         string;
+    pageUrl?:    string;
+  },
+) {
+  const typeLabel = opts.type === 'bug' ? 'Bug report' : opts.type === 'feature' ? 'Feature request' : 'Issue';
+  const transport = await createTransport();
+  await transport.sendMail({
+    from:    await getFrom(),
+    bcc:     await getBcc(),
+    to,
+    subject: `Issue #${opts.number} received — ${opts.title}`,
+    text: [
+      `Your ${typeLabel.toLowerCase()} has been submitted.`,
+      '',
+      `Title: ${opts.title}`,
+      `Issue: ${opts.url}`,
+      '',
+      `You can view, comment on, or update this issue at any time using the link above.`,
+    ].join('\n'),
+    html: `
+      <p>Your <strong>${typeLabel.toLowerCase()}</strong> has been received.</p>
+      <table style="border-collapse:collapse;margin:1em 0">
+        <tr><td style="color:#888;padding-right:1em;white-space:nowrap">Title</td><td>${opts.title}</td></tr>
+        <tr><td style="color:#888;padding-right:1em;white-space:nowrap">Issue</td><td><a href="${opts.url}">#${opts.number} on GitHub</a></td></tr>
+        ${opts.pageUrl ? `<tr><td style="color:#888;padding-right:1em;white-space:nowrap">Page</td><td style="font-size:0.85em;color:#555">${opts.pageUrl}</td></tr>` : ''}
+      </table>
+      <p><a href="${opts.url}" style="font-size:1.05em">View &amp; update your issue &rarr;</a></p>
+      <p style="color:#888;font-size:0.85em">You can add comments or additional details directly on GitHub using the link above.</p>
+    `,
+  });
+}
+
 export async function sendTreeInviteEmail(
   to: string,
   opts: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { getSystemSetting } from '@/lib/settings';
+import { sendIssueConfirmationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,5 +69,15 @@ export async function POST(req: NextRequest) {
   }
 
   const issue = await ghRes.json() as { html_url: string; number: number };
+
+  // Send confirmation email non-blocking — don't fail the response if email fails
+  sendIssueConfirmationEmail(auth.email, {
+    title:   title.trim(),
+    type,
+    number:  issue.number,
+    url:     issue.html_url,
+    pageUrl,
+  }).catch(err => console.error('Issue confirmation email failed:', err));
+
   return NextResponse.json({ ok: true, url: issue.html_url, number: issue.number });
 }
