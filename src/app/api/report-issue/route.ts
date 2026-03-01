@@ -46,21 +46,27 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join('\n');
 
   // No labels — avoids 422 errors when labels don't exist in the repo
-  const ghRes = await fetch(`https://api.github.com/repos/${repo}/issues`, {
-    method:  'POST',
-    headers: {
-      'Authorization':        `Bearer ${token}`,
-      'Accept':               'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type':         'application/json',
-    },
-    body: JSON.stringify({ title: title.trim(), body: issueBody }),
-  });
+  let ghRes: Response;
+  try {
+    ghRes = await fetch(`https://api.github.com/repos/${repo}/issues`, {
+      method:  'POST',
+      headers: {
+        'Authorization':        `Bearer ${token}`,
+        'Accept':               'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type':         'application/json',
+      },
+      body: JSON.stringify({ title: title.trim(), body: issueBody }),
+    });
+  } catch (err) {
+    console.error('GitHub fetch failed (network):', err);
+    return NextResponse.json({ error: 'Could not reach GitHub. Please try again later.' }, { status: 502 });
+  }
 
   if (!ghRes.ok) {
     const detail = await ghRes.text().catch(() => '');
     console.error('GitHub API error:', ghRes.status, detail);
-    return NextResponse.json({ error: `Could not create issue (GitHub error ${ghRes.status}).` }, { status: 502 });
+    return NextResponse.json({ error: `Could not create issue (GitHub ${ghRes.status}: ${detail.slice(0, 200)}).` }, { status: 502 });
   }
 
   const issue = await ghRes.json() as { html_url: string; number: number };

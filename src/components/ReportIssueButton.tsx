@@ -62,10 +62,11 @@ export default function ReportIssueButton() {
         }),
       });
 
-      const data = await res.json() as { ok?: boolean; error?: string; url?: string; number?: number };
+      let data: { ok?: boolean; error?: string; url?: string; number?: number } = {};
+      try { data = await res.json(); } catch { /* non-JSON body (proxy error) */ }
 
       if (!res.ok || !data.ok) {
-        setErrorMsg(data.error ?? 'Something went wrong. Please try again.');
+        setErrorMsg(data.error ?? `Server error (${res.status}). Please try again.`);
         setStatus('error');
         return;
       }
@@ -74,7 +75,7 @@ export default function ReportIssueButton() {
       setIssueNumber(data.number ?? 0);
       setStatus('success');
     } catch {
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg('Could not connect to the server. Please try again.');
       setStatus('error');
     }
   }
