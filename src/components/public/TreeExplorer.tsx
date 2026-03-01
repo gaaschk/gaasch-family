@@ -851,6 +851,17 @@ export default function TreeExplorer({
         treeSlug={treeSlug}
         currentPersonId={currentId}
         onNavigateTo={id => { navigateTo(id); }}
+        onMatchesSearched={(personId) => {
+          if (personId !== currentId) return;
+          fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(personId)}/fs-matches`)
+            .then(r => r.ok ? r.json() : { matches: [] })
+            .then((d: { matches: FsMatch[] }) => {
+              const m = d.matches ?? [];
+              setFsMatches(m);
+              if (m.length > 0) setFsOpen(true);
+            })
+            .catch(() => {});
+        }}
       />
     </section>
   );

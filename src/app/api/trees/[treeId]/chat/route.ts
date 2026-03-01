@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { requireTreeAccess } from '@/lib/auth';
 import { cleanName, generateAndSaveNarrative } from '@/lib/narrative';
+import { searchAndStoreMatches } from '@/lib/familysearch';
 import { getSystemSetting } from '@/lib/settings';
 
 export const dynamic    = 'force-dynamic';
@@ -87,6 +88,18 @@ function buildTools(canEdit: boolean): Anthropic.Tool[] {
         type: 'object' as const,
         properties: {
           personId:   { type: 'string' },
+          personName: { type: 'string', description: 'Display name (for status messages)' },
+        },
+        required: ['personId', 'personName'],
+      },
+    });
+    tools.push({
+      name: 'search_external_matches',
+      description: 'Search FamilySearch, WikiTree, and Geni for external records that match a person in this tree. Stores any matches as pending hints for the editor to review and confirm — matches are never applied automatically. Use when asked to find external records, search for matches, look someone up in external databases, or find genealogy records for a person.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          personId:   { type: 'string', description: 'The CUID of the person to search for' },
           personName: { type: 'string', description: 'Display name (for status messages)' },
         },
         required: ['personId', 'personName'],
@@ -281,6 +294,36 @@ async function toolGetRelatives(treeId: string, personId: string, relation: stri
   return { error: 'Unknown relation' };
 }
 
+async function toolSearchExternalMatches(treeId: string, personId: string, userId: string) {
+  const person = await prisma.person.findFirst({
+    where: { id: personId, treeId },
+    select: { id: true, name: true },
+  });
+  if (!person) return { error: 'Person not found' };
+
+  await searchAndStoreMatches(personId, treeId, userId);
+
+  const matches = await prisma.familySearchMatch.findMany({
+    where:   { personId, treeId, status: 'pending' },
+    orderBy: { score: 'desc' },
+    select:  { source: true, score: true, fsData: true },
+  });
+
+  if (matches.length === 0) {
+    return { found: 0, message: 'No external matches found for this person.' };
+  }
+
+  return {
+    found: matches.length,
+    message: `Found ${matches.length} pending match${matches.length === 1 ? '' : 'es'} stored for review in the record hints panel.`,
+    matches: matches.map(m => ({
+      source: m.source,
+      score:  Math.round(m.score),
+      name:   (JSON.parse(m.fsData) as { name: string }).name,
+    })),
+  };
+}
+
 // ── Main handler ────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest, { params }: Params) {
   const { treeId } = await params;
@@ -338,7 +381,7 @@ Guidelines:
 - When mentioning a specific person from the database, make their name a clickable link: <a class="chat-person-link" data-id="THEIR_CUID">Their Name</a>
 - Be conversational and warm, like a knowledgeable family historian
 - For lists of people (e.g. a paternal line), present them as a readable <ul> list using <li> elements
-- NEVER use markdown — no **bold**, no *italic*, no ## headings, no backticks${canEdit ? '\n- When generating narratives for multiple people, call generate_narrative once per person in sequence' : ''}`;
+- NEVER use markdown — no **bold**, no *italic*, no ## headings, no backticks${canEdit ? '\n- When generating narratives for multiple people, call generate_narrative once per person in sequence\n- When asked to search external sources or find record matches, use search_external_matches. Always clarify that matches are stored as pending hints for the editor to review — they are never applied automatically.' : ''}`;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -386,9 +429,10 @@ Guidelines:
 
               // Status update to client
               let statusText = `Looking up ${tb.name.replace(/_/g, ' ')}…`;
-              if (tb.name === 'generate_narrative') statusText = `Generating narrative for ${input.personName ?? ''}…`;
-              else if (tb.name === 'search_people')  statusText = `Searching for "${input.query}"…`;
-              else if (tb.name === 'get_line')        statusText = `Tracing ${input.line} line…`;
+              if (tb.name === 'generate_narrative')      statusText = `Generating narrative for ${input.personName ?? ''}…`;
+              else if (tb.name === 'search_people')      statusText = `Searching for "${input.query}"…`;
+              else if (tb.name === 'get_line')            statusText = `Tracing ${input.line} line…`;
+              else if (tb.name === 'search_external_matches') statusText = `Searching external sources for ${input.personName ?? ''}…`;
               controller.enqueue(encode({ t: 's', v: statusText }));
 
               let result: unknown;
@@ -418,6 +462,12 @@ Guidelines:
                       model,
                       authorId,
                     });
+                    break;
+                  case 'search_external_matches':
+                    if (!canEdit) { result = { error: 'Searching external sources requires editor access' }; break; }
+                    result = await toolSearchExternalMatches(tree.id, input.personId as string, authorId);
+                    // Notify client to re-fetch hints for this person
+                    controller.enqueue(encode({ t: 'm', v: input.personId as string }));
                     break;
                   default:
                     result = { error: 'Unknown tool' };

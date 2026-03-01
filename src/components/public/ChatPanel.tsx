@@ -12,10 +12,12 @@ export default function ChatPanel({
   treeSlug,
   currentPersonId,
   onNavigateTo,
+  onMatchesSearched,
 }: {
   treeSlug: string;
   currentPersonId: string | null;
   onNavigateTo: (id: string) => void;
+  onMatchesSearched?: (personId: string) => void;
 }) {
   const [open, setOpen]           = useState(false);
   const [messages, setMessages]   = useState<Message[]>([]);
@@ -107,6 +109,9 @@ export default function ChatPanel({
                 copy[copy.length - 1] = last;
                 return copy;
               });
+            } else if (evt.t === 'm') {
+              // External match search completed — notify parent to re-fetch hints
+              if (evt.v) onMatchesSearched?.(evt.v);
             } else if (evt.t === 'e') {
               setMessages(prev => {
                 const copy = [...prev];
