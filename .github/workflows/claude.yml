@@ -1,0 +1,49 @@
+name: Claude Auto-Fix
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude:
+    # On issue creation: always run.
+    # On issue comments: only run when someone writes @claude.
+    if: |
+      github.event_name == 'issues' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-6
+          max_turns: 15
+          prompt: |
+            You are working on a Next.js 15 family history platform (gaasch-family-next).
+            Read CLAUDE.md for full architecture details before doing anything.
+
+            A new GitHub issue has been filed. Your job is to:
+            1. Read the issue title and body carefully.
+            2. Identify the relevant code — use Grep/Glob to find the right files before editing.
+            3. Implement a fix or the requested feature.
+            4. Run `npm run build` to confirm there are no TypeScript/build errors.
+            5. Open a pull request with your changes.
+
+            If the issue is vague, too large to fix safely in one pass, or requires
+            information you don't have (e.g. production env values), leave a comment
+            explaining what is unclear or what the user should do, and do NOT open a PR.
+
+            Keep changes minimal and focused — do not refactor unrelated code.
