@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTreeAccess } from '@/lib/auth';
-import type { FsPersonSummary } from '@/lib/familysearch';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +20,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   });
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
-  const body = await req.json() as { action: 'accept' | 'reject'; updateFields?: boolean };
-  const { action, updateFields = false } = body;
+  const body = await req.json() as {
+    action: 'accept' | 'reject';
+    fieldUpdates?: Record<string, string>; // explicit per-field values chosen by the editor
+  };
+  const { action, fieldUpdates = {} } = body;
 
   if (action === 'reject') {
     await prisma.familySearchMatch.update({
@@ -33,23 +35,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   if (action === 'accept') {
-    const fsData = JSON.parse(match.fsData) as FsPersonSummary;
-
     // Only set fsPid for FamilySearch matches (it's a FS-specific identifier)
     const personUpdate: Record<string, string | null> = match.source === 'familysearch'
       ? { fsPid: match.fsPid }
       : {};
 
-    if (updateFields) {
-      // Fetch current person to only fill empty fields
-      const person = await prisma.person.findUnique({ where: { id } });
-      if (person) {
-        if (!person.birthDate  && fsData.birthDate)  personUpdate.birthDate  = fsData.birthDate;
-        if (!person.birthPlace && fsData.birthPlace) personUpdate.birthPlace = fsData.birthPlace;
-        if (!person.deathDate  && fsData.deathDate)  personUpdate.deathDate  = fsData.deathDate;
-        if (!person.deathPlace && fsData.deathPlace) personUpdate.deathPlace = fsData.deathPlace;
-        if (!person.occupation && fsData.occupation) personUpdate.occupation = fsData.occupation;
-      }
+    // Apply exactly the fields the editor selected — overwrite regardless of current value
+    const ALLOWED = new Set(['birthDate', 'birthPlace', 'deathDate', 'deathPlace', 'occupation']);
+    for (const [k, v] of Object.entries(fieldUpdates)) {
+      if (ALLOWED.has(k) && v) personUpdate[k] = v;
     }
 
     await prisma.$transaction([

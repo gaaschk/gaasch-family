@@ -14,6 +14,14 @@ interface FsMatch {
   status:  string;
 }
 
+const REVIEW_FIELDS = [
+  { key: 'birthDate',  label: 'Birth date' },
+  { key: 'birthPlace', label: 'Birth place' },
+  { key: 'deathDate',  label: 'Death date' },
+  { key: 'deathPlace', label: 'Death place' },
+  { key: 'occupation', label: 'Occupation' },
+] as const;
+
 const SOURCE_LABELS: Record<string, string> = {
   familysearch: 'FamilySearch',
   wikitree:     'WikiTree',
@@ -167,6 +175,9 @@ export default function TreeExplorer({
   const [fsActionError, setFsActionError] = useState('');
   const [fsSearchMsg, setFsSearchMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const fsSearchMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Field-by-field review state
+  const [reviewMatchId, setReviewMatchId] = useState<string | null>(null);
+  const [reviewFields, setReviewFields]   = useState<Set<string>>(new Set());
 
   // Search state
   const [query, setQuery] = useState('');
@@ -246,6 +257,8 @@ export default function TreeExplorer({
     setFsMatches([]);
     setFsOpen(false);
     setFsSearchMsg(null);
+    setReviewMatchId(null);
+    setReviewFields(new Set());
     if (fsSearchMsgTimer.current) clearTimeout(fsSearchMsgTimer.current);
     if (!currentId || (role !== 'editor' && role !== 'admin')) return;
     fetch(`/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/fs-matches`)
@@ -277,7 +290,11 @@ export default function TreeExplorer({
     navigateTo(p.id);
   }
 
-  async function handleFsAction(matchId: string, action: 'accept' | 'reject', updateFields = false) {
+  async function handleFsAction(
+    matchId: string,
+    action: 'accept' | 'reject',
+    fieldUpdates?: Record<string, string>,
+  ) {
     setFsActing(matchId);
     setFsActionError('');
     try {
@@ -286,12 +303,13 @@ export default function TreeExplorer({
         {
           method:  'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ action, updateFields }),
+          body:    JSON.stringify({ action, fieldUpdates }),
         },
       );
       if (res.ok) {
         const data = await res.json() as { person?: PersonFull };
         setFsMatches(prev => prev.filter(m => m.id !== matchId));
+        setReviewMatchId(null);
         if (data.person && currentId) await navigateTo(currentId);
       } else {
         const data = await res.json().catch(() => ({})) as { error?: string };
@@ -300,6 +318,18 @@ export default function TreeExplorer({
     } finally {
       setFsActing(null);
     }
+  }
+
+  function startReview(match: FsMatch) {
+    const fs = JSON.parse(match.fsData) as FsPersonData;
+    const auto = new Set<string>();
+    for (const { key } of REVIEW_FIELDS) {
+      const srcVal = fs[key as keyof FsPersonData] as string | null | undefined;
+      const localVal = person ? (person as unknown as Record<string, unknown>)[key] as string | null | undefined : null;
+      if (srcVal && srcVal !== localVal) auto.add(key);
+    }
+    setReviewFields(auto);
+    setReviewMatchId(match.id);
   }
 
   function showSearchMsg(text: string, ok: boolean) {
@@ -609,6 +639,12 @@ export default function TreeExplorer({
             {fsMatches.map((match, i) => {
               const fs = JSON.parse(match.fsData) as FsPersonData;
               const isActing = fsActing === match.id;
+              const isReviewing = reviewMatchId === match.id;
+              const btnBase: React.CSSProperties = {
+                border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem',
+                fontFamily: 'var(--font-sc)', fontSize: '0.65rem', letterSpacing: '0.07em',
+                cursor: isActing ? 'wait' : 'pointer', opacity: isActing ? 0.6 : 1,
+              };
               return (
                 <div
                   key={match.id}
@@ -616,114 +652,154 @@ export default function TreeExplorer({
                     padding: '1rem 1.25rem',
                     borderTop: i > 0 ? '1px solid rgba(196,150,42,0.2)' : undefined,
                     background: i % 2 === 0 ? 'rgba(242,232,213,0.4)' : 'rgba(255,255,255,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1.25rem',
-                    flexWrap: 'wrap',
                   }}
                 >
-                  {/* Match info */}
-                  <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                    <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
-                      {fs.name.replace(/\//g, '').trim()}
-                      <span style={{
-                        fontSize: '0.58rem',
-                        fontFamily: 'var(--font-sc)',
-                        letterSpacing: '0.06em',
-                        padding: '0.1rem 0.45rem',
-                        borderRadius: 3,
-                        marginLeft: '0.5rem',
-                        background: SOURCE_COLORS[match.source] ?? '#888',
-                        color: '#fff',
-                        opacity: 0.9,
-                        verticalAlign: 'middle',
-                      }}>
-                        {SOURCE_LABELS[match.source] ?? match.source}
-                      </span>
-                    </p>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
-                      {[
-                        fs.birthDate  && `b. ${fs.birthDate}`,
-                        fs.birthPlace && shortPlace(fs.birthPlace),
-                        fs.deathDate  && `d. ${fs.deathDate}`,
-                        fs.deathPlace && shortPlace(fs.deathPlace),
-                      ].filter(Boolean).join(' · ')}
-                    </p>
-                    {fs.occupation && (
-                      <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
+                  {/* ── Summary row ── */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                    {/* Match info */}
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
+                        {fs.name.replace(/\//g, '').trim()}
+                        <span style={{
+                          fontSize: '0.58rem', fontFamily: 'var(--font-sc)', letterSpacing: '0.06em',
+                          padding: '0.1rem 0.45rem', borderRadius: 3, marginLeft: '0.5rem',
+                          background: SOURCE_COLORS[match.source] ?? '#888', color: '#fff',
+                          opacity: 0.9, verticalAlign: 'middle',
+                        }}>
+                          {SOURCE_LABELS[match.source] ?? match.source}
+                        </span>
+                      </p>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
+                        {[
+                          fs.birthDate  && `b. ${fs.birthDate}`,
+                          fs.birthPlace && shortPlace(fs.birthPlace),
+                          fs.deathDate  && `d. ${fs.deathDate}`,
+                          fs.deathPlace && shortPlace(fs.deathPlace),
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                      {fs.occupation && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
+                      )}
+                    </div>
+
+                    {/* Score */}
+                    <span style={{
+                      fontFamily: 'var(--font-sc)', fontSize: '0.65rem',
+                      color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
+                      letterSpacing: '0.05em', flexShrink: 0,
+                    }}>
+                      {Math.round(match.score)}% match
+                    </span>
+
+                    {/* Action buttons — hidden while reviewing */}
+                    {!isReviewing && (
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                        <button
+                          disabled={isActing}
+                          onClick={() => startReview(match)}
+                          style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
+                        >
+                          Review
+                        </button>
+                        <button
+                          disabled={isActing}
+                          onClick={() => handleFsAction(match.id, 'reject')}
+                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
                     )}
                   </div>
 
-                  {/* Score */}
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sc)',
-                      fontSize: '0.65rem',
-                      color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
-                      letterSpacing: '0.05em',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {Math.round(match.score)}% match
-                  </span>
+                  {/* ── Field-by-field review panel ── */}
+                  {isReviewing && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(196,150,42,0.2)', paddingTop: '0.75rem' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.06em', color: 'var(--sepia)' }}>
+                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '20%' }}>Field</th>
+                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>In tree</th>
+                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>From source</th>
+                            <th style={{ textAlign: 'center', paddingBottom: '0.5rem', width: '10%' }}>Import</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {REVIEW_FIELDS.map(({ key, label }) => {
+                            const srcVal = fs[key as keyof FsPersonData] as string | null | undefined;
+                            const localVal = person ? (person as unknown as Record<string, unknown>)[key] as string | null | undefined : null;
+                            const hasSource = !!srcVal;
+                            const isSame = hasSource && srcVal === localVal;
+                            const isSelected = reviewFields.has(key);
+                            return (
+                              <tr key={key} style={{ borderTop: '1px solid rgba(196,150,42,0.1)' }}>
+                                <td style={{ padding: '0.4rem 0', fontFamily: 'var(--font-sc)', fontSize: '0.62rem', letterSpacing: '0.04em', color: 'var(--sepia)' }}>
+                                  {label}
+                                </td>
+                                <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: localVal ? 'var(--ink)' : 'var(--sepia)', opacity: localVal ? 1 : 0.45 }}>
+                                  {localVal || '—'}
+                                </td>
+                                <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: isSame ? 'var(--sepia)' : hasSource ? 'var(--ink)' : 'var(--sepia)', opacity: hasSource ? 1 : 0.45 }}>
+                                  {srcVal || '—'}
+                                </td>
+                                <td style={{ textAlign: 'center', padding: '0.4rem 0' }}>
+                                  {isSame ? (
+                                    <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.6 }}>same</span>
+                                  ) : hasSource ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={e => {
+                                        setReviewFields(prev => {
+                                          const next = new Set(prev);
+                                          if (e.target.checked) next.add(key); else next.delete(key);
+                                          return next;
+                                        });
+                                      }}
+                                      style={{ cursor: 'pointer', accentColor: 'var(--rust)', width: 15, height: 15 }}
+                                    />
+                                  ) : (
+                                    <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.4 }}>—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
 
-                  {/* Actions */}
-                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, flexWrap: 'wrap' }}>
-                    <button
-                      disabled={isActing}
-                      onClick={() => handleFsAction(match.id, 'accept', true)}
-                      style={{
-                        background: 'var(--rust)',
-                        border: 'none',
-                        borderRadius: 4,
-                        padding: '0.3rem 0.75rem',
-                        color: '#fff',
-                        fontFamily: 'var(--font-sc)',
-                        fontSize: '0.65rem',
-                        letterSpacing: '0.07em',
-                        cursor: isActing ? 'wait' : 'pointer',
-                        opacity: isActing ? 0.6 : 1,
-                      }}
-                    >
-                      Link &amp; Update
-                    </button>
-                    <button
-                      disabled={isActing}
-                      onClick={() => handleFsAction(match.id, 'accept', false)}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid var(--rust)',
-                        borderRadius: 4,
-                        padding: '0.3rem 0.75rem',
-                        color: 'var(--rust)',
-                        fontFamily: 'var(--font-sc)',
-                        fontSize: '0.65rem',
-                        letterSpacing: '0.07em',
-                        cursor: isActing ? 'wait' : 'pointer',
-                        opacity: isActing ? 0.6 : 1,
-                      }}
-                    >
-                      Link only
-                    </button>
-                    <button
-                      disabled={isActing}
-                      onClick={() => handleFsAction(match.id, 'reject')}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(122,92,46,0.3)',
-                        borderRadius: 4,
-                        padding: '0.3rem 0.75rem',
-                        color: 'var(--sepia)',
-                        fontFamily: 'var(--font-sc)',
-                        fontSize: '0.65rem',
-                        letterSpacing: '0.07em',
-                        cursor: isActing ? 'wait' : 'pointer',
-                        opacity: isActing ? 0.6 : 1,
-                      }}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
+                      {/* Review actions */}
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setReviewMatchId(null)}
+                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.25)', color: 'var(--sepia)' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={isActing}
+                          onClick={() => handleFsAction(match.id, 'reject')}
+                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}
+                        >
+                          Dismiss match
+                        </button>
+                        <button
+                          disabled={isActing}
+                          onClick={() => {
+                            const updates: Record<string, string> = {};
+                            for (const key of reviewFields) {
+                              const v = fs[key as keyof FsPersonData] as string | null | undefined;
+                              if (v) updates[key] = v;
+                            }
+                            handleFsAction(match.id, 'accept', updates);
+                          }}
+                          style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
+                        >
+                          {isActing ? 'Saving…' : 'Confirm match'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
