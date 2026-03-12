@@ -4,7 +4,7 @@ import ReportIssueButton from '@/components/ReportIssueButton';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Family History',
+  title: 'Heirloom',
   description: 'A private family history platform — explore your family tree, biographical narratives, and genealogy records.',
 };
 

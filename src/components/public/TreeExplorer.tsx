@@ -142,6 +142,19 @@ function deriveRelations(p: PersonFull) {
   return { parents, spouses, children };
 }
 
+type ExplorerView = 'fan' | 'pedigree' | 'family';
+
+// Deterministic pseudo-random citizenship status based on person id
+function getCitizenshipStatus(id: string): 'green' | 'amber' | 'red' {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  const n = Math.abs(hash) % 3;
+  return n === 0 ? 'green' : n === 1 ? 'amber' : 'red';
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 export default function TreeExplorer({
   treeSlug,
@@ -168,14 +181,28 @@ export default function TreeExplorer({
   const [pathToRoot, setPathToRoot] = useState<PathNode[]>([]);
   const cache = useRef<Map<string, PersonFull>>(new Map());
 
+  // Explorer view state
+  const [activeView, setActiveView] = useState<ExplorerView>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('heirloom:explorerView') as ExplorerView) || 'pedigree';
+    }
+    return 'pedigree';
+  });
+  const [citizenshipMode, setCitizenshipMode] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'details' | 'narrative' | 'docs'>('details');
+
+  // Narrative generation
+  const [generatingNarrative, setGeneratingNarrative] = useState(false);
+  const [streamedNarrative, setStreamedNarrative] = useState('');
+
   // FamilySearch hints
   const [fsMatches, setFsMatches]     = useState<FsMatch[]>([]);
   const [fsOpen, setFsOpen]           = useState(false);
-  const [fsActing, setFsActing]       = useState<string | null>(null); // matchId being processed
+  const [fsActing, setFsActing]       = useState<string | null>(null);
   const [fsActionError, setFsActionError] = useState('');
   const [fsSearchMsg, setFsSearchMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const fsSearchMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Field-by-field review state
   const [reviewMatchId, setReviewMatchId] = useState<string | null>(null);
   const [reviewFields, setReviewFields]   = useState<Set<string>>(new Set());
 
@@ -188,6 +215,11 @@ export default function TreeExplorer({
 
   const lsKey = `tree:${treeSlug}:${userId ?? 'anon'}:lastPerson`;
 
+  // Persist view preference
+  useEffect(() => {
+    localStorage.setItem('heirloom:explorerView', activeView);
+  }, [activeView]);
+
   const navigateTo = useCallback(async (id: string) => {
     localStorage.setItem(`tree:${treeSlug}:lastPerson`, id);
     if (cache.current.has(id)) {
@@ -195,6 +227,9 @@ export default function TreeExplorer({
       setPerson(cached);
       setCurrentId(id);
       if (cached.pathToRoot) setPathToRoot(cached.pathToRoot);
+      setSidebarOpen(true);
+      setSidebarTab('details');
+      setStreamedNarrative('');
       localStorage.setItem('lastViewed', JSON.stringify({
         treeSlug, treeName: treeName ?? treeSlug, personId: id, personName: cleanName(cached.name),
       }));
@@ -209,6 +244,9 @@ export default function TreeExplorer({
         setPerson(data);
         setCurrentId(id);
         setPathToRoot(data.pathToRoot ?? []);
+        setSidebarOpen(true);
+        setSidebarTab('details');
+        setStreamedNarrative('');
         localStorage.setItem('lastViewed', JSON.stringify({
           treeSlug, treeName: treeName ?? treeSlug, personId: id, personName: cleanName(data.name),
         }));
@@ -367,486 +405,818 @@ export default function TreeExplorer({
     }
   }
 
+  async function handleGenerateNarrative() {
+    if (!currentId || !person) return;
+    setGeneratingNarrative(true);
+    setStreamedNarrative('');
+    try {
+      const res = await fetch(
+        `/api/trees/${treeSlug}/people/${encodeURIComponent(currentId)}/generate-narrative`,
+        { method: 'POST' },
+      );
+      if (!res.ok || !res.body) {
+        setGeneratingNarrative(false);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        full += chunk;
+        setStreamedNarrative(full);
+      }
+      // Update cache with new narrative
+      const updated = { ...person, narrative: full };
+      cache.current.set(person.id, updated);
+      setPerson(updated);
+    } finally {
+      setGeneratingNarrative(false);
+    }
+  }
+
+  const canEdit = role === 'editor' || role === 'admin';
+
+  // ── Derived data ──
+  const relations = person ? deriveRelations(person) : { parents: [], spouses: [], children: [] };
+  const nameClean = person ? cleanName(person.name) : '';
+  const initials = nameClean.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const lifespan = person ? formatLifespan(person) : '';
+
+  // Build lifespan string for sidebar
+  const sidebarDates = person ? [
+    person.birthDate ? `b. ${person.birthDate}` : null,
+    person.birthPlace ? shortPlace(person.birthPlace) : null,
+    person.deathDate ? `d. ${person.deathDate}` : null,
+  ].filter(Boolean).join(' · ') : '';
+
+  // ── Render ──────────────────────────────────────────────────────────────
   if (!person && loading) {
     return (
-      <div className="chapters-section">
-        <div style={{ padding: '4rem', color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</div>
+      <div className="explorer-body">
+        <div className="explorer-canvas">
+          <div style={{ padding: '4rem', color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</div>
+        </div>
       </div>
     );
   }
 
   if (!person) {
-    const canEdit = role === 'editor' || role === 'admin';
     return (
-      <section id="chapters" className="chapters-section">
-        <div className="chapters-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '40vh' }}>
-          <div style={{ textAlign: 'center', color: 'var(--sepia)', padding: '3rem 2rem' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', marginBottom: '0.75rem', color: 'var(--ink)' }}>
-              This tree has no people yet.
-            </p>
-            {canEdit ? (
-              <>
-                <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.7 }}>
-                  Add your first person to get started.
-                </p>
-                <a href={`/trees/${treeSlug}/admin/people/new`} className="btn btn-primary">
-                  Add a person
-                </a>
-              </>
-            ) : (
-              <p style={{ fontSize: '0.9rem', lineHeight: 1.7 }}>
-                Check back later — the tree administrator hasn&apos;t added anyone yet.
+      <div className="explorer-body">
+        <div className="explorer-canvas">
+          <div className="explorer-toolbar">
+            <div className="view-switcher">
+              <button className="view-btn">Fan</button>
+              <button className="view-btn active">Pedigree</button>
+              <button className="view-btn">Family</button>
+            </div>
+          </div>
+          <div className="explorer-canvas-area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center', color: 'var(--heirloom-ink-muted)', padding: '3rem 2rem', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+              <p style={{ fontSize: '1.2rem', marginBottom: '0.75rem', color: 'var(--heirloom-ink)', fontWeight: 600 }}>
+                This tree has no people yet.
               </p>
-            )}
+              {canEdit ? (
+                <>
+                  <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.7 }}>
+                    Add your first person to get started.
+                  </p>
+                  <a
+                    href={`/trees/${treeSlug}/admin/people/new`}
+                    style={{
+                      display: 'inline-block', padding: '8px 20px', background: 'var(--brand)',
+                      color: 'white', borderRadius: 7, textDecoration: 'none', fontSize: 13, fontWeight: 500,
+                    }}
+                  >
+                    Add a person
+                  </a>
+                </>
+              ) : (
+                <p style={{ fontSize: '0.9rem', lineHeight: 1.7 }}>
+                  Check back later — the tree administrator hasn&apos;t added anyone yet.
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </section>
+      </div>
     );
   }
 
-  const { parents, spouses, children } = deriveRelations(person);
-  const lifespan  = formatLifespan(person);
-  const nameClean = cleanName(person.name);
+  const { parents, spouses, children } = relations;
   const firstName = nameClean.split(' ')[0];
-
-  const canEdit = role === 'editor' || role === 'admin';
-  // Pre-fill the new family form with the current person in the right slot
   const parentSlot = person.sex === 'F' ? 'wifeId' : 'husbId';
   const familyNewBase = `/trees/${treeSlug}/admin/families/new`;
   const parentAddHref  = canEdit ? `${familyNewBase}?childId=${person.id}` : undefined;
   const childAddHref   = canEdit ? `${familyNewBase}?${parentSlot}=${person.id}` : undefined;
   const spouseAddHref  = canEdit ? `${familyNewBase}?${parentSlot}=${person.id}` : undefined;
 
+  // Narrative display: show streamed content while generating, else person.narrative
+  const narrativeHtml = generatingNarrative ? streamedNarrative : (person.narrative ?? '');
+
   return (
-    <section id="chapters" className="chapters-section">
-      {/* ── Lineage sidebar ── */}
-      {pathToRoot.length > 0 && (
-        <nav className="chapters-timeline" aria-label="Lineage path">
-          <div className="timeline-crumb">
-            {pathToRoot.map((node, i) => {
-              const isActive = node.id === currentId;
-              return (
-                <div key={node.id}>
-                  <button
-                    className={`crumb-node${isActive ? ' crumb-node--active' : ''}`}
-                    onClick={() => navigateTo(node.id)}
-                  >
-                    <span className="crumb-dot" />
-                    <span className="crumb-text">
-                      <span className="crumb-name">
-                        {node.name.replace(/\//g, '').replace(/\s+/g, ' ').trim()}
-                      </span>
-                    </span>
-                  </button>
-                  {i < pathToRoot.length - 1 && (
-                    <span className="crumb-arrow">↓</span>
-                  )}
+    <div className="explorer-body">
+      {/* ══ LEFT SIDEBAR ══ */}
+      <div className={`explorer-sidebar${sidebarOpen ? '' : ' collapsed'}`}>
+        {person && sidebarOpen && (
+          <>
+            <div className="sidebar-top">
+              <div className="sidebar-person-header">
+                <div className="sidebar-avatar">{initials}</div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="sidebar-name">{nameClean}</div>
+                  <div className="sidebar-dates">{sidebarDates}</div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Read story link — all roles */}
-          <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
-            <a
-              href={`/trees/${treeSlug}/stories/${encodeURIComponent(pathToRoot[pathToRoot.length - 1].id)}`}
-              className="story-cta-link"
-              style={{ display: 'block', textAlign: 'center' }}
-            >
-              Read story &rarr;
-            </a>
-          </div>
-        </nav>
-      )}
-
-      {/* ── Main chapter area ── */}
-      <div className="chapters-main">
-        {/* Search */}
-        <div className="chapter-search-wrap">
-          <input
-            ref={searchRef}
-            type="text"
-            className="chapter-search-input"
-            placeholder="Search all people by name…"
-            value={query}
-            onChange={e => handleSearch(e.target.value)}
-            onBlur={() => setTimeout(() => setShowResults(false), 150)}
-            autoComplete="off"
-          />
-          {showResults && (
-            <div className="chapter-search-results">
-              {searchResults.length === 0 ? (
-                <div className="ch-search-empty">No results for &ldquo;{query}&rdquo;</div>
-              ) : (
-                searchResults.map(p => (
-                  <div
-                    key={p.id}
-                    className="ch-search-item"
-                    onMouseDown={() => selectSearchResult(p)}
-                    tabIndex={0}
-                  >
-                    <strong>{cleanName(p.name)}</strong>
-                    {formatLifespan(p) && (
-                      <span className="ch-search-life"> {formatLifespan(p)}</span>
-                    )}
-                    {p.birthPlace && (
-                      <span className="ch-search-place"> · {shortPlace(p.birthPlace)}</span>
-                    )}
-                  </div>
-                ))
-              )}
+                <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>×</button>
+              </div>
+              <div className="sidebar-tabs">
+                <button
+                  className={`sidebar-tab${sidebarTab === 'details' ? ' active' : ''}`}
+                  onClick={() => setSidebarTab('details')}
+                >
+                  Details
+                </button>
+                <button
+                  className={`sidebar-tab${sidebarTab === 'narrative' ? ' active' : ''}`}
+                  onClick={() => setSidebarTab('narrative')}
+                >
+                  Narrative
+                </button>
+                <button
+                  className={`sidebar-tab${sidebarTab === 'docs' ? ' active' : ''}`}
+                  onClick={() => setSidebarTab('docs')}
+                >
+                  Docs
+                </button>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Full-width chapter header */}
-        {!loading && (
-          <div className="chapter-header">
-            {/* Mirror the chapter-layout grid so content aligns with the center column */}
-            <div className="chapter-header-grid">
-              <div />
-              <div style={{ textAlign: 'center' }}>
-                {(role === 'editor' || role === 'admin') && (
-                  <a
-                    href={`/trees/${treeSlug}/admin/people/${encodeURIComponent(person.id)}/edit`}
-                    style={{
-                      display: 'inline-block',
-                      marginBottom: '1rem',
-                      fontSize: '0.78rem',
-                      color: 'var(--rust)',
-                      border: '1px solid rgba(139,69,19,0.3)',
-                      borderRadius: '4px',
-                      padding: '0.3rem 0.75rem',
-                      textDecoration: 'none',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Edit this person ›
-                  </a>
-                )}
-                <h2>{nameClean}</h2>
-                <div className="key-facts" style={{ marginTop: '1.5rem' }}>
-                  {person.birthDate && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Born</span>
-                      <span className="key-fact-value">
-                        {person.birthDate}
-                        {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
-                      </span>
+            <div className="sidebar-body">
+              {/* ── Details tab ── */}
+              {sidebarTab === 'details' && (
+                <div>
+                  {person.birthPlace && (
+                    <div className="sidebar-info-row">
+                      <div className="sidebar-info-icon">📍</div>
+                      <div>
+                        <div className="sidebar-info-text">{person.birthPlace}</div>
+                        <div className="sidebar-info-label">Birthplace</div>
+                      </div>
                     </div>
                   )}
-                  {person.deathDate && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Died</span>
-                      <span className="key-fact-value">
-                        {person.deathDate}
-                        {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
-                      </span>
+                  {person.birthDate && (
+                    <div className="sidebar-info-row">
+                      <div className="sidebar-info-icon">📅</div>
+                      <div>
+                        <div className="sidebar-info-text">{person.birthDate}</div>
+                        <div className="sidebar-info-label">Born</div>
+                      </div>
+                    </div>
+                  )}
+                  {(person.deathDate || person.deathPlace) && (
+                    <div className="sidebar-info-row">
+                      <div className="sidebar-info-icon">✝</div>
+                      <div>
+                        <div className="sidebar-info-text">
+                          {[person.deathDate, person.deathPlace].filter(Boolean).join(', ')}
+                        </div>
+                        <div className="sidebar-info-label">Death</div>
+                      </div>
                     </div>
                   )}
                   {person.occupation && (
-                    <div className="key-fact">
-                      <span className="key-fact-label">Occupation</span>
-                      <span className="key-fact-value">{person.occupation}</span>
+                    <div className="sidebar-info-row">
+                      <div className="sidebar-info-icon">👔</div>
+                      <div>
+                        <div className="sidebar-info-text">{person.occupation}</div>
+                        <div className="sidebar-info-label">Occupation</div>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {/* Read story CTA */}
-                {pathToRoot.length > 0 && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <a
-                      href={`/trees/${treeSlug}/stories/${encodeURIComponent(person.id)}`}
-                      className="story-cta-link"
-                    >
-                      Read {firstName}&rsquo;s story &rarr;
-                    </a>
-                  </div>
-                )}
+                  {/* Parents */}
+                  {parents.length > 0 && (
+                    <>
+                      <div className="sidebar-section-title">Parents</div>
+                      <div className="sidebar-rel-chips">
+                        {parents.map(p => (
+                          <button key={p.id} className="sidebar-rel-chip" onClick={() => navigateTo(p.id)}>
+                            {cleanName(p.name)} <span className="sidebar-rel-chip-label">{p.sex === 'F' ? 'mother' : 'father'}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
 
-                {/* FamilySearch hints badge */}
-                {(role === 'editor' || role === 'admin') && (
-                  <>
-                  <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {fsMatches.length > 0 && (
+                  {/* Spouses */}
+                  {spouses.length > 0 && (
+                    <>
+                      <div className="sidebar-section-title">Spouses</div>
+                      <div className="sidebar-rel-chips">
+                        {spouses.map(s => (
+                          <button key={s.id} className="sidebar-rel-chip" onClick={() => navigateTo(s.id)}>
+                            {cleanName(s.name)} <span className="sidebar-rel-chip-label">spouse</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Children */}
+                  {children.length > 0 && (
+                    <>
+                      <div className="sidebar-section-title">Children</div>
+                      <div className="sidebar-rel-chips">
+                        {children.map(c => (
+                          <button key={c.id} className="sidebar-rel-chip" onClick={() => navigateTo(c.id)}>
+                            {cleanName(c.name)} <span className="sidebar-rel-chip-label">{c.sex === 'F' ? 'daughter' : 'son'}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Record hints (for editors) */}
+                  {canEdit && fsMatches.length > 0 && (
+                    <>
+                      <div className="sidebar-section-title">Record Hints</div>
                       <button
                         onClick={() => setFsOpen(o => !o)}
                         style={{
-                          background: fsOpen ? 'rgba(196,150,42,0.18)' : 'rgba(196,150,42,0.08)',
-                          border: '1px solid rgba(196,150,42,0.4)',
-                          borderRadius: 20,
-                          padding: '0.3rem 0.85rem',
-                          color: 'var(--gold)',
-                          fontFamily: 'var(--font-sc)',
-                          fontSize: '0.65rem',
-                          letterSpacing: '0.07em',
-                          cursor: 'pointer',
-                          transition: 'background 0.15s',
+                          background: 'rgba(139,94,60,0.08)', border: '1px solid rgba(139,94,60,0.3)',
+                          borderRadius: 20, padding: '5px 12px', fontSize: 12, cursor: 'pointer',
+                          color: 'var(--brand)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                         }}
                       >
-                        ⟷ {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
+                        {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'}
                       </button>
-                    )}
-                    <button
-                      onClick={handleFsSearch}
-                      disabled={fsActing === 'search'}
-                      style={{
-                        background: 'none',
-                        border: '1px solid rgba(122,92,46,0.3)',
-                        borderRadius: 20,
-                        padding: '0.3rem 0.85rem',
-                        color: 'var(--sepia)',
-                        fontFamily: 'var(--font-sc)',
-                        fontSize: '0.63rem',
-                        letterSpacing: '0.07em',
-                        cursor: fsActing === 'search' ? 'wait' : 'pointer',
-                        opacity: fsActing === 'search' ? 0.6 : 1,
-                      }}
-                    >
-                      {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search all sources' : 'Search all sources'}
-                    </button>
-                  </div>
-                  {fsSearchMsg && (
-                    <p style={{
-                      marginTop: '0.5rem',
-                      fontSize: '0.72rem',
-                      fontFamily: 'var(--font-sc)',
-                      letterSpacing: '0.04em',
-                      color: fsSearchMsg.ok ? 'var(--ink)' : 'var(--sepia)',
-                      opacity: 0.85,
-                    }}>
-                      {fsSearchMsg.ok ? '✓ ' : ''}{fsSearchMsg.text}
-                    </p>
-                  )}
-                  </>
-                )}
-              </div>
-              <div />
-            </div>
-          </div>
-        )}
-
-        {/* FamilySearch hints panel */}
-        {fsOpen && fsMatches.length > 0 && (
-          <div
-            style={{
-              margin: '0 2rem 1.5rem',
-              border: '1px solid rgba(196,150,42,0.3)',
-              borderRadius: 8,
-              overflow: 'hidden',
-            }}
-          >
-            {fsMatches.map((match, i) => {
-              const fs = JSON.parse(match.fsData) as FsPersonData;
-              const isActing = fsActing === match.id;
-              const isReviewing = reviewMatchId === match.id;
-              const btnBase: React.CSSProperties = {
-                border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem',
-                fontFamily: 'var(--font-sc)', fontSize: '0.65rem', letterSpacing: '0.07em',
-                cursor: isActing ? 'wait' : 'pointer', opacity: isActing ? 0.6 : 1,
-              };
-              return (
-                <div
-                  key={match.id}
-                  style={{
-                    padding: '1rem 1.25rem',
-                    borderTop: i > 0 ? '1px solid rgba(196,150,42,0.2)' : undefined,
-                    background: i % 2 === 0 ? 'rgba(242,232,213,0.4)' : 'rgba(255,255,255,0.6)',
-                  }}
-                >
-                  {/* ── Summary row ── */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-                    {/* Match info */}
-                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                      <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
-                        {fs.name.replace(/\//g, '').trim()}
-                        <span style={{
-                          fontSize: '0.58rem', fontFamily: 'var(--font-sc)', letterSpacing: '0.06em',
-                          padding: '0.1rem 0.45rem', borderRadius: 3, marginLeft: '0.5rem',
-                          background: SOURCE_COLORS[match.source] ?? '#888', color: '#fff',
-                          opacity: 0.9, verticalAlign: 'middle',
-                        }}>
-                          {SOURCE_LABELS[match.source] ?? match.source}
-                        </span>
-                      </p>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
-                        {[
-                          fs.birthDate  && `b. ${fs.birthDate}`,
-                          fs.birthPlace && shortPlace(fs.birthPlace),
-                          fs.deathDate  && `d. ${fs.deathDate}`,
-                          fs.deathPlace && shortPlace(fs.deathPlace),
-                        ].filter(Boolean).join(' · ')}
-                      </p>
-                      {fs.occupation && (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
-                      )}
-                    </div>
-
-                    {/* Score */}
-                    <span style={{
-                      fontFamily: 'var(--font-sc)', fontSize: '0.65rem',
-                      color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
-                      letterSpacing: '0.05em', flexShrink: 0,
-                    }}>
-                      {Math.round(match.score)}% match
-                    </span>
-
-                    {/* Action buttons — hidden while reviewing */}
-                    {!isReviewing && (
-                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                        <button
-                          disabled={isActing}
-                          onClick={() => startReview(match)}
-                          style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
-                        >
-                          Review
-                        </button>
-                        <button
-                          disabled={isActing}
-                          onClick={() => handleFsAction(match.id, 'reject')}
-                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Field-by-field review panel ── */}
-                  {isReviewing && (
-                    <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(196,150,42,0.2)', paddingTop: '0.75rem' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                        <thead>
-                          <tr style={{ fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.06em', color: 'var(--sepia)' }}>
-                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '20%' }}>Field</th>
-                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>In tree</th>
-                            <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>From source</th>
-                            <th style={{ textAlign: 'center', paddingBottom: '0.5rem', width: '10%' }}>Import</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {REVIEW_FIELDS.map(({ key, label }) => {
-                            const srcVal = fs[key as keyof FsPersonData] as string | null | undefined;
-                            const localVal = person ? (person as unknown as Record<string, unknown>)[key] as string | null | undefined : null;
-                            const hasSource = !!srcVal;
-                            const isSame = hasSource && srcVal === localVal;
-                            const isSelected = reviewFields.has(key);
-                            return (
-                              <tr key={key} style={{ borderTop: '1px solid rgba(196,150,42,0.1)' }}>
-                                <td style={{ padding: '0.4rem 0', fontFamily: 'var(--font-sc)', fontSize: '0.62rem', letterSpacing: '0.04em', color: 'var(--sepia)' }}>
-                                  {label}
-                                </td>
-                                <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: localVal ? 'var(--ink)' : 'var(--sepia)', opacity: localVal ? 1 : 0.45 }}>
-                                  {localVal || '—'}
-                                </td>
-                                <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: isSame ? 'var(--sepia)' : hasSource ? 'var(--ink)' : 'var(--sepia)', opacity: hasSource ? 1 : 0.45 }}>
-                                  {srcVal || '—'}
-                                </td>
-                                <td style={{ textAlign: 'center', padding: '0.4rem 0' }}>
-                                  {isSame ? (
-                                    <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.6 }}>same</span>
-                                  ) : hasSource ? (
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={e => {
-                                        setReviewFields(prev => {
-                                          const next = new Set(prev);
-                                          if (e.target.checked) next.add(key); else next.delete(key);
-                                          return next;
-                                        });
-                                      }}
-                                      style={{ cursor: 'pointer', accentColor: 'var(--rust)', width: 15, height: 15 }}
-                                    />
-                                  ) : (
-                                    <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.4 }}>—</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-
-                      {/* Review actions */}
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                        <button
-                          onClick={() => setReviewMatchId(null)}
-                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.25)', color: 'var(--sepia)' }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          disabled={isActing}
-                          onClick={() => handleFsAction(match.id, 'reject')}
-                          style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}
-                        >
-                          Dismiss match
-                        </button>
-                        <button
-                          disabled={isActing}
-                          onClick={() => {
-                            const updates: Record<string, string> = {};
-                            for (const key of reviewFields) {
-                              const v = fs[key as keyof FsPersonData] as string | null | undefined;
-                              if (v) updates[key] = v;
-                            }
-                            handleFsAction(match.id, 'accept', updates);
-                          }}
-                          style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
-                        >
-                          {isActing ? 'Saving…' : 'Confirm match'}
-                        </button>
-                      </div>
-                    </div>
+                    </>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
 
-        {fsActionError && (
-          <p style={{ color: 'var(--rust)', fontSize: '0.82rem', margin: '0 2rem 1rem', textAlign: 'center' }}>
-            {fsActionError}
-          </p>
-        )}
+              {/* ── Narrative tab ── */}
+              {sidebarTab === 'narrative' && (
+                <div>
+                  {canEdit && (
+                    <button
+                      className="sidebar-generate-btn"
+                      onClick={handleGenerateNarrative}
+                      disabled={generatingNarrative}
+                    >
+                      {generatingNarrative ? 'Generating…' : narrativeHtml ? '🔄 Regenerate narrative' : '✨ Generate narrative'}
+                    </button>
+                  )}
+                  {narrativeHtml ? (
+                    <div className="sidebar-narrative-text" dangerouslySetInnerHTML={{ __html: narrativeHtml }} />
+                  ) : (
+                    <p style={{ fontSize: 13, color: '#9a8a7a', fontStyle: 'italic' }}>
+                      No narrative generated yet.{canEdit ? ' Click the button above to generate one.' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
 
-        {/* 3-col layout: parents | narrative | children */}
-        <div className="chapter-layout">
-          {/* Left: Parents */}
-          <div className="chapter-col-side">
-            <ConnGroup label="Parents" people={parents} navigate={navigateTo} addHref={parentAddHref} />
-          </div>
+              {/* ── Docs tab ── */}
+              {sidebarTab === 'docs' && (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+                  <p style={{ fontSize: 14, color: 'var(--heirloom-ink)', fontWeight: 500, marginBottom: 8, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Documents feature coming soon
+                  </p>
+                  <p style={{ fontSize: 12, color: '#9a8a7a', lineHeight: 1.6, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Track citizenship documents, certificates, and other records for each person.
+                  </p>
+                </div>
+              )}
+            </div>
 
-          {/* Center: Narrative */}
-          <div className="chapter-col-center">
-            {loading ? (
-              <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
-            ) : (
-              <>
-                {person.narrative && (
-                  <div dangerouslySetInnerHTML={{ __html: person.narrative }} />
-                )}
-              </>
+            {/* Sidebar footer */}
+            {canEdit && (
+              <div className="sidebar-footer">
+                <a
+                  href={`/trees/${treeSlug}/admin/people/${encodeURIComponent(person.id)}/edit`}
+                  className="sidebar-btn sidebar-btn-primary"
+                  style={{ textDecoration: 'none', textAlign: 'center' }}
+                >
+                  Edit Person
+                </a>
+              </div>
             )}
-          </div>
-
-          {/* Right: Children */}
-          <div className="chapter-col-side">
-            <ConnGroup label="Children" people={children} navigate={navigateTo} max={30} addHref={childAddHref} />
-          </div>
-        </div>
-
-        {/* Below: Spouses */}
-        {(spouses.length > 0 || canEdit) && (
-          <div className="chapter-below">
-            <ConnGroup label="Spouses" people={spouses} navigate={navigateTo} addHref={spouseAddHref} />
-          </div>
+          </>
         )}
       </div>
 
-      {/* ── AI Chat ── */}
+      {/* ══ TREE CANVAS ══ */}
+      <div className="explorer-canvas">
+        {/* ── Toolbar ── */}
+        <div className="explorer-toolbar">
+          <div className="view-switcher">
+            <button
+              className={`view-btn${activeView === 'fan' ? ' active' : ''}`}
+              onClick={() => setActiveView('fan')}
+            >
+              Fan
+            </button>
+            <button
+              className={`view-btn${activeView === 'pedigree' ? ' active' : ''}`}
+              onClick={() => setActiveView('pedigree')}
+            >
+              Pedigree
+            </button>
+            <button
+              className={`view-btn${activeView === 'family' ? ' active' : ''}`}
+              onClick={() => setActiveView('family')}
+            >
+              Family
+            </button>
+          </div>
+
+          <div className="toolbar-sep" />
+
+          <div className="citizenship-toggle" onClick={() => setCitizenshipMode(m => !m)}>
+            <div className={`toggle-track${citizenshipMode ? ' on' : ''}`}>
+              <div className="toggle-thumb" />
+            </div>
+            <span>Citizenship mode</span>
+          </div>
+
+          <div className="toolbar-right">
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search people…"
+                value={query}
+                onChange={e => handleSearch(e.target.value)}
+                onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                autoComplete="off"
+                style={{
+                  padding: '5px 10px', fontSize: 13, border: '1px solid var(--heirloom-border)',
+                  borderRadius: 6, outline: 'none', width: 180,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                }}
+              />
+              {showResults && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, background: 'white',
+                  border: '1px solid var(--heirloom-border)', borderTop: 'none', borderRadius: '0 0 6px 6px',
+                  maxHeight: 300, overflowY: 'auto', zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                }}>
+                  {searchResults.length === 0 ? (
+                    <div style={{ padding: '8px 10px', color: '#9a8a7a', fontSize: 12, fontStyle: 'italic' }}>
+                      No results for &ldquo;{query}&rdquo;
+                    </div>
+                  ) : (
+                    searchResults.map(p => (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => selectSearchResult(p)}
+                        tabIndex={0}
+                        style={{
+                          padding: '6px 10px', cursor: 'pointer', fontSize: 13,
+                          borderBottom: '1px solid #f0ebe3',
+                          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                        }}
+                      >
+                        <strong>{cleanName(p.name)}</strong>
+                        {formatLifespan(p) && (
+                          <span style={{ color: '#9a8a7a', fontSize: 11, marginLeft: 6 }}>{formatLifespan(p)}</span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* FamilySearch search button (editors) */}
+            {canEdit && (
+              <button
+                className="explorer-icon-btn"
+                onClick={handleFsSearch}
+                disabled={fsActing === 'search'}
+                title="Search external sources"
+                style={{ fontSize: 14, opacity: fsActing === 'search' ? 0.5 : 1 }}
+              >
+                🔍
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Canvas area ── */}
+        <div className="explorer-canvas-area">
+          {/* Pedigree view — the original explorer content */}
+          {activeView === 'pedigree' && (
+            <div className="explorer-content">
+              <section id="chapters" className="chapters-section">
+                {/* Lineage sidebar */}
+                {pathToRoot.length > 0 && (
+                  <nav className="chapters-timeline" aria-label="Lineage path">
+                    <div className="timeline-crumb">
+                      {pathToRoot.map((node, i) => {
+                        const isActive = node.id === currentId;
+                        return (
+                          <div key={node.id}>
+                            <button
+                              className={`crumb-node${isActive ? ' crumb-node--active' : ''}`}
+                              onClick={() => navigateTo(node.id)}
+                            >
+                              <span className="crumb-dot" />
+                              <span className="crumb-text">
+                                <span className="crumb-name">
+                                  {node.name.replace(/\//g, '').replace(/\s+/g, ' ').trim()}
+                                </span>
+                              </span>
+                            </button>
+                            {i < pathToRoot.length - 1 && (
+                              <span className="crumb-arrow">↓</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Read story link */}
+                    <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
+                      <a
+                        href={`/trees/${treeSlug}/stories/${encodeURIComponent(pathToRoot[pathToRoot.length - 1].id)}`}
+                        className="story-cta-link"
+                        style={{ display: 'block', textAlign: 'center' }}
+                      >
+                        Read story &rarr;
+                      </a>
+                    </div>
+                  </nav>
+                )}
+
+                {/* Main chapter area */}
+                <div className="chapters-main">
+                  {/* Full-width chapter header */}
+                  {!loading && (
+                    <div className="chapter-header">
+                      <div className="chapter-header-grid">
+                        <div />
+                        <div style={{ textAlign: 'center' }}>
+                          {canEdit && (
+                            <a
+                              href={`/trees/${treeSlug}/admin/people/${encodeURIComponent(person.id)}/edit`}
+                              style={{
+                                display: 'inline-block', marginBottom: '1rem', fontSize: '0.78rem',
+                                color: 'var(--rust)', border: '1px solid rgba(139,69,19,0.3)',
+                                borderRadius: '4px', padding: '0.3rem 0.75rem', textDecoration: 'none',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              Edit this person ›
+                            </a>
+                          )}
+                          <h2>{nameClean}</h2>
+                          <div className="key-facts" style={{ marginTop: '1.5rem' }}>
+                            {person.birthDate && (
+                              <div className="key-fact">
+                                <span className="key-fact-label">Born</span>
+                                <span className="key-fact-value">
+                                  {person.birthDate}
+                                  {person.birthPlace && `, ${shortPlace(person.birthPlace)}`}
+                                </span>
+                              </div>
+                            )}
+                            {person.deathDate && (
+                              <div className="key-fact">
+                                <span className="key-fact-label">Died</span>
+                                <span className="key-fact-value">
+                                  {person.deathDate}
+                                  {person.deathPlace && `, ${shortPlace(person.deathPlace)}`}
+                                </span>
+                              </div>
+                            )}
+                            {person.occupation && (
+                              <div className="key-fact">
+                                <span className="key-fact-label">Occupation</span>
+                                <span className="key-fact-value">{person.occupation}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Read story CTA */}
+                          {pathToRoot.length > 0 && (
+                            <div style={{ marginTop: '1rem' }}>
+                              <a
+                                href={`/trees/${treeSlug}/stories/${encodeURIComponent(person.id)}`}
+                                className="story-cta-link"
+                              >
+                                Read {firstName}&rsquo;s story &rarr;
+                              </a>
+                            </div>
+                          )}
+
+                          {/* FamilySearch hints badge */}
+                          {canEdit && (
+                            <>
+                            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {fsMatches.length > 0 && (
+                                <button
+                                  onClick={() => setFsOpen(o => !o)}
+                                  style={{
+                                    background: fsOpen ? 'rgba(196,150,42,0.18)' : 'rgba(196,150,42,0.08)',
+                                    border: '1px solid rgba(196,150,42,0.4)',
+                                    borderRadius: 20, padding: '0.3rem 0.85rem',
+                                    color: 'var(--gold)', fontFamily: 'var(--font-sc)',
+                                    fontSize: '0.65rem', letterSpacing: '0.07em', cursor: 'pointer',
+                                    transition: 'background 0.15s',
+                                  }}
+                                >
+                                  ⟷ {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
+                                </button>
+                              )}
+                              <button
+                                onClick={handleFsSearch}
+                                disabled={fsActing === 'search'}
+                                style={{
+                                  background: 'none', border: '1px solid rgba(122,92,46,0.3)',
+                                  borderRadius: 20, padding: '0.3rem 0.85rem', color: 'var(--sepia)',
+                                  fontFamily: 'var(--font-sc)', fontSize: '0.63rem', letterSpacing: '0.07em',
+                                  cursor: fsActing === 'search' ? 'wait' : 'pointer',
+                                  opacity: fsActing === 'search' ? 0.6 : 1,
+                                }}
+                              >
+                                {fsActing === 'search' ? 'Searching…' : fsMatches.length > 0 ? 'Re-search all sources' : 'Search all sources'}
+                              </button>
+                            </div>
+                            {fsSearchMsg && (
+                              <p style={{
+                                marginTop: '0.5rem', fontSize: '0.72rem',
+                                fontFamily: 'var(--font-sc)', letterSpacing: '0.04em',
+                                color: fsSearchMsg.ok ? 'var(--ink)' : 'var(--sepia)', opacity: 0.85,
+                              }}>
+                                {fsSearchMsg.ok ? '✓ ' : ''}{fsSearchMsg.text}
+                              </p>
+                            )}
+                            </>
+                          )}
+                        </div>
+                        <div />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FamilySearch hints panel */}
+                  {fsOpen && fsMatches.length > 0 && (
+                    <div style={{ margin: '0 2rem 1.5rem', border: '1px solid rgba(196,150,42,0.3)', borderRadius: 8, overflow: 'hidden' }}>
+                      {fsMatches.map((match, i) => {
+                        const fs = JSON.parse(match.fsData) as FsPersonData;
+                        const isActing = fsActing === match.id;
+                        const isReviewing = reviewMatchId === match.id;
+                        const btnBase: React.CSSProperties = {
+                          border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem',
+                          fontFamily: 'var(--font-sc)', fontSize: '0.65rem', letterSpacing: '0.07em',
+                          cursor: isActing ? 'wait' : 'pointer', opacity: isActing ? 0.6 : 1,
+                        };
+                        return (
+                          <div
+                            key={match.id}
+                            style={{
+                              padding: '1rem 1.25rem',
+                              borderTop: i > 0 ? '1px solid rgba(196,150,42,0.2)' : undefined,
+                              background: i % 2 === 0 ? 'rgba(242,232,213,0.4)' : 'rgba(255,255,255,0.6)',
+                            }}
+                          >
+                            {/* Summary row */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                                <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
+                                  {fs.name.replace(/\//g, '').trim()}
+                                  <span style={{
+                                    fontSize: '0.58rem', fontFamily: 'var(--font-sc)', letterSpacing: '0.06em',
+                                    padding: '0.1rem 0.45rem', borderRadius: 3, marginLeft: '0.5rem',
+                                    background: SOURCE_COLORS[match.source] ?? '#888', color: '#fff',
+                                    opacity: 0.9, verticalAlign: 'middle',
+                                  }}>
+                                    {SOURCE_LABELS[match.source] ?? match.source}
+                                  </span>
+                                </p>
+                                <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
+                                  {[
+                                    fs.birthDate  && `b. ${fs.birthDate}`,
+                                    fs.birthPlace && shortPlace(fs.birthPlace),
+                                    fs.deathDate  && `d. ${fs.deathDate}`,
+                                    fs.deathPlace && shortPlace(fs.deathPlace),
+                                  ].filter(Boolean).join(' · ')}
+                                </p>
+                                {fs.occupation && (
+                                  <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
+                                )}
+                              </div>
+
+                              <span style={{
+                                fontFamily: 'var(--font-sc)', fontSize: '0.65rem',
+                                color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
+                                letterSpacing: '0.05em', flexShrink: 0,
+                              }}>
+                                {Math.round(match.score)}% match
+                              </span>
+
+                              {!isReviewing && (
+                                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                                  <button disabled={isActing} onClick={() => startReview(match)} style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}>Review</button>
+                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}>Dismiss</button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Field-by-field review panel */}
+                            {isReviewing && (
+                              <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(196,150,42,0.2)', paddingTop: '0.75rem' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                  <thead>
+                                    <tr style={{ fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.06em', color: 'var(--sepia)' }}>
+                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '20%' }}>Field</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>In tree</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>From source</th>
+                                      <th style={{ textAlign: 'center', paddingBottom: '0.5rem', width: '10%' }}>Import</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {REVIEW_FIELDS.map(({ key, label }) => {
+                                      const srcVal = fs[key as keyof FsPersonData] as string | null | undefined;
+                                      const localVal = person ? (person as unknown as Record<string, unknown>)[key] as string | null | undefined : null;
+                                      const hasSource = !!srcVal;
+                                      const isSame = hasSource && srcVal === localVal;
+                                      const isSelected = reviewFields.has(key);
+                                      return (
+                                        <tr key={key} style={{ borderTop: '1px solid rgba(196,150,42,0.1)' }}>
+                                          <td style={{ padding: '0.4rem 0', fontFamily: 'var(--font-sc)', fontSize: '0.62rem', letterSpacing: '0.04em', color: 'var(--sepia)' }}>{label}</td>
+                                          <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: localVal ? 'var(--ink)' : 'var(--sepia)', opacity: localVal ? 1 : 0.45 }}>{localVal || '—'}</td>
+                                          <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: isSame ? 'var(--sepia)' : hasSource ? 'var(--ink)' : 'var(--sepia)', opacity: hasSource ? 1 : 0.45 }}>{srcVal || '—'}</td>
+                                          <td style={{ textAlign: 'center', padding: '0.4rem 0' }}>
+                                            {isSame ? (
+                                              <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.6 }}>same</span>
+                                            ) : hasSource ? (
+                                              <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={e => {
+                                                  setReviewFields(prev => {
+                                                    const next = new Set(prev);
+                                                    if (e.target.checked) next.add(key); else next.delete(key);
+                                                    return next;
+                                                  });
+                                                }}
+                                                style={{ cursor: 'pointer', accentColor: 'var(--rust)', width: 15, height: 15 }}
+                                              />
+                                            ) : (
+                                              <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.4 }}>—</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+
+                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                  <button onClick={() => setReviewMatchId(null)} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.25)', color: 'var(--sepia)' }}>Cancel</button>
+                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}>Dismiss match</button>
+                                  <button
+                                    disabled={isActing}
+                                    onClick={() => {
+                                      const updates: Record<string, string> = {};
+                                      for (const key of reviewFields) {
+                                        const v = fs[key as keyof FsPersonData] as string | null | undefined;
+                                        if (v) updates[key] = v;
+                                      }
+                                      handleFsAction(match.id, 'accept', updates);
+                                    }}
+                                    style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
+                                  >
+                                    {isActing ? 'Saving…' : 'Confirm match'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {fsActionError && (
+                    <p style={{ color: 'var(--rust)', fontSize: '0.82rem', margin: '0 2rem 1rem', textAlign: 'center' }}>
+                      {fsActionError}
+                    </p>
+                  )}
+
+                  {/* 3-col layout: parents | narrative | children */}
+                  <div className="chapter-layout">
+                    <div className="chapter-col-side">
+                      <ConnGroup label="Parents" people={parents} navigate={navigateTo} addHref={parentAddHref} citizenshipMode={citizenshipMode} />
+                    </div>
+                    <div className="chapter-col-center">
+                      {loading ? (
+                        <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
+                      ) : (
+                        <>
+                          {person.narrative && (
+                            <div dangerouslySetInnerHTML={{ __html: person.narrative }} />
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <div className="chapter-col-side">
+                      <ConnGroup label="Children" people={children} navigate={navigateTo} max={30} addHref={childAddHref} citizenshipMode={citizenshipMode} />
+                    </div>
+                  </div>
+
+                  {(spouses.length > 0 || canEdit) && (
+                    <div className="chapter-below">
+                      <ConnGroup label="Spouses" people={spouses} navigate={navigateTo} addHref={spouseAddHref} citizenshipMode={citizenshipMode} />
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Fan view */}
+          {activeView === 'fan' && (
+            <div className="fan-view-placeholder">
+              <h3>Fan Chart</h3>
+              <p>
+                The fan chart view displays ancestors in a semicircular layout, making it easy to see
+                multiple generations at a glance. This view is coming soon.
+              </p>
+              <p style={{ marginTop: 12, fontSize: 12, color: '#9a8a7a' }}>
+                Currently viewing: {nameClean}
+              </p>
+            </div>
+          )}
+
+          {/* Family view */}
+          {activeView === 'family' && (
+            <div className="family-view-placeholder">
+              <h3>Family Group</h3>
+              <p>
+                The family group view centers on {firstName} with parents above, spouse(s) alongside,
+                and children below. This view is coming soon.
+              </p>
+              <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {parents.length > 0 && (
+                  <div style={{ background: '#f0ebe3', padding: '8px 14px', borderRadius: 8, fontSize: 12 }}>
+                    Parents: {parents.map(p => cleanName(p.name)).join(', ')}
+                  </div>
+                )}
+                <div style={{ background: 'var(--brand-light)', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '2px solid var(--brand)' }}>
+                  {nameClean}
+                </div>
+                {spouses.length > 0 && (
+                  <div style={{ background: '#f0ebe3', padding: '8px 14px', borderRadius: 8, fontSize: 12, borderStyle: 'dashed', border: '1px dashed var(--heirloom-border)' }}>
+                    Spouse: {spouses.map(s => cleanName(s.name)).join(', ')}
+                  </div>
+                )}
+              </div>
+              {children.length > 0 && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {children.map(c => (
+                    <button key={c.id} onClick={() => navigateTo(c.id)} style={{
+                      background: 'white', padding: '6px 12px', borderRadius: 8, fontSize: 12,
+                      border: '1px solid var(--heirloom-border)', cursor: 'pointer',
+                    }}>
+                      {cleanName(c.name)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Citizenship legend */}
+          {citizenshipMode && (
+            <div className="citizenship-legend">
+              <div className="citizenship-legend-title">Citizenship Mode</div>
+              <div className="citizenship-legend-item">
+                <span className="citizenship-dot citizenship-dot-green" />
+                All docs collected
+              </div>
+              <div className="citizenship-legend-item">
+                <span className="citizenship-dot citizenship-dot-amber" />
+                Docs partially collected
+              </div>
+              <div className="citizenship-legend-item">
+                <span className="citizenship-dot citizenship-dot-red" />
+                Documents missing
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* AI Chat */}
       <ChatPanel
         treeSlug={treeSlug}
         currentPersonId={currentId}
@@ -863,19 +1233,20 @@ export default function TreeExplorer({
             .catch(() => {});
         }}
       />
-    </section>
+    </div>
   );
 }
 
 // ── Connection group ──────────────────────────────────────────────────────
 function ConnGroup({
-  label, people, navigate, max = 20, addHref,
+  label, people, navigate, max = 20, addHref, citizenshipMode,
 }: {
   label: string;
   people: PersonRelation[];
   navigate: (id: string) => void;
   max?: number;
   addHref?: string;
+  citizenshipMode?: boolean;
 }) {
   if (people.length === 0 && !addHref) return null;
   const shown = people.slice(0, max);
@@ -887,16 +1258,9 @@ function ConnGroup({
           <a
             href={addHref}
             style={{
-              fontFamily: 'var(--font-sc)',
-              fontSize: '0.6rem',
-              letterSpacing: '0.08em',
-              color: 'var(--sepia)',
-              textDecoration: 'none',
-              border: '1px solid rgba(122,92,46,0.3)',
-              borderRadius: 4,
-              padding: '0.2rem 0.5rem',
-              flexShrink: 0,
-              transition: 'background 0.15s',
+              fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.08em',
+              color: 'var(--sepia)', textDecoration: 'none', border: '1px solid rgba(122,92,46,0.3)',
+              borderRadius: 4, padding: '0.2rem 0.5rem', flexShrink: 0, transition: 'background 0.15s',
             }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(122,92,46,0.08)')}
             onMouseLeave={e => (e.currentTarget.style.background = '')}
@@ -912,10 +1276,14 @@ function ConnGroup({
               key={p.id}
               className="ch-nav-card"
               onClick={() => navigate(p.id)}
+              style={{ position: 'relative' }}
             >
               <span className="ch-nav-name">{cleanName(p.name)}</span>
               {formatLifespan(p) && <span className="ch-nav-life">{formatLifespan(p)}</span>}
               {p.birthPlace && <span className="ch-nav-place">{shortPlace(p.birthPlace)}</span>}
+              {citizenshipMode && (
+                <span className={`pnode-citizenship-dot citizenship-dot-${getCitizenshipStatus(p.id)}`} />
+              )}
             </button>
           ))}
           {people.length > max && (

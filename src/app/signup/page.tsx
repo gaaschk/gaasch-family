@@ -46,7 +46,7 @@ function SignupForm() {
     <main className="login-page">
       <div className="login-card">
         <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
-        <h1 className="login-title">Family History</h1>
+        <h1 className="login-title">Heirloom</h1>
         <p className="login-subtitle">Create an Account</p>
 
         {status === 'sent' ? (

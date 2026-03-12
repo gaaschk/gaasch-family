@@ -1873,3 +1873,502 @@ body {
   .inline-confirm    { flex-wrap: wrap; }
   .pub-nav-links a   { padding: 0 0.45rem; font-size: 0.6rem; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HEIRLOOM EXPLORER
+══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Heirloom brand tokens ────────────────────────────────────────────── */
+:root {
+  --brand: #8b5e3c;
+  --brand-light: #fdf6ef;
+  --heirloom-ink: #2c1810;
+  --heirloom-ink-muted: #7a6a5a;
+  --heirloom-border: #e8e0d8;
+  --heirloom-bg: #f7f4f0;
+}
+
+/* ─── Heirloom nav logo ────────────────────────────────────────────────── */
+.heirloom-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--heirloom-ink);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.heirloom-logo:hover { text-decoration: none; color: var(--heirloom-ink); }
+.heirloom-logo-accent { color: var(--brand); }
+
+/* ─── Heirloom nav bar (replaces pub-nav on tree pages) ────────────────── */
+.heirloom-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid var(--heirloom-border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heirloom-nav-links {
+  display: flex;
+  gap: 2px;
+}
+
+.heirloom-nav-link {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--heirloom-ink-muted);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.heirloom-nav-link:hover { background: #f0ebe3; color: var(--heirloom-ink); text-decoration: none; }
+.heirloom-nav-link.active { background: #f0ebe3; color: var(--heirloom-ink); font-weight: 500; }
+
+.heirloom-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heirloom-nav-pill {
+  font-size: 12px;
+  padding: 5px 10px;
+  background: var(--heirloom-bg);
+  border: 1px solid var(--heirloom-border);
+  border-radius: 6px;
+  color: var(--heirloom-ink-muted);
+  text-decoration: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.heirloom-nav-pill:hover { background: #f0ebe3; text-decoration: none; }
+
+/* ─── Explorer app body (sidebar + canvas) ─────────────────────────────── */
+.explorer-body {
+  display: flex;
+  height: calc(100vh - 52px);
+  margin-top: 52px;
+  overflow: hidden;
+}
+
+/* ─── Left sidebar ─────────────────────────────────────────────────────── */
+.explorer-sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid var(--heirloom-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.25s ease, opacity 0.25s ease;
+}
+.explorer-sidebar.collapsed {
+  width: 0;
+  border-right: none;
+  overflow: hidden;
+}
+
+.sidebar-top {
+  padding: 16px;
+  border-bottom: 1px solid #f0ebe3;
+  flex-shrink: 0;
+}
+
+.sidebar-person-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sidebar-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c4935a, var(--brand));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.sidebar-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--heirloom-ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.sidebar-dates {
+  font-size: 12px;
+  color: #9a8a7a;
+  margin-top: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.sidebar-close {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f0ebe3;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--heirloom-ink-muted);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.sidebar-close:hover { background: var(--heirloom-border); }
+
+.sidebar-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9a8a7a;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.sidebar-tab:hover { color: var(--heirloom-ink-muted); }
+.sidebar-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.sidebar-info-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+.sidebar-info-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.sidebar-info-text { font-size: 13px; color: #3c2c1c; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.sidebar-info-label { font-size: 11px; color: #9a8a7a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+.sidebar-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #9a8a7a;
+  margin: 16px 0 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.sidebar-rel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.sidebar-rel-chip {
+  padding: 5px 10px;
+  background: #f0ebe3;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--heirloom-ink);
+  border: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.sidebar-rel-chip:hover { background: var(--heirloom-border); }
+.sidebar-rel-chip-label { color: #9a8a7a; font-size: 11px; margin-left: 3px; }
+
+.sidebar-narrative-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #3c2c1c;
+}
+.sidebar-narrative-text p { margin-bottom: 12px; }
+.sidebar-narrative-text p:last-child { margin-bottom: 0; }
+
+.sidebar-generate-btn {
+  width: 100%;
+  padding: 9px;
+  background: #f0ebe3;
+  border: 1px dashed #c8b8a8;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--heirloom-ink-muted);
+  cursor: pointer;
+  margin-bottom: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.sidebar-generate-btn:hover { background: var(--heirloom-border); }
+.sidebar-generate-btn:disabled { opacity: 0.5; cursor: default; }
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #f0ebe3;
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.sidebar-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.sidebar-btn-primary { background: var(--brand); color: white; flex: 1; }
+.sidebar-btn-primary:hover { background: #7a5030; }
+.sidebar-btn-outline { background: white; border: 1px solid var(--heirloom-border); color: var(--heirloom-ink); }
+.sidebar-btn-outline:hover { background: var(--heirloom-bg); }
+
+/* ─── Tree canvas (right side) ─────────────────────────────────────────── */
+.explorer-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--heirloom-bg);
+}
+
+/* ─── Canvas toolbar ───────────────────────────────────────────────────── */
+.explorer-toolbar {
+  padding: 10px 16px;
+  background: white;
+  border-bottom: 1px solid var(--heirloom-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.view-switcher {
+  display: flex;
+  background: #f0ebe3;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--heirloom-ink-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.15s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.view-btn:hover { color: var(--heirloom-ink); }
+.view-btn.active {
+  background: white;
+  color: var(--heirloom-ink);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--heirloom-border);
+  flex-shrink: 0;
+}
+
+.citizenship-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--heirloom-ink-muted);
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  user-select: none;
+}
+
+.toggle-track {
+  width: 36px;
+  height: 20px;
+  background: var(--heirloom-border);
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+.toggle-track.on { background: var(--brand); }
+
+.toggle-thumb {
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-track.on .toggle-thumb { left: 18px; }
+
+.toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.explorer-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--heirloom-border);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+}
+.explorer-icon-btn:hover { background: var(--heirloom-bg); }
+
+/* ─── Canvas area ──────────────────────────────────────────────────────── */
+.explorer-canvas-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* ─── Citizenship legend ───────────────────────────────────────────────── */
+.citizenship-legend {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: white;
+  border: 1px solid var(--heirloom-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--heirloom-ink-muted);
+  z-index: 10;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.citizenship-legend-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.citizenship-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.citizenship-legend-item:last-child { margin-bottom: 0; }
+
+.citizenship-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.citizenship-dot-green { background: #34c98a; }
+.citizenship-dot-amber { background: #f5c842; }
+.citizenship-dot-red   { background: #e57373; }
+
+/* ─── Person node citizenship dot overlay ──────────────────────────────── */
+.pnode-citizenship-dot {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+/* ─── Explorer content (existing chapters content inside canvas) ────── */
+.explorer-content {
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* When inside explorer, the chapters-section loses its border and becomes scrollable */
+.explorer-content .chapters-section {
+  border-bottom: none;
+}
+
+/* ─── Fan view placeholder ─────────────────────────────────────────────── */
+.fan-view-placeholder,
+.family-view-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--heirloom-ink-muted);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-align: center;
+  padding: 2rem;
+}
+.fan-view-placeholder h3,
+.family-view-placeholder h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--heirloom-ink);
+  margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.fan-view-placeholder p,
+.family-view-placeholder p {
+  font-size: 14px;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* ─── Explorer responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .explorer-sidebar { width: 280px; }
+  .explorer-sidebar.collapsed { width: 0; }
+  .heirloom-nav { padding: 0 12px; }
+  .heirloom-nav-links { gap: 0; }
+  .heirloom-nav-link { padding: 4px 8px; font-size: 12px; }
+  .view-btn { padding: 5px 10px; font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .explorer-sidebar { width: 100%; position: absolute; z-index: 50; height: 100%; }
+  .explorer-sidebar.collapsed { width: 0; }
+}

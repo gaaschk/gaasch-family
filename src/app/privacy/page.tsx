@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Privacy Policy — Family History',
+  title: 'Privacy Policy — Heirloom',
 };
 
 export default function PrivacyPage() {
@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <>
       <nav className="pub-nav">
-        <Link href="/" className="pub-nav-title" style={{ textDecoration: 'none' }}>Family History</Link>
+        <Link href="/" className="pub-nav-title" style={{ textDecoration: 'none' }}>Heirloom</Link>
         <Link href="/login" className="pub-nav-admin">Sign in</Link>
       </nav>
 
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
 
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          Family History — Private genealogy platform
+          Heirloom — Private genealogy platform
         </footer>
       </div>
     </>

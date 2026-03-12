@@ -59,30 +59,36 @@ export default async function TreePage({ params }: Props) {
 
   return (
     <>
-      <nav className="pub-nav">
-        <Link href={`/trees/${tree.slug}`} className="pub-nav-title">
-          {tree.name}
-        </Link>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {isAdmin && (
-            <Link href={`/trees/${tree.slug}/admin`} className="pub-nav-admin">
-              Admin
+      <nav className="heirloom-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <Link href="/home" className="heirloom-logo">
+            heir<span className="heirloom-logo-accent">loom</span>
+          </Link>
+          <div className="heirloom-nav-links">
+            <Link href={`/trees/${tree.slug}`} className="heirloom-nav-link active">
+              Explorer
             </Link>
-          )}
-          <Link href="/home" className="pub-nav-admin">
+            <Link href={`/trees/${tree.slug}#directory`} className="heirloom-nav-link">
+              Directory
+            </Link>
+            {isAdmin && (
+              <Link href={`/trees/${tree.slug}/admin`} className="heirloom-nav-link">
+                Admin
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="heirloom-nav-right">
+          <span style={{ fontSize: '12px', color: 'var(--heirloom-ink-muted)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+            {tree.name}
+          </span>
+          <Link href="/home" className="heirloom-nav-pill">
             Home
           </Link>
         </div>
       </nav>
 
-      <div className="pub-page">
-        <TreePageComponents treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
-
-        <footer className="pub-footer">
-          <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          {tree.name} — Family History
-        </footer>
-      </div>
+      <TreePageComponents treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
     </>
   );
 }

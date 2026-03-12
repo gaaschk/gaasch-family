@@ -62,6 +62,10 @@ export function TreePageComponents({
           document.getElementById('chapters')?.scrollIntoView({ behavior: 'smooth' });
         }}
       />
+      <footer className="pub-footer">
+        <span className="pub-footer-ornament">✦ ✦ ✦</span>
+        Heirloom — Family History
+      </footer>
     </>
   );
 }

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Terms of Service — Family History',
+  title: 'Terms of Service — Heirloom',
 };
 
 export default function TosPage() {
@@ -10,7 +10,7 @@ export default function TosPage() {
   return (
     <>
       <nav className="pub-nav">
-        <Link href="/" className="pub-nav-title" style={{ textDecoration: 'none' }}>Family History</Link>
+        <Link href="/" className="pub-nav-title" style={{ textDecoration: 'none' }}>Heirloom</Link>
         <Link href="/login" className="pub-nav-admin">Sign in</Link>
       </nav>
 
@@ -122,7 +122,7 @@ export default function TosPage() {
 
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          Family History — Private genealogy platform
+          Heirloom — Private genealogy platform
         </footer>
       </div>
     </>

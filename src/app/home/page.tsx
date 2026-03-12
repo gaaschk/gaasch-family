@@ -266,7 +266,7 @@ export default function HomePage() {
 
         <footer className="pub-footer" style={{ marginTop: '5rem' }}>
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          Family History
+          Heirloom
         </footer>
       </div>
     </>

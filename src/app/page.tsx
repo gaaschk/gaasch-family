@@ -15,7 +15,7 @@ export default async function HomePage() {
   return (
     <>
       <nav className="pub-nav">
-        <span className="pub-nav-title">Family History</span>
+        <span className="pub-nav-title" style={{ letterSpacing: '0.02em', textTransform: 'none', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontWeight: 700 }}>heir<span style={{ color: '#8b5e3c' }}>loom</span></span>
         <Link href="/login" className="pub-nav-admin">Sign in</Link>
       </nav>
 
@@ -23,7 +23,7 @@ export default async function HomePage() {
         {/* ── Hero ── */}
         <section className="hero-section">
           <div className="hero-ornament">✦ ✦ ✦</div>
-          <h1>Family History</h1>
+          <h1>Heirloom</h1>
           <p className="hero-subtitle">Private genealogy for families</p>
           <div className="hero-rule" />
           <p className="hero-body">
@@ -107,7 +107,7 @@ export default async function HomePage() {
         {/* ── Footer ── */}
         <footer className="pub-footer">
           <span className="pub-footer-ornament">✦ ✦ ✦</span>
-          Family History — Private genealogy platform
+          Heirloom — Private genealogy platform
         </footer>
       </div>
     </>
