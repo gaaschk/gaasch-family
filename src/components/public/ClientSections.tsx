@@ -63,7 +63,6 @@ export function TreePageComponents({
         }}
       />
       <footer className="pub-footer">
-        <span className="pub-footer-ornament">✦ ✦ ✦</span>
         Heirloom — Family History
       </footer>
     </>

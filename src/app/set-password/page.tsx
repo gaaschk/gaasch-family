@@ -26,7 +26,6 @@ export default async function SetPasswordPage({ searchParams }: Props) {
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
         <h1 className="login-title">Heirloom</h1>
         <p className="login-subtitle">{isReset ? 'Reset Your Password' : 'Create Your Password'}</p>
         <SetPasswordForm token={token} email={decodeURIComponent(email)} callbackUrl={callbackUrl} />
@@ -39,7 +38,6 @@ function InvalidLink({ expired, isReset }: { expired?: boolean; isReset?: boolea
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
         <h1 className="login-title">Heirloom</h1>
         <p className="login-subtitle">Link {expired ? 'Expired' : 'Invalid'}</p>
         <div className="login-success" style={{ marginTop: '1.5rem' }}>

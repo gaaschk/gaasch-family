@@ -19,30 +19,11 @@ export default async function InvitePage({ params }: Props) {
   // Helper: centered card layout
   function Card({ children }: { children: React.ReactNode }) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--parchment)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2rem',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 460,
-            width: '100%',
-            background: '#fff',
-            border: '1px solid var(--border-light)',
-            borderRadius: 10,
-            padding: '2.5rem',
-            textAlign: 'center',
-          }}
-        >
+      <main className="login-page">
+        <div className="login-card" style={{ maxWidth: 460, textAlign: 'center' }}>
           {children}
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -51,8 +32,8 @@ export default async function InvitePage({ params }: Props) {
       <Card>
         <h1
           style={{
-            fontFamily: 'var(--font-display)',
             fontSize: '1.4rem',
+            fontWeight: 700,
             color: 'var(--ink)',
             marginBottom: '0.75rem',
           }}
@@ -76,8 +57,8 @@ export default async function InvitePage({ params }: Props) {
       <Card>
         <h1
           style={{
-            fontFamily: 'var(--font-display)',
             fontSize: '1.4rem',
+            fontWeight: 700,
             color: 'var(--ink)',
             marginBottom: '0.75rem',
           }}
@@ -100,8 +81,8 @@ export default async function InvitePage({ params }: Props) {
       <Card>
         <h1
           style={{
-            fontFamily: 'var(--font-display)',
             fontSize: '1.4rem',
+            fontWeight: 700,
             color: 'var(--ink)',
             marginBottom: '0.75rem',
           }}
@@ -125,8 +106,8 @@ export default async function InvitePage({ params }: Props) {
       <Card>
         <h1
           style={{
-            fontFamily: 'var(--font-display)',
             fontSize: '1.4rem',
+            fontWeight: 700,
             color: 'var(--ink)',
             marginBottom: '0.75rem',
           }}
@@ -155,11 +136,11 @@ export default async function InvitePage({ params }: Props) {
     <Card>
       <p
         style={{
-          fontFamily: 'var(--font-sc)',
           fontSize: '0.78rem',
           letterSpacing: '0.08em',
           color: 'var(--sepia)',
           textTransform: 'uppercase',
+          fontWeight: 600,
           marginBottom: '0.75rem',
         }}
       >
@@ -167,8 +148,8 @@ export default async function InvitePage({ params }: Props) {
       </p>
       <h1
         style={{
-          fontFamily: 'var(--font-display)',
           fontSize: '1.5rem',
+          fontWeight: 700,
           color: 'var(--ink)',
           marginBottom: '0.5rem',
         }}

@@ -1,20 +1,16 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import ReportIssueButton from '@/components/ReportIssueButton';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Heirloom',
-  description: 'A private family history platform — explore your family tree, biographical narratives, and genealogy records.',
+  description: 'Build your family tree, discover European citizenship eligibility, and tell your ancestry story.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+      <head />
       <body>
         {children}
         <ReportIssueButton />

@@ -85,11 +85,10 @@ export default function DirectorySection({ treeSlug, onSelectPerson }: Directory
 
   return (
     <section id="directory" className="directory-section">
-      <div className="section-wrap" style={{ paddingTop: '4rem', paddingBottom: '2rem' }}>
-        <div className="chapter-header fade-in">
-          <span className="chapter-num">Full Record</span>
-          <h2>All People</h2>
-          <p className="chapter-meta">Every person in the family tree, searchable and sortable</p>
+      <div style={{ maxWidth: 840, margin: '0 auto', padding: '2rem' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#2c1810', marginBottom: '4px' }}>People Directory</h2>
+          <p style={{ fontSize: '14px', color: '#7a6a5a', margin: 0 }}>Every person in the family tree, searchable and sortable</p>
         </div>
 
         <div className="dir-export-row">

@@ -646,9 +646,10 @@ export default function TreeExplorer({
                       <button
                         onClick={() => setFsOpen(o => !o)}
                         style={{
-                          background: 'rgba(139,94,60,0.08)', border: '1px solid rgba(139,94,60,0.3)',
+                          background: '#f0ebe3', border: '1px solid var(--heirloom-border)',
                           borderRadius: 20, padding: '5px 12px', fontSize: 12, cursor: 'pointer',
-                          color: 'var(--brand)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                          color: 'var(--brand)', fontWeight: 500,
+                          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                         }}
                       >
                         {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'}
@@ -843,7 +844,7 @@ export default function TreeExplorer({
                     </div>
 
                     {/* Read story link */}
-                    <div style={{ padding: '1.5rem 0.75rem 0.75rem' }}>
+                    <div style={{ padding: '1rem 0.75rem 0.75rem' }}>
                       <a
                         href={`/trees/${treeSlug}/stories/${encodeURIComponent(pathToRoot[pathToRoot.length - 1].id)}`}
                         className="story-cta-link"
@@ -867,13 +868,13 @@ export default function TreeExplorer({
                             <a
                               href={`/trees/${treeSlug}/admin/people/${encodeURIComponent(person.id)}/edit`}
                               style={{
-                                display: 'inline-block', marginBottom: '1rem', fontSize: '0.78rem',
-                                color: 'var(--rust)', border: '1px solid rgba(139,69,19,0.3)',
-                                borderRadius: '4px', padding: '0.3rem 0.75rem', textDecoration: 'none',
-                                letterSpacing: '0.04em',
+                                display: 'inline-block', marginBottom: '0.75rem', fontSize: 12,
+                                color: 'var(--brand)', border: '1px solid var(--heirloom-border)',
+                                borderRadius: 6, padding: '5px 12px', textDecoration: 'none',
+                                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontWeight: 500,
                               }}
                             >
-                              Edit this person ›
+                              Edit this person
                             </a>
                           )}
                           <h2>{nameClean}</h2>
@@ -919,29 +920,29 @@ export default function TreeExplorer({
                           {/* FamilySearch hints badge */}
                           {canEdit && (
                             <>
-                            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
                               {fsMatches.length > 0 && (
                                 <button
                                   onClick={() => setFsOpen(o => !o)}
                                   style={{
-                                    background: fsOpen ? 'rgba(196,150,42,0.18)' : 'rgba(196,150,42,0.08)',
-                                    border: '1px solid rgba(196,150,42,0.4)',
-                                    borderRadius: 20, padding: '0.3rem 0.85rem',
-                                    color: 'var(--gold)', fontFamily: 'var(--font-sc)',
-                                    fontSize: '0.65rem', letterSpacing: '0.07em', cursor: 'pointer',
+                                    background: fsOpen ? 'rgba(139,94,60,0.12)' : 'rgba(139,94,60,0.06)',
+                                    border: '1px solid rgba(139,94,60,0.3)',
+                                    borderRadius: 20, padding: '5px 12px',
+                                    color: 'var(--brand)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                                    fontSize: 12, cursor: 'pointer',
                                     transition: 'background 0.15s',
                                   }}
                                 >
-                                  ⟷ {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
+                                  {fsMatches.length} record {fsMatches.length === 1 ? 'hint' : 'hints'} {fsOpen ? '▴' : '▾'}
                                 </button>
                               )}
                               <button
                                 onClick={handleFsSearch}
                                 disabled={fsActing === 'search'}
                                 style={{
-                                  background: 'none', border: '1px solid rgba(122,92,46,0.3)',
-                                  borderRadius: 20, padding: '0.3rem 0.85rem', color: 'var(--sepia)',
-                                  fontFamily: 'var(--font-sc)', fontSize: '0.63rem', letterSpacing: '0.07em',
+                                  background: 'none', border: '1px solid var(--heirloom-border)',
+                                  borderRadius: 20, padding: '5px 12px', color: 'var(--heirloom-ink-muted)',
+                                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12,
                                   cursor: fsActing === 'search' ? 'wait' : 'pointer',
                                   opacity: fsActing === 'search' ? 0.6 : 1,
                                 }}
@@ -951,9 +952,9 @@ export default function TreeExplorer({
                             </div>
                             {fsSearchMsg && (
                               <p style={{
-                                marginTop: '0.5rem', fontSize: '0.72rem',
-                                fontFamily: 'var(--font-sc)', letterSpacing: '0.04em',
-                                color: fsSearchMsg.ok ? 'var(--ink)' : 'var(--sepia)', opacity: 0.85,
+                                marginTop: 6, fontSize: 12,
+                                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                                color: fsSearchMsg.ok ? 'var(--heirloom-ink)' : '#9a8a7a',
                               }}>
                                 {fsSearchMsg.ok ? '✓ ' : ''}{fsSearchMsg.text}
                               </p>
@@ -968,40 +969,40 @@ export default function TreeExplorer({
 
                   {/* FamilySearch hints panel */}
                   {fsOpen && fsMatches.length > 0 && (
-                    <div style={{ margin: '0 2rem 1.5rem', border: '1px solid rgba(196,150,42,0.3)', borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ margin: '0 1.5rem 1.25rem', border: '1px solid var(--heirloom-border)', borderRadius: 8, overflow: 'hidden' }}>
                       {fsMatches.map((match, i) => {
                         const fs = JSON.parse(match.fsData) as FsPersonData;
                         const isActing = fsActing === match.id;
                         const isReviewing = reviewMatchId === match.id;
                         const btnBase: React.CSSProperties = {
-                          border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem',
-                          fontFamily: 'var(--font-sc)', fontSize: '0.65rem', letterSpacing: '0.07em',
+                          border: 'none', borderRadius: 6, padding: '5px 12px',
+                          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12, fontWeight: 500,
                           cursor: isActing ? 'wait' : 'pointer', opacity: isActing ? 0.6 : 1,
                         };
                         return (
                           <div
                             key={match.id}
                             style={{
-                              padding: '1rem 1.25rem',
-                              borderTop: i > 0 ? '1px solid rgba(196,150,42,0.2)' : undefined,
-                              background: i % 2 === 0 ? 'rgba(242,232,213,0.4)' : 'rgba(255,255,255,0.6)',
+                              padding: '12px 16px',
+                              borderTop: i > 0 ? '1px solid #f0ebe3' : undefined,
+                              background: i % 2 === 0 ? 'var(--heirloom-bg)' : 'white',
                             }}
                           >
                             {/* Summary row */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                               <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                                <p style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--ink)', margin: 0, marginBottom: '0.2rem' }}>
+                                <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--heirloom-ink)', margin: 0, marginBottom: 2 }}>
                                   {fs.name.replace(/\//g, '').trim()}
                                   <span style={{
-                                    fontSize: '0.58rem', fontFamily: 'var(--font-sc)', letterSpacing: '0.06em',
-                                    padding: '0.1rem 0.45rem', borderRadius: 3, marginLeft: '0.5rem',
+                                    fontSize: 10, fontWeight: 600,
+                                    padding: '1px 6px', borderRadius: 3, marginLeft: 6,
                                     background: SOURCE_COLORS[match.source] ?? '#888', color: '#fff',
-                                    opacity: 0.9, verticalAlign: 'middle',
+                                    verticalAlign: 'middle',
                                   }}>
                                     {SOURCE_LABELS[match.source] ?? match.source}
                                   </span>
                                 </p>
-                                <p style={{ fontSize: '0.78rem', color: 'var(--sepia)', margin: 0, lineHeight: 1.5 }}>
+                                <p style={{ fontSize: 12, color: '#9a8a7a', margin: 0, lineHeight: 1.5, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
                                   {[
                                     fs.birthDate  && `b. ${fs.birthDate}`,
                                     fs.birthPlace && shortPlace(fs.birthPlace),
@@ -1010,36 +1011,36 @@ export default function TreeExplorer({
                                   ].filter(Boolean).join(' · ')}
                                 </p>
                                 {fs.occupation && (
-                                  <p style={{ fontSize: '0.75rem', color: 'var(--sepia)', margin: 0, opacity: 0.8 }}>{fs.occupation}</p>
+                                  <p style={{ fontSize: 11, color: '#9a8a7a', margin: 0 }}>{fs.occupation}</p>
                                 )}
                               </div>
 
                               <span style={{
-                                fontFamily: 'var(--font-sc)', fontSize: '0.65rem',
-                                color: match.score >= 70 ? 'var(--ink)' : 'var(--sepia)',
-                                letterSpacing: '0.05em', flexShrink: 0,
+                                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12,
+                                color: match.score >= 70 ? 'var(--heirloom-ink)' : '#9a8a7a',
+                                fontWeight: 500, flexShrink: 0,
                               }}>
                                 {Math.round(match.score)}% match
                               </span>
 
                               {!isReviewing && (
-                                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                                  <button disabled={isActing} onClick={() => startReview(match)} style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}>Review</button>
-                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}>Dismiss</button>
+                                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                  <button disabled={isActing} onClick={() => startReview(match)} style={{ ...btnBase, background: 'var(--brand)', color: '#fff' }}>Review</button>
+                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid var(--heirloom-border)', color: 'var(--heirloom-ink-muted)' }}>Dismiss</button>
                                 </div>
                               )}
                             </div>
 
                             {/* Field-by-field review panel */}
                             {isReviewing && (
-                              <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(196,150,42,0.2)', paddingTop: '0.75rem' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                              <div style={{ marginTop: 12, borderTop: '1px solid #f0ebe3', paddingTop: 10 }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
                                   <thead>
-                                    <tr style={{ fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.06em', color: 'var(--sepia)' }}>
-                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '20%' }}>Field</th>
-                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>In tree</th>
-                                      <th style={{ textAlign: 'left', paddingBottom: '0.5rem', width: '35%' }}>From source</th>
-                                      <th style={{ textAlign: 'center', paddingBottom: '0.5rem', width: '10%' }}>Import</th>
+                                    <tr style={{ fontSize: 11, fontWeight: 600, color: '#9a8a7a', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>
+                                      <th style={{ textAlign: 'left', paddingBottom: 8, width: '20%' }}>Field</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: 8, width: '35%' }}>In tree</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: 8, width: '35%' }}>From source</th>
+                                      <th style={{ textAlign: 'center', paddingBottom: 8, width: '10%' }}>Import</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -1050,13 +1051,13 @@ export default function TreeExplorer({
                                       const isSame = hasSource && srcVal === localVal;
                                       const isSelected = reviewFields.has(key);
                                       return (
-                                        <tr key={key} style={{ borderTop: '1px solid rgba(196,150,42,0.1)' }}>
-                                          <td style={{ padding: '0.4rem 0', fontFamily: 'var(--font-sc)', fontSize: '0.62rem', letterSpacing: '0.04em', color: 'var(--sepia)' }}>{label}</td>
-                                          <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: localVal ? 'var(--ink)' : 'var(--sepia)', opacity: localVal ? 1 : 0.45 }}>{localVal || '—'}</td>
-                                          <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: isSame ? 'var(--sepia)' : hasSource ? 'var(--ink)' : 'var(--sepia)', opacity: hasSource ? 1 : 0.45 }}>{srcVal || '—'}</td>
-                                          <td style={{ textAlign: 'center', padding: '0.4rem 0' }}>
+                                        <tr key={key} style={{ borderTop: '1px solid #f0ebe3' }}>
+                                          <td style={{ padding: '6px 0', fontSize: 11, fontWeight: 600, color: '#9a8a7a', textTransform: 'uppercase' as const, letterSpacing: '0.3px' }}>{label}</td>
+                                          <td style={{ padding: '6px 10px 6px 0', color: localVal ? 'var(--heirloom-ink)' : '#9a8a7a', opacity: localVal ? 1 : 0.45 }}>{localVal || '—'}</td>
+                                          <td style={{ padding: '6px 10px 6px 0', color: isSame ? '#9a8a7a' : hasSource ? 'var(--heirloom-ink)' : '#9a8a7a', opacity: hasSource ? 1 : 0.45 }}>{srcVal || '—'}</td>
+                                          <td style={{ textAlign: 'center', padding: '6px 0' }}>
                                             {isSame ? (
-                                              <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.6 }}>same</span>
+                                              <span style={{ fontSize: 11, color: '#9a8a7a', opacity: 0.6 }}>same</span>
                                             ) : hasSource ? (
                                               <input
                                                 type="checkbox"
@@ -1068,10 +1069,10 @@ export default function TreeExplorer({
                                                     return next;
                                                   });
                                                 }}
-                                                style={{ cursor: 'pointer', accentColor: 'var(--rust)', width: 15, height: 15 }}
+                                                style={{ cursor: 'pointer', accentColor: 'var(--brand)', width: 15, height: 15 }}
                                               />
                                             ) : (
-                                              <span style={{ fontSize: '0.6rem', color: 'var(--sepia)', opacity: 0.4 }}>—</span>
+                                              <span style={{ fontSize: 11, color: '#9a8a7a', opacity: 0.4 }}>—</span>
                                             )}
                                           </td>
                                         </tr>
@@ -1080,9 +1081,9 @@ export default function TreeExplorer({
                                   </tbody>
                                 </table>
 
-                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                                  <button onClick={() => setReviewMatchId(null)} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.25)', color: 'var(--sepia)' }}>Cancel</button>
-                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(122,92,46,0.3)', color: 'var(--sepia)' }}>Dismiss match</button>
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10, flexWrap: 'wrap' }}>
+                                  <button onClick={() => setReviewMatchId(null)} style={{ ...btnBase, background: 'transparent', border: '1px solid var(--heirloom-border)', color: 'var(--heirloom-ink-muted)' }}>Cancel</button>
+                                  <button disabled={isActing} onClick={() => handleFsAction(match.id, 'reject')} style={{ ...btnBase, background: 'transparent', border: '1px solid var(--heirloom-border)', color: 'var(--heirloom-ink-muted)' }}>Dismiss match</button>
                                   <button
                                     disabled={isActing}
                                     onClick={() => {
@@ -1093,7 +1094,7 @@ export default function TreeExplorer({
                                       }
                                       handleFsAction(match.id, 'accept', updates);
                                     }}
-                                    style={{ ...btnBase, background: 'var(--rust)', color: '#fff' }}
+                                    style={{ ...btnBase, background: 'var(--brand)', color: '#fff' }}
                                   >
                                     {isActing ? 'Saving…' : 'Confirm match'}
                                   </button>
@@ -1107,7 +1108,7 @@ export default function TreeExplorer({
                   )}
 
                   {fsActionError && (
-                    <p style={{ color: 'var(--rust)', fontSize: '0.82rem', margin: '0 2rem 1rem', textAlign: 'center' }}>
+                    <p style={{ color: '#b91c2a', fontSize: 13, margin: '0 1.5rem 1rem', textAlign: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
                       {fsActionError}
                     </p>
                   )}
@@ -1119,7 +1120,7 @@ export default function TreeExplorer({
                     </div>
                     <div className="chapter-col-center">
                       {loading ? (
-                        <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>Loading…</p>
+                        <p style={{ color: '#9a8a7a', fontStyle: 'italic', fontSize: 13, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>Loading…</p>
                       ) : (
                         <>
                           {person.narrative && (
@@ -1252,17 +1253,17 @@ function ConnGroup({
   const shown = people.slice(0, max);
   return (
     <div className="ch-conn-group">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 6 }}>
         <span className="ch-conn-label" style={{ marginBottom: 0 }}>{label}{people.length > 0 ? ` (${people.length})` : ''}</span>
         {addHref && (
           <a
             href={addHref}
             style={{
-              fontFamily: 'var(--font-sc)', fontSize: '0.6rem', letterSpacing: '0.08em',
-              color: 'var(--sepia)', textDecoration: 'none', border: '1px solid rgba(122,92,46,0.3)',
-              borderRadius: 4, padding: '0.2rem 0.5rem', flexShrink: 0, transition: 'background 0.15s',
+              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 11, fontWeight: 500,
+              color: 'var(--heirloom-ink-muted)', textDecoration: 'none', border: '1px solid var(--heirloom-border)',
+              borderRadius: 6, padding: '3px 8px', flexShrink: 0, transition: 'background 0.15s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(122,92,46,0.08)')}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f0ebe3')}
             onMouseLeave={e => (e.currentTarget.style.background = '')}
           >
             + Add

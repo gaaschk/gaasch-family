@@ -254,13 +254,12 @@ export default function PersonForm({ treeSlug, person }: PersonFormProps) {
                   marginLeft: 'auto',
                   padding: '0.25rem 0.75rem',
                   fontSize: '0.8rem',
-                  background: genStatus === 'generating' ? 'var(--border-light)' : 'var(--ink)',
-                  color: '#f5f0e8',
+                  background: genStatus === 'generating' ? 'var(--border-light)' : '#8b5e3c',
+                  color: 'white',
                   border: 'none',
-                  borderRadius: '3px',
+                  borderRadius: '6px',
                   cursor: genStatus === 'generating' ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font-sc)',
-                  letterSpacing: '0.04em',
+                  fontWeight: 500,
                   whiteSpace: 'nowrap',
                 }}
               >

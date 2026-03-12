@@ -125,118 +125,160 @@ export default function StoryReader({
     setTimeout(() => win.print(), 250);
   }
 
+  const timeSpan = firstYear && lastYear && firstYear !== lastYear
+    ? `${firstYear} – ${lastYear}`
+    : firstYear ? `${firstYear}` : lastYear ? `${lastYear}` : '';
+
   return (
     <div className="story-page">
-      {/* Header */}
-      <header className="story-header">
-        <nav style={{ marginBottom: '1.5rem' }}>
-          <a
-            href={`/trees/${treeSlug}`}
-            style={{
-              fontFamily: 'var(--font-sc)',
-              fontSize: '0.7rem',
-              letterSpacing: '0.08em',
-              color: 'var(--sepia)',
-              textDecoration: 'none',
-            }}
-          >
-            ← {treeName}
+      {/* Nav bar */}
+      <nav style={{
+        background: '#fff', borderBottom: '1px solid #e8e0d8', padding: '0 32px',
+        height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 100,
+      }}>
+        <a href="/home" style={{ fontSize: 20, fontWeight: 700, color: '#2c1810', letterSpacing: -0.5, textDecoration: 'none' }}>
+          heir<span style={{ color: '#8b5e3c' }}>loom</span>
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <a href={`/trees/${treeSlug}`} style={{ fontSize: 13, color: '#7a6a5a', textDecoration: 'none', padding: '5px 12px', borderRadius: 6 }}>
+            Explorer
           </a>
-        </nav>
+          <span style={{ fontSize: 12, color: '#9a8a7a' }}>{treeName}</span>
+        </div>
+      </nav>
 
-        <h1>{personName}</h1>
+      {/* Hero */}
+      <div className="story-hero">
+        <div className="story-hero-inner">
+          <div className="story-hero-eyebrow">Ancestry Story</div>
+          <h1>{personName}</h1>
+          {(timeSpan || lineage.length > 0) && (
+            <div className="story-hero-meta">
+              {lineage.length > 0 && (
+                <div className="story-hero-meta-item">
+                  <strong>{lineage.length} generation{lineage.length !== 1 ? 's' : ''}</strong>
+                  of family history
+                </div>
+              )}
+              {timeSpan && (
+                <div className="story-hero-meta-item">
+                  <strong>{timeSpan}</strong>
+                  span of records
+                </div>
+              )}
+            </div>
+          )}
+          {(html || canEdit) && (
+            <div className="story-hero-actions">
+              {canEdit && html && !generating && (
+                <button onClick={() => generateStory(true)} className="btn btn-ghost btn-sm">Regenerate</button>
+              )}
+              {html && !generating && (
+                <button onClick={downloadPdf} className="btn btn-ghost btn-sm">Print / PDF</button>
+              )}
+              <a href={`/trees/${treeSlug}`} className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>Back to tree</a>
+            </div>
+          )}
+        </div>
+      </div>
 
-        {(firstYear || lastYear || lineage.length > 0) && (
-          <p className="story-meta">
-            {lineage.length > 0 && `${lineage.length} generation${lineage.length !== 1 ? 's' : ''}`}
-            {lineage.length > 0 && (firstYear || lastYear) && ' · '}
-            {firstYear && lastYear && firstYear !== lastYear
-              ? `${firstYear} – ${lastYear}`
-              : firstYear
-              ? `${firstYear}`
-              : lastYear
-              ? `${lastYear}`
-              : ''}
-          </p>
-        )}
+      {/* Story layout */}
+      <div style={{ maxWidth: 1060, margin: '0 auto', padding: 32, display: 'grid', gridTemplateColumns: lineage.length > 1 ? '1fr 280px' : '1fr', gap: 28 }}>
+        {/* Story content */}
+        <div>
+          <div className="story-content-card">
+            <div className="story-body" style={{ maxWidth: 'none', padding: '40px 48px' }}>
+              {html ? (
+                <>
+                  {generating && (
+                    <div style={{
+                      background: '#fff8e6', border: '1px solid #f5d87a', borderRadius: 8,
+                      padding: '12px 16px', marginBottom: 24, display: 'flex', alignItems: 'center',
+                      gap: 10, fontSize: 13, color: '#7a5a00',
+                    }}>
+                      Generating story...
+                    </div>
+                  )}
+                  <div dangerouslySetInnerHTML={{ __html: html }} />
+                </>
+              ) : generating ? (
+                <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                  <p style={{ color: '#7a6a5a', fontSize: 14 }}>
+                    Generating {firstName}&rsquo;s story&hellip;
+                  </p>
+                </div>
+              ) : canEdit ? (
+                <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#2c1810', marginBottom: 4 }}>
+                    This story hasn&rsquo;t been written yet
+                  </p>
+                  <p style={{ fontSize: 13, color: '#7a6a5a', marginBottom: 20 }}>
+                    Generate an AI-written narrative of {firstName}&rsquo;s family history.
+                  </p>
+                  <button onClick={() => generateStory()} className="btn btn-primary">
+                    Generate Story
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                  <p style={{ color: '#7a6a5a', fontSize: 14 }}>
+                    This story hasn&rsquo;t been written yet. Check back later.
+                  </p>
+                </div>
+              )}
+            </div>
 
-        {lineage.length > 0 && (
-          <div className="story-lineage-path">
-            {lineage.map((p, i) => (
-              <span key={p.id} style={{ opacity: i === lineage.length - 1 ? 1 : 0.7 }}>
-                {cleanName(p.name)}
-                {i < lineage.length - 1 && (
-                  <span style={{ display: 'block', textAlign: 'center', color: 'var(--gold)', fontSize: '0.7rem', margin: '0.1rem 0' }}>↓</span>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-      </header>
-
-      {/* Body */}
-      <div className="story-body">
-        {html ? (
-          <>
-            {generating && (
-              <p style={{ color: 'var(--sepia)', fontStyle: 'italic', marginBottom: '1.5rem' }}>
-                Generating…
-              </p>
+            {html && !generating && (
+              <div style={{
+                padding: '20px 48px', borderTop: '1px solid #f0ebe3', background: '#fdf6ef',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontSize: 12, color: '#9a8a7a',
+              }}>
+                <span>Generated by Heirloom AI</span>
+                <a href={`/trees/${treeSlug}`} style={{ color: '#8b5e3c', textDecoration: 'none', fontSize: 13 }}>
+                  ← Back to tree
+                </a>
+              </div>
             )}
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          </>
-        ) : generating ? (
-          <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>
-            Generating {firstName}&rsquo;s story&hellip;
-          </p>
-        ) : canEdit ? (
-          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <p style={{ color: 'var(--sepia)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
-              This story hasn&rsquo;t been written yet.
-            </p>
-            <button
-              onClick={() => generateStory()}
-              className="btn btn-primary"
-            >
-              Generate Story
-            </button>
           </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <p style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>
-              This story hasn&rsquo;t been written yet. Check back later.
-            </p>
+        </div>
+
+        {/* Right sidebar: lineage timeline */}
+        {lineage.length > 1 && (
+          <div>
+            <div style={{
+              background: 'white', borderRadius: 12, border: '1px solid #e8e0d8',
+              overflow: 'hidden', position: 'sticky', top: 72,
+            }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0ebe3', fontSize: 13, fontWeight: 600, color: '#2c1810' }}>
+                Lineage
+              </div>
+              {lineage.map((p, i) => {
+                const year = extractYear(p.birthDate);
+                return (
+                  <div key={p.id} style={{
+                    padding: '12px 16px', borderBottom: i < lineage.length - 1 ? '1px solid #f7f4f0' : 'none',
+                    display: 'flex', gap: 10, alignItems: 'flex-start',
+                  }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: i === 0 ? '#8b5e3c' : '#c8b8a8',
+                      marginTop: 4, flexShrink: 0,
+                    }} />
+                    <div>
+                      {year && <div style={{ fontSize: 12, fontWeight: 600, color: '#8b5e3c' }}>{year}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#2c1810', marginTop: 1 }}>
+                        {cleanName(p.name)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
-
-      {/* Footer */}
-      <footer className="story-footer">
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {html && !generating && (
-            <button onClick={downloadPdf} className="btn btn-secondary btn-sm">
-              Download PDF
-            </button>
-          )}
-          {canEdit && html && !generating && (
-            <button onClick={() => generateStory(true)} className="btn btn-secondary btn-sm">
-              Regenerate
-            </button>
-          )}
-        </div>
-        <a
-          href={`/trees/${treeSlug}`}
-          style={{
-            fontFamily: 'var(--font-sc)',
-            fontSize: '0.7rem',
-            letterSpacing: '0.08em',
-            color: 'var(--sepia)',
-            textDecoration: 'none',
-          }}
-        >
-          Back to tree
-        </a>
-      </footer>
     </div>
   );
 }

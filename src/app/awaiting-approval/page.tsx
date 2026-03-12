@@ -17,7 +17,6 @@ export default function AwaitingApprovalPage() {
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="hero-ornament" style={{ fontSize: '1rem', marginBottom: '1rem' }}>✦ ✦ ✦</div>
         <h1 className="login-title">Account Pending</h1>
         <p className="login-subtitle">Awaiting Admin Approval</p>
         <div className="login-success" style={{ marginTop: '1.5rem' }}>

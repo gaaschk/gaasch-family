@@ -159,18 +159,18 @@ export default function ChatPanel({
           bottom:       '1.75rem',
           right:        '1.75rem',
           zIndex:       950,
-          width:        52,
-          height:       52,
+          width:        48,
+          height:       48,
           borderRadius: '50%',
-          background:   'var(--ink)',
-          border:       '2px solid var(--gold)',
-          color:        'var(--gold)',
-          fontSize:     '1.35rem',
+          background:   '#8b5e3c',
+          border:       'none',
+          color:        'white',
+          fontSize:     '1.2rem',
           cursor:       'pointer',
           display:      'flex',
           alignItems:   'center',
           justifyContent: 'center',
-          boxShadow:    '0 2px 12px rgba(0,0,0,0.35)',
+          boxShadow:    '0 2px 12px rgba(0,0,0,0.2)',
           transition:   'transform 0.15s',
         }}
       >
@@ -189,29 +189,28 @@ export default function ChatPanel({
             zIndex:      940,
             display:     'flex',
             flexDirection: 'column',
-            background:  'var(--parchment)',
-            borderLeft:  '2px solid var(--gold)',
-            boxShadow:   '-4px 0 24px rgba(0,0,0,0.2)',
+            background:  '#f7f4f0',
+            borderLeft:  '1px solid #e8e0d8',
+            boxShadow:   '-4px 0 24px rgba(0,0,0,0.1)',
           }}
         >
           {/* Header */}
           <div
             style={{
-              background:   'var(--ink)',
-              borderBottom: '1px solid var(--gold)',
-              padding:      '0.9rem 1.25rem',
+              background:   'white',
+              borderBottom: '1px solid #e8e0d8',
+              padding:      '14px 20px',
               display:      'flex',
               alignItems:   'center',
               gap:          '0.6rem',
             }}
           >
-            <span style={{ color: 'var(--gold)', fontSize: '1rem' }}>✦</span>
+            <span style={{ color: '#8b5e3c', fontSize: '1rem' }}>✦</span>
             <span
               style={{
-                color:       'var(--parchment)',
-                fontFamily:  'var(--font-sc)',
-                fontSize:    '0.75rem',
-                letterSpacing: '0.1em',
+                color:       '#2c1810',
+                fontSize:    '14px',
+                fontWeight:  600,
                 flex:        1,
               }}
             >
@@ -223,12 +222,10 @@ export default function ChatPanel({
               style={{
                 background:  'none',
                 border:      'none',
-                color:       'var(--sepia-light)',
-                fontSize:    '0.7rem',
+                color:       '#9a8a7a',
+                fontSize:    '12px',
                 cursor:      'pointer',
-                fontFamily:  'var(--font-sc)',
-                letterSpacing: '0.06em',
-                padding:     '0.2rem 0.4rem',
+                padding:     '4px 8px',
               }}
             >
               Clear
@@ -243,13 +240,13 @@ export default function ChatPanel({
               padding:   '1.25rem 1rem',
               display:   'flex',
               flexDirection: 'column',
-              gap:       '1rem',
+              gap:       '0.75rem',
             }}
           >
             {messages.length === 0 && (
-              <div style={{ color: 'var(--sepia)', fontSize: '0.82rem', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem', lineHeight: 1.7 }}>
+              <div style={{ color: '#7a6a5a', fontSize: '13px', textAlign: 'center', marginTop: '2rem', lineHeight: 1.7 }}>
                 <p style={{ marginBottom: '0.5rem' }}>Ask anything about your family tree.</p>
-                <p style={{ fontSize: '0.76rem' }}>
+                <p style={{ fontSize: '12px', color: '#9a8a7a' }}>
                   Try: &ldquo;Who is the oldest person?&rdquo; or{' '}
                   &ldquo;Show me the paternal line&rdquo;
                   {currentPersonId ? ' from the current person' : ''}.
@@ -272,8 +269,8 @@ export default function ChatPanel({
                   <p
                     key={j}
                     style={{
-                      fontSize:   '0.72rem',
-                      color:      'var(--sepia)',
+                      fontSize:   '12px',
+                      color:      '#9a8a7a',
                       fontStyle:  'italic',
                       margin:     0,
                       paddingLeft: '0.25rem',
@@ -287,12 +284,12 @@ export default function ChatPanel({
                 {msg.role === 'user' ? (
                   <div
                     style={{
-                      background:   'var(--ink)',
-                      color:        'var(--parchment)',
+                      background:   '#8b5e3c',
+                      color:        'white',
                       borderRadius: '12px 12px 2px 12px',
-                      padding:      '0.6rem 0.9rem',
+                      padding:      '10px 14px',
                       maxWidth:     '85%',
-                      fontSize:     '0.85rem',
+                      fontSize:     '13px',
                       lineHeight:   1.5,
                     }}
                   >
@@ -301,13 +298,13 @@ export default function ChatPanel({
                 ) : msg.content ? (
                   <div
                     style={{
-                      background:   'var(--parchment-deep)',
-                      border:       '1px solid var(--border-light)',
-                      borderLeft:   '3px solid var(--gold)',
+                      background:   'white',
+                      border:       '1px solid #e8e0d8',
                       borderRadius: '2px 12px 12px 12px',
-                      padding:      '0.75rem 1rem',
+                      padding:      '12px 14px',
                       maxWidth:     '95%',
-                      fontSize:     '0.85rem',
+                      fontSize:     '13px',
+                      lineHeight:   1.6,
                     }}
                     onClick={handleMessageClick}
                     dangerouslySetInnerHTML={{ __html: msg.content }}
@@ -315,17 +312,16 @@ export default function ChatPanel({
                 ) : (
                   <div
                     style={{
-                      background:   'var(--parchment-deep)',
-                      border:       '1px solid var(--border-light)',
-                      borderLeft:   '3px solid var(--gold)',
+                      background:   'white',
+                      border:       '1px solid #e8e0d8',
                       borderRadius: '2px 12px 12px 12px',
-                      padding:      '0.75rem 1rem',
+                      padding:      '12px 14px',
                       maxWidth:     '95%',
-                      fontSize:     '0.85rem',
+                      fontSize:     '13px',
                     }}
                   >
                     {streaming && (
-                      <span style={{ color: 'var(--sepia)', fontStyle: 'italic' }}>…</span>
+                      <span style={{ color: '#9a8a7a', fontStyle: 'italic' }}>…</span>
                     )}
                   </div>
                 )}
@@ -337,11 +333,11 @@ export default function ChatPanel({
           {/* Input area */}
           <div
             style={{
-              borderTop:  '1px solid var(--border-light)',
-              padding:    '0.75rem',
+              borderTop:  '1px solid #e8e0d8',
+              padding:    '12px',
               display:    'flex',
-              gap:        '0.5rem',
-              background: 'var(--parchment)',
+              gap:        '8px',
+              background: 'white',
             }}
           >
             <textarea
@@ -355,15 +351,15 @@ export default function ChatPanel({
               style={{
                 flex:       1,
                 resize:     'none',
-                border:     '1px solid var(--border)',
-                borderRadius: 6,
-                padding:    '0.5rem 0.65rem',
-                fontFamily: 'var(--font-body)',
-                fontSize:   '0.85rem',
-                background: streaming ? 'rgba(0,0,0,0.03)' : 'var(--parchment)',
-                color:      'var(--ink)',
+                border:     '1px solid #e8e0d8',
+                borderRadius: 8,
+                padding:    '10px 12px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                fontSize:   '13px',
+                background: streaming ? '#f7f4f0' : 'white',
+                color:      '#2c1810',
                 outline:    'none',
-                lineHeight: 1.45,
+                lineHeight: 1.5,
               }}
             />
             <button
@@ -371,14 +367,13 @@ export default function ChatPanel({
               disabled={streaming || !input.trim()}
               style={{
                 alignSelf:    'flex-end',
-                background:   streaming || !input.trim() ? 'rgba(196,150,42,0.2)' : 'var(--ink)',
-                border:       '1px solid var(--gold)',
-                borderRadius: 6,
-                color:        'var(--gold)',
-                fontFamily:   'var(--font-sc)',
-                fontSize:     '0.65rem',
-                letterSpacing: '0.08em',
-                padding:      '0.5rem 0.75rem',
+                background:   streaming || !input.trim() ? '#f0ebe3' : '#8b5e3c',
+                border:       'none',
+                borderRadius: 7,
+                color:        streaming || !input.trim() ? '#9a8a7a' : 'white',
+                fontSize:     '13px',
+                fontWeight:   500,
+                padding:      '9px 16px',
                 cursor:       streaming || !input.trim() ? 'default' : 'pointer',
                 whiteSpace:   'nowrap',
                 transition:   'background 0.15s',
