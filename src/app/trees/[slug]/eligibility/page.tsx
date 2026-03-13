@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { TreePageComponents } from '@/components/public/ClientSections';
+import EligibilityClient from './EligibilityClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,17 +10,16 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export default async function TreePage({ params }: Props) {
+export default async function EligibilityPage({ params }: Props) {
   const { slug } = await params;
   const session = await auth();
 
   if (!session?.user) {
-    redirect(`/login?callbackUrl=/trees/${slug}`);
+    redirect(`/login?callbackUrl=/trees/${slug}/eligibility`);
   }
 
   const userId = session.user.id;
 
-  // Resolve tree by slug or id
   const tree = await prisma.tree.findFirst({
     where: { OR: [{ slug }, { id: slug }] },
     select: { id: true, slug: true, name: true, ownerId: true },
@@ -28,9 +27,7 @@ export default async function TreePage({ params }: Props) {
 
   if (!tree) redirect('/dashboard');
 
-  // Determine membership
   let treeRole: string | null = null;
-
   if (tree.ownerId === userId) {
     treeRole = 'admin';
   } else {
@@ -43,19 +40,6 @@ export default async function TreePage({ params }: Props) {
   if (!treeRole) redirect('/dashboard');
 
   const isAdmin = treeRole === 'admin';
-
-  const [defaultPersonSetting, fsToken] = await Promise.all([
-    prisma.setting.findFirst({
-      where: { treeId: tree.id, key: 'default_person_id' },
-      select: { value: true },
-    }),
-    prisma.familySearchToken.findUnique({
-      where:  { userId },
-      select: { id: true },
-    }),
-  ]);
-  const defaultPersonId  = defaultPersonSetting?.value ?? undefined;
-  const hasFsConnection  = !!fsToken;
 
   const userName = session.user.name ?? session.user.email ?? '';
   const userInitials = userName
@@ -73,13 +57,13 @@ export default async function TreePage({ params }: Props) {
           heir<span className="heirloom-logo-accent">loom</span>
         </Link>
         <div className="heirloom-nav-links">
-          <Link href={`/trees/${tree.slug}#explorer`} className="heirloom-nav-link active">
+          <Link href={`/trees/${tree.slug}#explorer`} className="heirloom-nav-link">
             Explorer
           </Link>
           <Link href={`/trees/${tree.slug}#directory`} className="heirloom-nav-link">
             Directory
           </Link>
-          <Link href={`/trees/${tree.slug}/eligibility`} className="heirloom-nav-link">
+          <Link href={`/trees/${tree.slug}/eligibility`} className="heirloom-nav-link active">
             Eligibility
           </Link>
           {isAdmin && (
@@ -102,7 +86,7 @@ export default async function TreePage({ params }: Props) {
         </div>
       </nav>
 
-      <TreePageComponents treeSlug={tree.slug} treeName={tree.name} role={treeRole} defaultPersonId={defaultPersonId} userId={userId} hasFsConnection={hasFsConnection} />
+      <EligibilityClient treeSlug={tree.slug} treeName={tree.name} />
     </>
   );
 }

@@ -2040,7 +2040,7 @@ body {
   top: 0; left: 0; right: 0;
   z-index: 1000;
   background: #fff;
-  border-bottom: 1px solid var(--heirloom-border);
+  border-bottom: 1px solid #e8e0d8;
   padding: 0 20px;
   height: 52px;
   display: flex;
@@ -2057,13 +2057,13 @@ body {
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 13px;
-  color: var(--heirloom-ink-muted);
+  color: #7a6a5a;
   cursor: pointer;
   text-decoration: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.heirloom-nav-link:hover { background: #f0ebe3; color: var(--heirloom-ink); text-decoration: none; }
-.heirloom-nav-link.active { background: #f0ebe3; color: var(--heirloom-ink); font-weight: 500; }
+.heirloom-nav-link:hover { background: #f0ebe3; color: #2c1810; text-decoration: none; }
+.heirloom-nav-link.active { background: #f0ebe3; color: #2c1810; font-weight: 500; }
 
 .heirloom-nav-right {
   display: flex;
@@ -2071,17 +2071,21 @@ body {
   gap: 10px;
 }
 
-.heirloom-nav-pill {
-  font-size: 12px;
-  padding: 5px 10px;
-  background: var(--heirloom-bg);
-  border: 1px solid var(--heirloom-border);
-  border-radius: 6px;
-  color: var(--heirloom-ink-muted);
+.heirloom-nav-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #8b5e3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
   text-decoration: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.heirloom-nav-pill:hover { background: #f0ebe3; text-decoration: none; }
+.heirloom-nav-avatar:hover { opacity: 0.85; text-decoration: none; }
 
 /* ─── Explorer app body (sidebar + canvas) ─────────────────────────────── */
 .explorer-body {
@@ -2336,6 +2340,57 @@ body {
   flex-shrink: 0;
 }
 
+.level-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  user-select: none;
+}
+
+.level-label {
+  font-size: 12px;
+  color: var(--heirloom-ink-muted);
+  margin-right: 2px;
+}
+
+.level-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--heirloom-border);
+  background: white;
+  color: var(--heirloom-ink);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.level-btn:hover:not(:disabled) {
+  background: #f0ebe3;
+  border-color: var(--heirloom-ink-muted);
+}
+
+.level-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.level-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--heirloom-ink);
+  min-width: 18px;
+  text-align: center;
+}
+
 .citizenship-toggle {
   display: flex;
   align-items: center;
@@ -2451,6 +2506,14 @@ body {
   border: 2px solid white;
 }
 
+/* ─── Tree page shell (fills viewport below nav) ─────────────────────── */
+.tree-page-shell {
+  height: calc(100vh - 52px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ─── Explorer content (existing chapters content inside canvas) ────── */
 .explorer-content {
   padding: 0;
@@ -2463,33 +2526,294 @@ body {
   border-bottom: none;
 }
 
-/* ─── Fan view placeholder ─────────────────────────────────────────────── */
-.fan-view-placeholder,
-.family-view-placeholder {
+/* ─── Pedigree canvas ─────────────────────────────────────────────────── */
+.pedigree-canvas-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pedigree-toolbar {
+  padding: 8px 16px;
+  background: var(--heirloom-bg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--heirloom-border-light, #f0ebe3);
+}
+
+.pedigree-canvas-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--heirloom-bg);
+}
+
+.pedigree-canvas-content {
+  display: inline-flex;
+  min-width: 100%;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  transform-origin: 0 0;
+}
+
+/* ─── Person node (pnode) ─────────────────────────────────────────────── */
+.pnode {
+  background: white;
+  border: 2px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 200px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.pnode:hover {
+  border-color: #8b5e3c;
+  box-shadow: 0 2px 8px rgba(139,94,60,0.15);
+}
+.pnode-selected {
+  border-color: #8b5e3c;
+  box-shadow: 0 2px 12px rgba(139,94,60,0.2);
+  background: #fdf6ef;
+}
+.pnode-phantom {
+  border-style: dashed;
+  opacity: 0.35;
+  cursor: default;
+}
+.pnode-loading {
+  border-style: dashed;
+  opacity: 0.5;
+}
+.pnode-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c1810;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pnode-dates {
+  font-size: 11px;
+  color: #9a8a7a;
+  margin-top: 2px;
+}
+.pnode-place {
+  font-size: 10px;
+  color: #9a8a7a;
+  margin-top: 1px;
+}
+
+/* Citizenship coloring */
+.pnode-cit-green { border-color: #34c98a; background: #f0fdf6; }
+.pnode-cit-amber { border-color: #f5c842; background: #fffdf0; }
+.pnode-cit-red   { border-color: #e57373; background: #fef2f2; }
+
+.pnode-status-dot {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+.pnode-dot-green { background: #34c98a; }
+.pnode-dot-amber { background: #f5c842; }
+.pnode-dot-red   { background: #e57373; }
+
+/* ─── Pedigree view ───────────────────────────────────────────────────── */
+.pedigree-view-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 40px;
+  min-width: max-content;
+}
+
+.pedigree-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.pedigree-columns {
+  display: flex;
+  align-items: center;
+}
+
+.pedigree-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.pedigree-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #9a8a7a;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* ─── Family view ─────────────────────────────────────────────────────── */
+.family-view-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 40px;
+  min-width: 400px;
+}
+
+.family-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.family-node-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.family-role-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8b5e3c;
+}
+
+.family-h-line {
+  height: 2px;
+  width: 40px;
+  background: #e8e0d8;
+  flex-shrink: 0;
+}
+
+.family-marriage-badge {
+  background: #f0ebe3;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #7a6a5a;
+  flex-shrink: 0;
+}
+
+.family-v-connector {
+  width: 2px;
+  height: 32px;
+  background: #e8e0d8;
+}
+
+.family-v-connector-short {
+  width: 2px;
+  height: 16px;
+  background: #e8e0d8;
+}
+
+.family-children-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.family-child-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.family-no-children {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  color: #c8b8a8;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.family-hint {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #9a8a7a;
+  background: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #e8e0d8;
+  text-align: center;
+}
+
+/* ─── Fan view ────────────────────────────────────────────────────────── */
+.fan-view-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  min-height: 400px;
-  color: var(--heirloom-ink-muted);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  text-align: center;
-  padding: 2rem;
+  padding: 40px;
 }
-.fan-view-placeholder h3,
-.family-view-placeholder h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--heirloom-ink);
-  margin-bottom: 8px;
+
+.fan-svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.fan-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9a8a7a;
+}
+
+/* ─── Zoom controls ───────────────────────────────────────────────────── */
+.pedigree-zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 10;
+}
+
+.pedigree-zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: white;
+  border: 1px solid #e8e0d8;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.fan-view-placeholder p,
-.family-view-placeholder p {
-  font-size: 14px;
-  max-width: 400px;
-  line-height: 1.6;
+.pedigree-zoom-btn:hover {
+  background: var(--heirloom-bg);
 }
 
 /* ─── Explorer responsive ──────────────────────────────────────────────── */
@@ -2505,4 +2829,111 @@ body {
 @media (max-width: 480px) {
   .explorer-sidebar { width: 100%; position: absolute; z-index: 50; height: 100%; }
   .explorer-sidebar.collapsed { width: 0; }
+}
+
+/* ─── Eligibility page ──────────────────────────────────────────────────── */
+.elig-layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 56px); }
+
+/* Sidebar */
+.elig-sidebar { background: white; border-right: 1px solid var(--border); padding: 24px 0; overflow-y: auto; }
+.elig-sidebar-header { padding: 0 20px 16px; border-bottom: 1px solid var(--parchment-dark); margin-bottom: 8px; }
+.elig-sidebar-header h2 { font-size: 15px; font-weight: 600; color: var(--ink); font-family: var(--font-body); }
+.elig-sidebar-header p { font-size: 12px; color: var(--sepia-light); margin-top: 2px; font-family: var(--font-body); }
+
+.elig-section-label { padding: 12px 20px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--sepia-light); font-family: var(--font-body); }
+
+.elig-country-item { padding: 12px 20px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s; }
+.elig-country-item:hover { background: var(--parchment); }
+.elig-country-item.active { background: #fdf6ef; border-left-color: var(--rust); }
+.elig-country-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.elig-country-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; font-family: var(--font-body); }
+.elig-country-flag { font-size: 18px; }
+.elig-country-path { font-size: 12px; color: var(--sepia-light); font-family: var(--font-body); }
+
+/* Badges */
+.elig-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; font-family: var(--font-body); }
+.elig-badge-green { background: #e6f9f1; color: #0d7a52; }
+.elig-badge-yellow { background: #fff8e6; color: #9a6a00; }
+.elig-badge-gray { background: #f0f0f0; color: #888; }
+
+/* Main area */
+.elig-main { padding: 32px; overflow-y: auto; }
+.elig-page-header { margin-bottom: 28px; }
+.elig-page-header h1 { font-size: 26px; font-weight: 700; color: var(--ink); margin-bottom: 4px; font-family: var(--font-body); }
+.elig-page-header p { font-size: 14px; color: var(--sepia); font-family: var(--font-body); }
+
+/* Stats */
+.elig-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+.elig-stat-card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 16px; }
+.elig-stat-num { font-size: 28px; font-weight: 700; color: var(--ink); font-family: var(--font-body); }
+.elig-stat-num.green { color: #0d7a52; }
+.elig-stat-num.yellow { color: #9a6a00; }
+.elig-stat-label { font-size: 12px; color: var(--sepia-light); margin-top: 2px; font-family: var(--font-body); }
+
+/* Map */
+.elig-map-card { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 24px; }
+.elig-map-header { padding: 16px 20px; border-bottom: 1px solid var(--parchment-dark); display: flex; align-items: center; justify-content: space-between; }
+.elig-map-header h3 { font-size: 14px; font-weight: 600; font-family: var(--font-body); }
+.elig-map-legend { display: flex; gap: 16px; font-size: 12px; color: var(--sepia); font-family: var(--font-body); }
+.elig-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+.elig-dot-green { background: var(--success); }
+.elig-dot-yellow { background: var(--warning); }
+.elig-dot-gray { background: #ddd; }
+
+.elig-map-body { padding: 20px; }
+.elig-europe-map { position: relative; background: #f0f4f8; border-radius: 8px; height: 280px; overflow: hidden; }
+.elig-country-blob { position: absolute; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: opacity 0.2s, transform 0.15s; }
+.elig-country-blob:hover { opacity: 0.85; z-index: 10; transform: scale(1.1); }
+.elig-blob-active { outline: 2px solid var(--rust); outline-offset: 1px; z-index: 10; }
+.elig-blob-green { background: #e6f9f1; }
+.elig-blob-yellow { background: #fff8e6; }
+.elig-blob-gray { background: #eee; }
+
+/* Detail card */
+.elig-detail-card { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+.elig-detail-header { padding: 20px; border-bottom: 1px solid var(--parchment-dark); display: flex; align-items: flex-start; justify-content: space-between; }
+.elig-detail-country { display: flex; align-items: center; gap: 12px; }
+.elig-detail-flag { font-size: 36px; }
+.elig-detail-name { font-size: 20px; font-weight: 700; font-family: var(--font-body); }
+.elig-detail-article { font-size: 13px; color: var(--sepia); margin-top: 2px; font-family: var(--font-body); }
+
+.elig-detail-body { padding: 20px; }
+.elig-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.elig-detail-section { margin-bottom: 20px; }
+.elig-detail-section h4 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--sepia-light); margin-bottom: 10px; font-family: var(--font-body); }
+
+/* Lineage chain */
+.elig-lineage-chain { display: flex; flex-direction: column; }
+.elig-chain-node { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.elig-chain-line { display: flex; flex-direction: column; align-items: center; }
+.elig-chain-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.elig-chain-dot-filled { background: var(--rust); }
+.elig-chain-dot-empty { background: white; border: 2px solid var(--rust); }
+.elig-chain-dot-gray { background: white; border: 2px solid #c8d0da; }
+.elig-chain-connector { width: 2px; height: 20px; background: var(--border); }
+.elig-chain-info { flex: 1; }
+.elig-chain-person { font-size: 13px; font-weight: 500; font-family: var(--font-body); }
+.elig-chain-detail { font-size: 12px; color: var(--sepia-light); font-family: var(--font-body); }
+.elig-chain-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; font-family: var(--font-body); }
+.elig-status-complete { background: #e6f9f1; color: #0d7a52; }
+.elig-status-partial { background: #fff8e6; color: #9a6a00; }
+.elig-status-missing { background: #fde8ea; color: #b91c2a; }
+
+/* Requirements */
+.elig-requirement-list { display: flex; flex-direction: column; gap: 6px; }
+.elig-req-item { display: flex; align-items: center; gap: 8px; font-size: 13px; font-family: var(--font-body); }
+.elig-req-check { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+.elig-req-check-yes { background: var(--success); color: white; }
+.elig-req-check-no { background: var(--parchment-deep); color: #999; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .elig-layout { grid-template-columns: 1fr; }
+  .elig-sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 300px; }
+  .elig-detail-grid { grid-template-columns: 1fr; }
+  .elig-stats-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .elig-stats-row { grid-template-columns: 1fr; }
+  .elig-main { padding: 16px; }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 
 const TreeExplorer = dynamic(
@@ -42,29 +42,46 @@ export function TreePageComponents({
   userId?: string;
   hasFsConnection?: boolean;
 }) {
+  const [view, setView] = useState<'explorer' | 'directory'>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.hash === '#directory' ? 'directory' : 'explorer';
+    }
+    return 'explorer';
+  });
   const [externalPersonId, setExternalPersonId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const onHash = () => {
+      setView(window.location.hash === '#directory' ? 'directory' : 'explorer');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const handleDirectorySelect = useCallback((id: string) => {
+    setExternalPersonId(id);
+    window.location.hash = '';
+    setView('explorer');
+  }, []);
+
   return (
-    <>
-      <TreeExplorer
-        treeSlug={treeSlug}
-        treeName={treeName}
-        role={role}
-        defaultPersonId={defaultPersonId}
-        userId={userId}
-        hasFsConnection={hasFsConnection}
-        externalPersonId={externalPersonId ?? undefined}
-      />
-      <DirectorySection
-        treeSlug={treeSlug}
-        onSelectPerson={id => {
-          setExternalPersonId(id);
-          document.getElementById('chapters')?.scrollIntoView({ behavior: 'smooth' });
-        }}
-      />
-      <footer className="pub-footer">
-        Heirloom — Family History
-      </footer>
-    </>
+    <div className="tree-page-shell">
+      {view === 'explorer' ? (
+        <TreeExplorer
+          treeSlug={treeSlug}
+          treeName={treeName}
+          role={role}
+          defaultPersonId={defaultPersonId}
+          userId={userId}
+          hasFsConnection={hasFsConnection}
+          externalPersonId={externalPersonId ?? undefined}
+        />
+      ) : (
+        <DirectorySection
+          treeSlug={treeSlug}
+          onSelectPerson={handleDirectorySelect}
+        />
+      )}
+    </div>
   );
 }
