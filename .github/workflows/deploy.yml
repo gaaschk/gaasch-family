@@ -43,6 +43,8 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r prisma .next/standalone/prisma
           cp ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
+          mkdir -p .next/standalone/scripts
+          cp scripts/seed.ts .next/standalone/scripts/seed.ts
 
       - name: Configure SSH
         run: |
@@ -66,6 +68,7 @@ jobs:
             cd /var/www/heirloom
             set -a && source /var/www/heirloom/.env.production && set +a
             npx prisma migrate deploy
+            npx --yes tsx scripts/seed.ts
             pm2 describe heirloom > /dev/null 2>&1 \
               && pm2 reload heirloom --update-env \
               || pm2 start ecosystem.config.cjs
