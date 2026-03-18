@@ -8,10 +8,19 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const userRole = (auth?.user as { role?: string })?.role;
       const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
       const isOnTrees = nextUrl.pathname.startsWith("/trees");
       const isOnInvite = nextUrl.pathname.startsWith("/invite");
       const isOnAdmin = nextUrl.pathname.startsWith("/admin");
+
+      // Pending users may only see /awaiting-approval and public pages
+      if (isLoggedIn && userRole === "pending") {
+        if (nextUrl.pathname !== "/awaiting-approval") {
+          return Response.redirect(new URL("/awaiting-approval", nextUrl));
+        }
+        return true;
+      }
 
       if (isOnDashboard || isOnTrees || isOnInvite || isOnAdmin) {
         if (isLoggedIn) return true;

@@ -51,6 +51,7 @@ jobs:
       - name: Sync artifact to server
         run: |
           rsync -az --delete \
+            --exclude='.env.production' \
             -e "ssh -i ~/.ssh/deploy_key" \
             .next/standalone/ \
             ubuntu@${{ secrets.LIGHTSAIL_HOST }}:/var/www/heirloom/

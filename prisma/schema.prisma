@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Auth.js tables ───────────────────────────────────────────────
@@ -144,7 +145,7 @@ model Person {
   husbandInFamilies Family[]          @relation("Husband")
   wifeInFamilies    Family[]          @relation("Wife")
   fsMatches         FamilySearchMatch[]
-  documents         Document[]
+  documents         Document[]        @relation("PersonDocuments")
   portrait          Document?         @relation("Portrait", fields: [portraitId], references: [id])
   auditLogs         AuditLog[]
 
@@ -243,7 +244,7 @@ model Document {
   createdAt    DateTime @default(now())
 
   tree   Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  person Person? @relation(fields: [personId], references: [id])
+  person Person? @relation("PersonDocuments", fields: [personId], references: [id])
   portraitFor Person[] @relation("Portrait")
 
   @@index([treeId])
