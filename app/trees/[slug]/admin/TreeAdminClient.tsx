@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import AgentTasksSection from "./AgentTasksSection";
 
 type Member = {
   id: string;
@@ -559,6 +560,9 @@ export default function TreeAdminClient({
 
       {/* Tree settings */}
       <TreeSettings treeId={treeId} />
+
+      {/* Background tasks & proposed people */}
+      <AgentTasksSection treeId={treeId} />
 
       {/* Danger zone */}
       <section>
