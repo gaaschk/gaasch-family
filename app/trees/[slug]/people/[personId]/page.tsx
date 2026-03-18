@@ -1,9 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { presignGet } from "@/src/lib/s3";
 import PersonActions from "./PersonActions";
+import DocumentsSection from "./DocumentsSection";
 
 type Params = { slug: string; personId: string };
 
@@ -19,6 +22,10 @@ export default async function PersonPage({
   const person = await prisma.person.findFirst({
     where: { id: personId, treeId: auth.tree.id },
     include: {
+      portrait: { select: { id: true, s3Key: true } },
+      documents: {
+        orderBy: { createdAt: "asc" },
+      },
       childInFamilies: {
         include: {
           family: {
@@ -53,6 +60,15 @@ export default async function PersonPage({
   const canEdit = auth.treeRole === "editor" || auth.treeRole === "admin";
   const fullName = [person.firstName, person.lastName].filter(Boolean).join(" ") || "(unnamed)";
 
+  // Presign portrait and all document URLs
+  const portraitUrl = person.portrait?.s3Key ? await presignGet(person.portrait.s3Key).catch(() => null) : null;
+  const docsWithUrls = await Promise.all(
+    person.documents.map(async (d) => ({
+      ...d,
+      url: await presignGet(d.s3Key).catch(() => ""),
+    })),
+  );
+
   const parents = person.childInFamilies.flatMap((fc) => {
     const fam = fc.family;
     return [fam.husband, fam.wife].filter(Boolean) as typeof fam.husband[];
@@ -74,6 +90,28 @@ export default async function PersonPage({
           flexWrap: "wrap",
         }}
       >
+        {portraitUrl && (
+          <div
+            style={{
+              width: "5rem",
+              height: "5rem",
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "2px solid var(--cream-border)",
+              flexShrink: 0,
+              position: "relative",
+            }}
+          >
+            <Image
+              src={portraitUrl}
+              alt={fullName}
+              fill
+              style={{ objectFit: "cover" }}
+              sizes="80px"
+              unoptimized
+            />
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
             <Link href="/dashboard" style={{ color: "var(--text-link)", textDecoration: "none" }}>My Trees</Link>
@@ -174,6 +212,19 @@ export default async function PersonPage({
             <p style={{ color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
               {person.notes}
             </p>
+          </section>
+        )}
+
+        {/* Documents & Photos */}
+        {(docsWithUrls.length > 0 || canEdit) && (
+          <section>
+            <SectionLabel>Documents &amp; Photos</SectionLabel>
+            <DocumentsSection
+              treeId={auth.tree.id}
+              personId={person.id}
+              initialDocs={docsWithUrls}
+              canEdit={canEdit}
+            />
           </section>
         )}
       </div>

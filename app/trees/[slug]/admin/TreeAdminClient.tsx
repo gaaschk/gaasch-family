@@ -104,6 +104,75 @@ function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () =
   );
 }
 
+function GedcomExport({ treeId }: { treeId: string }) {
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sLabel: React.CSSProperties = {
+    fontSize: "0.8125rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+    color: "var(--brown-muted)",
+    marginBottom: "1rem",
+  };
+
+  async function handleExport() {
+    setDownloading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/trees/${treeId}/export`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error ?? "Export failed.");
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("content-disposition") ?? "";
+      const match = cd.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? "export.ged";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Something went wrong during export.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2 style={sLabel}>GEDCOM export</h2>
+      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+        Download all people and families as a <code>.ged</code> file compatible with most genealogy software.
+      </p>
+      <button
+        onClick={handleExport}
+        disabled={downloading}
+        style={{
+          display: "inline-block",
+          padding: "0.5rem 1.25rem",
+          borderRadius: "var(--radius-md)",
+          background: downloading ? "var(--brown-light)" : "var(--forest)",
+          color: "#fff",
+          fontFamily: "var(--font-ui)",
+          fontWeight: 600,
+          fontSize: "0.875rem",
+          border: "none",
+          cursor: downloading ? "not-allowed" : "pointer",
+        }}
+      >
+        {downloading ? "Exporting…" : "Download .ged file"}
+      </button>
+      {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{error}</p>}
+    </section>
+  );
+}
+
 function TreeSettings({ treeId }: { treeId: string }) {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("claude-haiku-4-5-20251001");
@@ -484,6 +553,9 @@ export default function TreeAdminClient({
 
       {/* GEDCOM import */}
       <GedcomImport treeId={treeId} onImported={() => router.refresh()} />
+
+      {/* GEDCOM export */}
+      <GedcomExport treeId={treeId} />
 
       {/* Tree settings */}
       <TreeSettings treeId={treeId} />
