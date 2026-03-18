@@ -127,6 +127,31 @@ Required in `.env.local`:
 
 The Anthropic API key is stored in the DB (`Setting` table), not in `.env`.
 
+## gstack
+
+Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+Available skills:
+- `/plan-ceo-review` — CEO/founder-mode plan review
+- `/plan-eng-review` — Engineering manager plan review
+- `/plan-design-review` — Designer's eye plan review
+- `/design-consultation` — Design system consultation
+- `/review` — Pre-landing PR review
+- `/ship` — Ship workflow (test, review, bump, push, PR)
+- `/browse` — Headless browser for QA and dogfooding
+- `/qa` — QA test and fix bugs
+- `/qa-only` — QA report only (no fixes)
+- `/design-review` — Visual QA and design polish
+- `/setup-browser-cookies` — Import cookies from real browser
+- `/retro` — Weekly engineering retrospective
+- `/document-release` — Post-ship documentation update
+
+If gstack skills aren't working, run:
+```bash
+cd .claude/skills/gstack && ./setup
+```
+This builds the binary and registers the skills.
+
 ## First-time setup
 
 1. `npm install`

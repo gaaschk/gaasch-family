@@ -20,14 +20,6 @@ A **multi-tenant private family history web application**. Multiple families can
 - GEDCOM import and export
 - Role-based access control at both platform and tree level
 
-### Technology Stack
-- **Framework:** Next.js 15 (App Router, server components + client components)
-- **Database:** SQLite via Prisma ORM
-- **Auth:** Auth.js v5 (NextAuth beta) — JWT sessions, Prisma adapter
-- **AI:** Anthropic Claude API (streaming narratives + agentic chat)
-- **Email:** Nodemailer (SMTP)
-- **Deployment:** Node.js server behind nginx reverse proxy (PM2 process manager)
-
 ---
 
 ## 2. URL Structure
@@ -58,6 +50,8 @@ A **multi-tenant private family history web application**. Multiple families can
 /trees/[slug]/admin/familysearch  FamilySearch OAuth connection
 /trees/[slug]/admin/geni          Geni OAuth connection
 
+/trees/[slug]/eligibility/        EU citizenship eligibility checker
+
 /admin/                   Platform admin dashboard
 /admin/users              Manage all platform users + roles
 /admin/settings           System-wide settings (API keys, credentials)
@@ -72,7 +66,7 @@ A **multi-tenant private family history web application**. Multiple families can
 ## 3. Authentication & User Management
 
 ### 3.1 Sign-In Methods
-- **Email + password** — bcrypt-hashed passwords, custom credentials provider
+- **Email + password** — passwords securely hashed
 - **Google OAuth** — sign in with Google account
 
 ### 3.2 Account Creation Flow
@@ -135,7 +129,7 @@ The creating user becomes the tree owner with admin role.
 ### 5.1 Person
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | Primary key |
+| id | unique ID | Primary key |
 | treeId | string | Foreign key to Tree |
 | gedcomId | string? | Original GEDCOM identifier (@I123@) |
 | name | string | Full name |
@@ -156,7 +150,7 @@ Unique constraint: `(treeId, gedcomId)` when gedcomId is present.
 ### 5.2 Family
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | Primary key |
+| id | unique ID | Primary key |
 | treeId | string | Foreign key to Tree |
 | gedcomId | string? | Original GEDCOM identifier (@F123@) |
 | husbandId | string? | Foreign key to Person |
@@ -169,7 +163,7 @@ Children linked via `FamilyChild` join table `(familyId, personId)`.
 ### 5.3 FamilySearchMatch (record hints)
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | |
+| id | unique ID | |
 | personId | string | FK to Person |
 | treeId | string | FK to Tree |
 | source | string | `familysearch` / `wikitree` / `geni` |
@@ -183,7 +177,7 @@ Unique constraint: `(personId, source, fsPid)`.
 ### 5.4 LineageStory
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | |
+| id | unique ID | |
 | treeId | string | FK to Tree |
 | personIdsKey | string | Comma-separated person IDs defining the lineage line |
 | html | string | Generated narrative story |
@@ -193,7 +187,7 @@ Unique constraint: `(treeId, personIdsKey)`.
 ### 5.5 AuditLog
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | |
+| id | unique ID | |
 | treeId | string | FK to Tree |
 | userId | string | FK to User |
 | tableName | string | e.g. `people` |
@@ -202,16 +196,16 @@ Unique constraint: `(treeId, personIdsKey)`.
 | oldData | string? | JSON |
 | newData | string? | JSON |
 
-### 5.6 User (Auth.js standard)
+### 5.6 User
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | |
+| id | unique ID | |
 | email | string | Unique |
 | emailVerified | DateTime? | |
 | name | string? | |
 | image | string? | |
 | role | string | `pending` (default) / `viewer` / `editor` / `admin` |
-| password | string? | bcrypt hash; null for OAuth users |
+| password | string? | Securely hashed; null for OAuth-only users |
 | tokenVersion | int | For force-logout all sessions |
 
 ### 5.7 OAuth Token Models
@@ -220,7 +214,7 @@ Unique constraint: `(treeId, personIdsKey)`.
 ### 5.8 TreeInvite
 | Field | Type | Notes |
 |-------|------|-------|
-| id | CUID | |
+| id | unique ID | |
 | treeId | string | FK to Tree |
 | email | string | Invitee email |
 | role | string | Role to assign on acceptance |
@@ -413,7 +407,7 @@ A floating **⚑** button appears on every page (bottom-left corner) for authent
 
 ## 13. Email Notifications
 
-All email sent via Nodemailer (SMTP). All emails BCC the `email_bcc` address if configured.
+All email sent via SMTP. All emails BCC the `email_bcc` address if configured.
 
 | Trigger | Subject | Content |
 |---------|---------|---------|
@@ -430,7 +424,7 @@ All email sent via Nodemailer (SMTP). All emails BCC the `email_bcc` address if 
 Every tree has an `api_token` setting. Requests with `Authorization: Bearer <token>` header are accepted at tree-scoped endpoints at `editor` level, enabling headless scripts and automation.
 
 ### 14.2 Route Guard Summary
-- All `/api/trees/[treeId]/*` routes: resolve slug or CUID → tree record, then check `TreeMember` or ownership
+- All `/api/trees/[treeId]/*` routes: resolve slug or ID → tree record, then check `TreeMember` or ownership
 - All queries include `treeId` in WHERE clause (cross-tenant protection)
 - `requireTreeAccess(treeIdOrSlug, minRole)` used consistently across all tree-scoped routes
 
@@ -465,37 +459,74 @@ The main view at `/trees/[slug]/` has three sections:
 
 ---
 
-## 16. Non-Functional Requirements
+## 16. European Citizenship Eligibility Checker
 
-### 16.1 Multi-Tenancy
+### 16.1 Overview
+Analyzes ancestors' birth places to determine potential citizenship-by-descent eligibility across 22 EU countries: Austria, Bulgaria, Croatia, Cyprus, Czechia, Finland, France, Germany, Greece, Hungary, Ireland, Italy, Latvia, Lithuania, Luxembourg, Malta, Poland, Portugal, Romania, Slovakia, Slovenia, Spain.
+
+### 16.2 How It Works
+- Endpoint: `POST /api/trees/[treeId]/eligibility`
+- Scans all Person records in the tree for birth place matches against a country-keyword mapping
+- Handles historical region names (e.g., "Austria-Hungary" maps to Austria, Hungary, Czechia, Croatia, Slovenia, Slovakia)
+- Each country has 2–3 specific citizenship requirements with a mode: "any" (one must be met) or "all" (all must be met)
+- Generation-based rules: "likely" within `maxGeneration`, "possible" up to `possibleGeneration`
+- Special handling: Luxembourg male-line-only requirement, language proficiency, religious background
+
+### 16.3 Result Per Country
+| Field | Description |
+|-------|-------------|
+| Country | Name + flag emoji |
+| Status | `likely` / `possible` / `insufficient` |
+| Matched ancestors | People born in the matching country |
+| Matched rule | Primary citizenship requirement text |
+| Notes | Explanation of why the match qualifies |
+
+### 16.4 UI
+- Dedicated page at `/trees/[slug]/eligibility/`
+- Shows a card per eligible country with status, matched ancestors, and notes
+- Accessible from the tree navigation bar
+
+---
+
+## 17. Document Vault (Planned)
+
+- Upload documents (images, PDFs, etc.) associated with a tree and optionally with a specific person
+- Fields: title, filename, MIME type, file size, storage key, category, notes, uploaded by
+- Organize by category (default: "other")
+- View and delete documents
+- API: `GET/POST /api/trees/[treeId]/documents`, `GET/DELETE /api/trees/[treeId]/documents/[docId]`
+- This feature is a work-in-progress placeholder
+
+---
+
+## 18. Non-Functional Requirements
+
+### 18.1 Multi-Tenancy
 - Complete data isolation between trees
 - No shared mutable state across trees
 - All database queries scoped by `treeId`
 
-### 16.2 Security
-- HTTPS required (TLS cert via Let's Encrypt / Cloudflare DNS challenge for wildcard)
-- Passwords hashed with bcrypt
+### 18.2 Security
+- HTTPS required
+- Passwords securely hashed
 - OAuth secrets stored in database (not committed to source control)
 - JWT sessions (not server-side sessions)
-- CSRF protection via Auth.js
+- CSRF protection
 - Role checks on every API route
 
-### 16.3 Performance
+### 18.3 Performance
 - Streaming AI responses (no waiting for full generation)
-- 5-second keepalive on streaming endpoints to prevent proxy timeouts
+- Keepalive heartbeats on streaming endpoints to prevent proxy timeouts
 - Pagination on all list endpoints (50 records default)
-- External genealogy searches run in parallel (`Promise.allSettled`)
+- External genealogy searches run in parallel
 
-### 16.4 Deployment
-- Node.js server, managed by PM2
-- nginx reverse proxy for HTTPS termination and HTTP→HTTPS redirect
-- SQLite database (single-file, absolute path in env var)
-- Database migrations via `prisma migrate deploy` on each deploy
-- GitHub Actions workflow triggers Claude Code on new issues to auto-fix and open PRs
+### 18.4 Deployment
+- Application server behind a reverse proxy for HTTPS termination
+- Database with migration tooling applied on each deploy
 
 ---
 
-## 17. Environment Variables
+## 19. Environment Variables
 
 ### Required
 ```
@@ -516,7 +547,7 @@ All other credentials (Anthropic, FamilySearch, Geni, GitHub) are stored in the 
 
 ---
 
-## 18. Static Pages
+## 20. Static Pages
 
 ### `/privacy`
 Must document:
