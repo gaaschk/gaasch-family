@@ -37,6 +37,207 @@ const card: React.CSSProperties = {
   gap: "1rem",
 };
 
+function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/trees/${treeId}/import`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Import failed.");
+      } else {
+        setResult(`Imported ${data.personsImported} people and ${data.familiesImported} families.`);
+        onImported();
+      }
+    } catch {
+      setError("Something went wrong during import.");
+    } finally {
+      setLoading(false);
+      e.target.value = "";
+    }
+  }
+
+  const sLabel: React.CSSProperties = {
+    fontSize: "0.8125rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+    color: "var(--brown-muted)",
+    marginBottom: "1rem",
+  };
+
+  return (
+    <section>
+      <h2 style={sLabel}>GEDCOM import</h2>
+      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+        Import people and families from a <code>.ged</code> file. Existing records with matching GEDCOM IDs will be updated.
+      </p>
+      <label
+        style={{
+          display: "inline-block",
+          padding: "0.5rem 1.25rem",
+          borderRadius: "var(--radius-md)",
+          background: loading ? "var(--brown-light)" : "var(--forest)",
+          color: "#fff",
+          fontFamily: "var(--font-ui)",
+          fontWeight: 600,
+          fontSize: "0.875rem",
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading ? "Importing…" : "Choose .ged file"}
+        <input type="file" accept=".ged,.gedcom" onChange={handleFile} style={{ display: "none" }} disabled={loading} />
+      </label>
+      {result && <p style={{ color: "var(--color-success)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{result}</p>}
+      {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{error}</p>}
+    </section>
+  );
+}
+
+function TreeSettings({ treeId }: { treeId: string }) {
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("claude-haiku-4-5-20251001");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function saveSetting(key: string, value: string) {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      const res = await fetch(`/api/trees/${treeId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error ?? "Save failed.");
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const sLabel: React.CSSProperties = {
+    fontSize: "0.8125rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+    color: "var(--brown-muted)",
+    marginBottom: "1rem",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: "0.5rem 0.75rem",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--cream-border)",
+    background: "var(--surface-raised)",
+    color: "var(--text-primary)",
+    fontSize: "0.9375rem",
+    outline: "none",
+    flex: 1,
+    minWidth: 0,
+  };
+
+  return (
+    <section>
+      <h2 style={sLabel}>AI narrative settings</h2>
+      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
+        Configure the Anthropic API key used to generate biographical narratives for people in this tree.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: "0.375rem" }}>
+            Anthropic API key
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input
+              type="password"
+              placeholder="sk-ant-…"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+            />
+            <button
+              onClick={() => saveSetting("anthropic_api_key", apiKey)}
+              disabled={saving || !apiKey.trim()}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius-md)",
+                background: saving || !apiKey.trim() ? "var(--brown-light)" : "var(--forest)",
+                color: "#fff",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                border: "none",
+                cursor: saving || !apiKey.trim() ? "not-allowed" : "pointer",
+                flexShrink: 0,
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: "0.375rem" }}>
+            Model
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer", maxWidth: "20rem" }}
+            >
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fast, low cost)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (higher quality)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 (best quality)</option>
+            </select>
+            <button
+              onClick={() => saveSetting("anthropic_model", model)}
+              disabled={saving}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius-md)",
+                background: saving ? "var(--brown-light)" : "var(--forest)",
+                color: "#fff",
+                fontFamily: "var(--font-ui)",
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                border: "none",
+                cursor: saving ? "not-allowed" : "pointer",
+                flexShrink: 0,
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+        {saved && <p style={{ color: "var(--color-success)", fontSize: "0.875rem" }}>Saved.</p>}
+        {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem" }}>{error}</p>}
+      </div>
+    </section>
+  );
+}
+
 export default function TreeAdminClient({
   treeId,
   treeName: _treeName,
@@ -280,6 +481,12 @@ export default function TreeAdminClient({
           </p>
         </section>
       )}
+
+      {/* GEDCOM import */}
+      <GedcomImport treeId={treeId} onImported={() => router.refresh()} />
+
+      {/* Tree settings */}
+      <TreeSettings treeId={treeId} />
 
       {/* Danger zone */}
       <section>
