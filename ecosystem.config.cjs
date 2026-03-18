@@ -22,21 +22,11 @@ module.exports = {
       out_file: "/var/log/heirloom/out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
-    {
-      name: "heirloom-worker",
-      script: "worker/index.js",
-      cwd: "/var/www/heirloom",
-      instances: 1,
-      exec_mode: "fork",
-      autorestart: true,
-      watch: false,
-      max_memory_restart: "256M",
-      env: {
-        NODE_ENV: "production",
-      },
-      error_file: "/var/log/heirloom/worker-error.log",
-      out_file: "/var/log/heirloom/worker-out.log",
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-    },
+    // heirloom-worker will be added here when the BullMQ worker is built
+    // {
+    //   name: "heirloom-worker",
+    //   script: "worker/index.js",
+    //   ...
+    // }
   ],
 };
