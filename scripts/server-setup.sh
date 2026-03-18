@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup for the Heirloom Lightsail Ubuntu instance (family.gaasch.com)
+# One-time setup for the Heirloom Lightsail Ubuntu instance (family.kevingaasch.com)
 # Run as ubuntu user: bash scripts/server-setup.sh
 set -euo pipefail
 
@@ -39,7 +39,7 @@ echo "   (see .env.local.example in the repo for required variables)"
 echo "   Required values:"
 echo "     DATABASE_URL=postgresql://user:pass@<lightsail-db-endpoint>:5432/heirloom"
 echo "     AUTH_SECRET=<openssl rand -base64 32>"
-echo "     AUTH_URL=https://family.gaasch.com"
+echo "     AUTH_URL=https://family.kevingaasch.com"
 echo "     REDIS_URL=redis://<elasticache-endpoint>:6379"
 echo "     AWS_ACCESS_KEY_ID=..."
 echo "     AWS_SECRET_ACCESS_KEY=..."
@@ -47,12 +47,12 @@ echo "     AWS_REGION=us-east-1"
 echo "     S3_BUCKET_NAME=..."
 echo ""
 echo "3. Install nginx vhost:"
-echo "   sudo cp nginx/family.gaasch.com.conf /etc/nginx/sites-available/"
-echo "   sudo ln -s /etc/nginx/sites-available/family.gaasch.com.conf /etc/nginx/sites-enabled/"
+echo "   sudo cp nginx/family.kevingaasch.com.conf /etc/nginx/sites-available/"
+echo "   sudo ln -s /etc/nginx/sites-available/family.kevingaasch.com.conf /etc/nginx/sites-enabled/"
 echo "   sudo nginx -t"
 echo ""
 echo "4. SSL cert (run AFTER DNS is pointed at this server):"
-echo "   sudo certbot --nginx -d family.gaasch.com"
+echo "   sudo certbot --nginx -d family.kevingaasch.com"
 echo ""
 echo "5. GitHub Actions secrets to set (repo Settings → Secrets → Actions):"
 echo "   LIGHTSAIL_HOST  = <public IP or hostname of this instance>"

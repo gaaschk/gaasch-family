@@ -47,9 +47,9 @@ jobs:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Sync artifact to server
         run: |
@@ -57,11 +57,11 @@ jobs:
             --exclude='.env.production' \
             -e "ssh -i ~/.ssh/deploy_key" \
             .next/standalone/ \
-            ubuntu@${{ secrets.LIGHTSAIL_HOST }}:/var/www/heirloom/
+            ubuntu@${{ secrets.DEPLOY_HOST }}:/var/www/heirloom/
 
       - name: Run migrations & restart
         run: |
-          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.LIGHTSAIL_HOST }} 'bash -s' << 'ENDSSH'
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.DEPLOY_HOST }} 'bash -s' << 'ENDSSH'
             set -e
             cd /var/www/heirloom
             set -a && source /var/www/heirloom/.env.production && set +a
