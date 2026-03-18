@@ -1,6 +1,7 @@
 // PM2 ecosystem config — checked in, no secrets.
-// Secrets are loaded from /var/www/heirloom/.env.production at deploy time
-// via `set -a && source .env.production && set +a && pm2 reload --update-env`
+// Secrets live in /var/www/heirloom/.env.production on the server (never committed).
+// PM2 loads that file directly via env_file so the daemon always has the right env,
+// even after a server reboot.
 
 module.exports = {
   apps: [
@@ -13,6 +14,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "512M",
+      env_file: "/var/www/heirloom/.env.production",
       env: {
         NODE_ENV: "production",
         PORT: "3000",

@@ -1,18 +1,23 @@
 /**
  * Seed script — safe to run on any database at any time.
  *
- * If no users exist, creates a bootstrap admin from env vars:
- *   SEED_ADMIN_EMAIL    (required)
- *   SEED_ADMIN_PASSWORD (required, min 8 chars)
- *   SEED_ADMIN_NAME     (optional, defaults to "Admin")
+ * If no users exist, creates a bootstrap admin:
+ *   email: gaaschk@gmail.com
+ *   name:  Kevin Gaasch
+ *   role:  admin
+ *   password: auto-generated and printed to stdout (check PM2 logs after first deploy)
  *
  * If users already exist, exits immediately without touching anything.
  */
 
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import pg from "pg";
+
+const ADMIN_EMAIL = "gaaschk@gmail.com";
+const ADMIN_NAME = "Kevin Gaasch";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool as Parameters<typeof PrismaPg>[0]);
@@ -25,35 +30,26 @@ async function main() {
     return;
   }
 
-  const email = process.env.SEED_ADMIN_EMAIL;
-  const password = process.env.SEED_ADMIN_PASSWORD;
-  const name = process.env.SEED_ADMIN_NAME ?? "Admin";
-
-  if (!email || !password) {
-    console.log(
-      "No SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD set — skipping admin seed.\n" +
-        "Set these env vars to bootstrap an admin on a fresh database.",
-    );
-    return;
-  }
-
-  if (password.length < 8) {
-    console.error("SEED_ADMIN_PASSWORD must be at least 8 characters.");
-    process.exit(1);
-  }
-
+  // Generate a secure random password: 24 chars of base64url
+  const password = randomBytes(18).toString("base64url");
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
     data: {
-      name,
-      email: email.trim().toLowerCase(),
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
       passwordHash,
       role: "admin",
     },
   });
 
-  console.log(`✓ Created admin user: ${user.email} (id: ${user.id})`);
+  console.log("=".repeat(60));
+  console.log("BOOTSTRAP ADMIN CREATED");
+  console.log(`  email:    ${user.email}`);
+  console.log(`  password: ${password}`);
+  console.log(`  id:       ${user.id}`);
+  console.log("Change this password after first login.");
+  console.log("=".repeat(60));
 }
 
 main()
