@@ -32,6 +32,32 @@ export async function sendSignupNotificationEmail(opts: {
   });
 }
 
+export async function sendTreeInviteEmail(opts: {
+  toEmail: string;
+  treeName: string;
+  inviteUrl: string;
+  role: string;
+}) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: `You've been invited to join ${opts.treeName} on Heirloom`,
+    text: [
+      `You've been invited to join "${opts.treeName}" on Heirloom as a ${opts.role}.`,
+      "",
+      `Accept your invitation: ${opts.inviteUrl}`,
+      "",
+      "This link expires in 7 days.",
+    ].join("\n"),
+    html: `
+      <p>You've been invited to join <strong>${opts.treeName}</strong> on Heirloom as a <strong>${opts.role}</strong>.</p>
+      <p><a href="${opts.inviteUrl}">Accept invitation</a></p>
+      <p style="color:#888;font-size:12px">This link expires in 7 days.</p>
+    `,
+  });
+}
+
 export async function sendApprovalEmail(opts: {
   toEmail: string;
   toName: string;
