@@ -1,20 +1,70 @@
-name: Deploy to Lightsail
+name: Deploy
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: SSH deploy
+    name: Build & deploy to Lightsail
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: bash /home/ubuntu/gaasch-family/scripts/deploy.sh
-          command_timeout: 10m
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Prepare standalone artifact
+        run: |
+          cp -r public .next/standalone/public
+          cp -r .next/static .next/standalone/.next/static
+          cp -r prisma .next/standalone/prisma
+          cp ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.LIGHTSAIL_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sync artifact to server
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            .next/standalone/ \
+            ubuntu@${{ secrets.LIGHTSAIL_HOST }}:/var/www/heirloom/
+
+      - name: Run migrations & restart
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.LIGHTSAIL_HOST }} 'bash -s' << 'ENDSSH'
+            set -e
+            cd /var/www/heirloom
+            set -a && source /var/www/heirloom/.env.production && set +a
+            npx prisma migrate deploy
+            pm2 describe heirloom > /dev/null 2>&1 \
+              && pm2 reload heirloom --update-env \
+              || pm2 start ecosystem.config.cjs
+            pm2 save
+            echo "Deploy complete"
+          ENDSSH
