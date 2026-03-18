@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireRole } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireRole, apiError } from "@/src/lib/auth";
 
 function slugify(name: string): string {
   return name
@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
 
   let slug = slugify(name);
   if (!slug) {
-    return apiError("INVALID_NAME", "Tree name must contain at least one letter or digit");
+    return apiError(
+      "INVALID_NAME",
+      "Tree name must contain at least one letter or digit",
+    );
   }
 
   // Ensure slug uniqueness

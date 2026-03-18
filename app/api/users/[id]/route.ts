@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/src/lib/auth";
 import { sendApprovalEmail } from "@/src/lib/email";
+import { prisma } from "@/src/lib/prisma";
 
 export async function PATCH(
   req: NextRequest,

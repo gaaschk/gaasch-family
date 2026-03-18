@@ -100,7 +100,13 @@ export default function PeopleDirectory({
         >
           All people
           {total > 0 && (
-            <span style={{ marginLeft: "0.5em", fontWeight: 400, textTransform: "none" }}>
+            <span
+              style={{
+                marginLeft: "0.5em",
+                fontWeight: 400,
+                textTransform: "none",
+              }}
+            >
               ({total.toLocaleString()})
             </span>
           )}
@@ -122,13 +128,19 @@ export default function PeopleDirectory({
             fontSize: "0.9375rem",
             outline: "none",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+          onFocus={(e) => {
+            e.target.style.borderColor = "var(--forest)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--cream-border)";
+          }}
         />
       </div>
 
       {loading && (
-        <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>Searching…</p>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>
+          Searching…
+        </p>
       )}
 
       {!loading && people.length === 0 && (
@@ -141,12 +153,18 @@ export default function PeopleDirectory({
           }}
         >
           {query ? (
-            <p style={{ color: "var(--text-muted)" }}>No people match &ldquo;{query}&rdquo;</p>
+            <p style={{ color: "var(--text-muted)" }}>
+              No people match &ldquo;{query}&rdquo;
+            </p>
           ) : (
             <>
               <p
                 className="font-narrative"
-                style={{ color: "var(--brown-muted)", fontSize: "1.125rem", marginBottom: "1.25rem" }}
+                style={{
+                  color: "var(--brown-muted)",
+                  fontSize: "1.125rem",
+                  marginBottom: "1.25rem",
+                }}
               >
                 No people in this tree yet.
               </p>
@@ -171,7 +189,9 @@ export default function PeopleDirectory({
       )}
 
       {!loading && people.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}
+        >
           {people.map((p) => (
             <Link
               key={p.id}
@@ -185,24 +205,42 @@ export default function PeopleDirectory({
                 border: "1px solid transparent",
                 background: "var(--surface-raised)",
                 textDecoration: "none",
-                transition: "border-color var(--duration-short) var(--ease-out), background var(--duration-short) var(--ease-out)",
+                transition:
+                  "border-color var(--duration-short) var(--ease-out), background var(--duration-short) var(--ease-out)",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--cream-border)";
-                (e.currentTarget as HTMLElement).style.background = "var(--parchment-dark)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "var(--cream-border)";
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--parchment-dark)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "transparent";
-                (e.currentTarget as HTMLElement).style.background = "var(--surface-raised)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "transparent";
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--surface-raised)";
               }}
             >
               <GenderDot gender={p.gender} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.3 }}>
+                <p
+                  style={{
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    lineHeight: 1.3,
+                  }}
+                >
                   {displayName(p)}
                 </p>
                 {p.birthPlace && (
-                  <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{p.birthPlace}</p>
+                  <p
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {p.birthPlace}
+                  </p>
                 )}
               </div>
               {lifespan(p) && (
@@ -227,7 +265,11 @@ export default function PeopleDirectory({
 
 function GenderDot({ gender }: { gender: string | null }) {
   const color =
-    gender === "M" ? "var(--color-info)" : gender === "F" ? "#a05070" : "var(--cream-border)";
+    gender === "M"
+      ? "var(--color-info)"
+      : gender === "F"
+        ? "#a05070"
+        : "var(--cream-border)";
   return (
     <span
       style={{

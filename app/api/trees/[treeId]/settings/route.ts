@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -18,9 +18,10 @@ export async function GET(
   return NextResponse.json(
     settings.map((s) => ({
       key: s.key,
-      value: s.key === "anthropic_api_key" && s.value
-        ? `sk-…${s.value.slice(-4)}`
-        : s.value,
+      value:
+        s.key === "anthropic_api_key" && s.value
+          ? `sk-…${s.value.slice(-4)}`
+          : s.value,
     })),
   );
 }

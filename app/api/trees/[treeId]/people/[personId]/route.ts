@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 type Params = { treeId: string; personId: string };
 
@@ -19,7 +19,9 @@ export async function GET(
         include: {
           family: {
             include: {
-              husband: { select: { id: true, firstName: true, lastName: true } },
+              husband: {
+                select: { id: true, firstName: true, lastName: true },
+              },
               wife: { select: { id: true, firstName: true, lastName: true } },
             },
           },
@@ -28,7 +30,16 @@ export async function GET(
       husbandInFamilies: {
         include: {
           children: {
-            include: { person: { select: { id: true, firstName: true, lastName: true, gender: true } } },
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                },
+              },
+            },
           },
           wife: { select: { id: true, firstName: true, lastName: true } },
         },
@@ -36,7 +47,16 @@ export async function GET(
       wifeInFamilies: {
         include: {
           children: {
-            include: { person: { select: { id: true, firstName: true, lastName: true, gender: true } } },
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                },
+              },
+            },
           },
           husband: { select: { id: true, firstName: true, lastName: true } },
         },
@@ -70,9 +90,17 @@ export async function PATCH(
   }
 
   const allowed = [
-    "firstName", "lastName", "maidenName", "gender",
-    "birthDate", "birthPlace", "deathDate", "deathPlace",
-    "occupation", "notes", "narrative",
+    "firstName",
+    "lastName",
+    "maidenName",
+    "gender",
+    "birthDate",
+    "birthPlace",
+    "deathDate",
+    "deathPlace",
+    "occupation",
+    "notes",
+    "narrative",
   ] as const;
 
   const data: Record<string, string | null> = {};

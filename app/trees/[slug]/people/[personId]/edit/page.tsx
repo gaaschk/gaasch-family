@@ -14,14 +14,17 @@ export default async function EditPersonPage({
 }) {
   const { slug, personId } = await params;
   const auth = await requireTreeAccess(slug, "editor");
-  if (auth instanceof NextResponse) redirect(`/trees/${slug}/people/${personId}`);
+  if (auth instanceof NextResponse)
+    redirect(`/trees/${slug}/people/${personId}`);
 
   const person = await prisma.person.findFirst({
     where: { id: personId, treeId: auth.tree.id },
   });
   if (!person) notFound();
 
-  const fullName = [person.firstName, person.lastName].filter(Boolean).join(" ") || "(unnamed)";
+  const fullName =
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    "(unnamed)";
 
   return (
     <main
@@ -34,15 +37,35 @@ export default async function EditPersonPage({
       }}
     >
       <div style={{ marginBottom: "2rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-          <Link href={`/trees/${slug}`} style={{ color: "var(--text-link)", textDecoration: "none" }}>{auth.tree.name}</Link>
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "var(--text-muted)",
+            marginBottom: "0.25rem",
+          }}
+        >
+          <Link
+            href={`/trees/${slug}`}
+            style={{ color: "var(--text-link)", textDecoration: "none" }}
+          >
+            {auth.tree.name}
+          </Link>
           {" / "}
-          <Link href={`/trees/${slug}/people/${personId}`} style={{ color: "var(--text-link)", textDecoration: "none" }}>{fullName}</Link>
+          <Link
+            href={`/trees/${slug}/people/${personId}`}
+            style={{ color: "var(--text-link)", textDecoration: "none" }}
+          >
+            {fullName}
+          </Link>
           {" / "}Edit
         </p>
         <h1
           className="font-display"
-          style={{ fontSize: "2rem", fontWeight: 600, color: "var(--brown-text)" }}
+          style={{
+            fontSize: "2rem",
+            fontWeight: 600,
+            color: "var(--brown-text)",
+          }}
         >
           Edit {fullName}
         </h1>

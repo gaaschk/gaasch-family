@@ -76,7 +76,12 @@ export default function NewTreePage() {
       <div style={{ marginBottom: "2.5rem" }}>
         <h1
           className="font-display"
-          style={{ fontSize: "2rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.5rem" }}
+          style={{
+            fontSize: "2rem",
+            fontWeight: 600,
+            color: "var(--brown-text)",
+            marginBottom: "0.5rem",
+          }}
         >
           Create a tree
         </h1>
@@ -85,7 +90,10 @@ export default function NewTreePage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+      >
         {error && (
           <p
             role="alert"
@@ -93,16 +101,20 @@ export default function NewTreePage() {
               color: "var(--color-error)",
               fontSize: "0.875rem",
               padding: "0.75rem 1rem",
-              background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
+              background:
+                "color-mix(in srgb, var(--color-error) 8%, transparent)",
               borderRadius: "var(--radius-md)",
-              border: "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
+              border:
+                "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
             }}
           >
             {error}
           </p>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}
+        >
           <label htmlFor="name" className="font-ui" style={labelStyle}>
             Tree name <span style={{ color: "var(--color-error)" }}>*</span>
           </label>
@@ -114,19 +126,31 @@ export default function NewTreePage() {
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Gaasch Family"
             style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--forest)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--cream-border)";
+            }}
           />
           {slug && (
             <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              URL: <code style={{ fontFamily: "var(--font-mono)" }}>/trees/{slug}</code>
+              URL:{" "}
+              <code style={{ fontFamily: "var(--font-mono)" }}>
+                /trees/{slug}
+              </code>
             </p>
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}
+        >
           <label htmlFor="description" className="font-ui" style={labelStyle}>
-            Description <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(optional)</span>
+            Description{" "}
+            <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+              (optional)
+            </span>
           </label>
           <textarea
             id="description"
@@ -140,8 +164,12 @@ export default function NewTreePage() {
               fontFamily: "var(--font-ui)",
               lineHeight: 1.5,
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--forest)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--cream-border)";
+            }}
           />
         </div>
 
@@ -171,7 +199,10 @@ export default function NewTreePage() {
               flex: 1,
               padding: "0.75rem 1.5rem",
               borderRadius: "var(--radius-md)",
-              background: loading || !name.trim() ? "var(--brown-light)" : "var(--forest)",
+              background:
+                loading || !name.trim()
+                  ? "var(--brown-light)"
+                  : "var(--forest)",
               color: "#fff",
               fontFamily: "var(--font-ui)",
               fontWeight: 600,

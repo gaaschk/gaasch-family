@@ -46,12 +46,18 @@ export default function SignupPage() {
         <div className="text-center max-w-sm">
           <h1
             className="font-display"
-            style={{ fontSize: "1.875rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "1rem" }}
+            style={{
+              fontSize: "1.875rem",
+              fontWeight: 600,
+              color: "var(--brown-text)",
+              marginBottom: "1rem",
+            }}
           >
             Request submitted
           </h1>
           <p className="font-narrative" style={{ color: "var(--brown-muted)" }}>
-            An admin will review your request and send you an email when approved.
+            An admin will review your request and send you an email when
+            approved.
           </p>
         </div>
       </main>
@@ -67,7 +73,12 @@ export default function SignupPage() {
         <div style={{ marginBottom: "2rem" }}>
           <h1
             className="font-display"
-            style={{ fontSize: "1.875rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.5rem" }}
+            style={{
+              fontSize: "1.875rem",
+              fontWeight: 600,
+              color: "var(--brown-text)",
+              marginBottom: "0.5rem",
+            }}
           >
             Request access
           </h1>
@@ -76,7 +87,10 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           {error && (
             <p
               role="alert"
@@ -84,9 +98,11 @@ export default function SignupPage() {
                 color: "var(--color-error)",
                 fontSize: "0.875rem",
                 padding: "0.75rem 1rem",
-                background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
+                background:
+                  "color-mix(in srgb, var(--color-error) 8%, transparent)",
                 borderRadius: "var(--radius-md)",
-                border: "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
               }}
             >
               {error}
@@ -94,21 +110,50 @@ export default function SignupPage() {
           )}
 
           {(["name", "email", "password"] as const).map((field) => (
-            <div key={field} style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <div
+              key={field}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.375rem",
+              }}
+            >
               <label
                 htmlFor={field}
                 className="font-ui"
-                style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                }}
               >
-                {field === "name" ? "Full name" : field === "email" ? "Email" : "Password"}
+                {field === "name"
+                  ? "Full name"
+                  : field === "email"
+                    ? "Email"
+                    : "Password"}
               </label>
               <input
                 id={field}
-                type={field === "password" ? "password" : field === "email" ? "email" : "text"}
-                autoComplete={field === "name" ? "name" : field === "email" ? "email" : "new-password"}
+                type={
+                  field === "password"
+                    ? "password"
+                    : field === "email"
+                      ? "email"
+                      : "text"
+                }
+                autoComplete={
+                  field === "name"
+                    ? "name"
+                    : field === "email"
+                      ? "email"
+                      : "new-password"
+                }
                 required
                 minLength={field === "password" ? 8 : 1}
-                value={field === "name" ? name : field === "email" ? email : password}
+                value={
+                  field === "name" ? name : field === "email" ? email : password
+                }
                 onChange={(e) => {
                   if (field === "name") setName(e.target.value);
                   else if (field === "email") setEmail(e.target.value);
@@ -122,10 +167,15 @@ export default function SignupPage() {
                   color: "var(--text-primary)",
                   fontSize: "1rem",
                   outline: "none",
-                  transition: "border-color var(--duration-short) var(--ease-out)",
+                  transition:
+                    "border-color var(--duration-short) var(--ease-out)",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--forest)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "var(--cream-border)";
+                }}
               />
               {field === "password" && (
                 <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>

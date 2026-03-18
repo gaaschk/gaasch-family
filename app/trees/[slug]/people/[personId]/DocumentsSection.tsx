@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
+import { useCallback, useRef, useState } from "react";
 
 type Doc = {
   id: string;
@@ -53,15 +53,18 @@ export default function DocumentsSection({
 
       try {
         // Step 1: get presigned URL
-        const presignRes = await fetch(`/api/trees/${treeId}/documents/presign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            mimeType: file.type,
-            sizeBytes: file.size,
-          }),
-        });
+        const presignRes = await fetch(
+          `/api/trees/${treeId}/documents/presign`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            }),
+          },
+        );
         if (!presignRes.ok) {
           const d = await presignRes.json().catch(() => ({}));
           throw new Error(d.error ?? "Could not get upload URL.");
@@ -109,7 +112,9 @@ export default function DocumentsSection({
     if (!confirm("Delete this document permanently?")) return;
     setDeletingId(docId);
     try {
-      await fetch(`/api/trees/${treeId}/documents/${docId}`, { method: "DELETE" });
+      await fetch(`/api/trees/${treeId}/documents/${docId}`, {
+        method: "DELETE",
+      });
       setDocs((prev) => prev.filter((d) => d.id !== docId));
     } finally {
       setDeletingId(null);
@@ -173,6 +178,7 @@ export default function DocumentsSection({
               )}
               {canEdit && (
                 <button
+                  type="button"
                   onClick={() => handleDelete(doc.id)}
                   disabled={deletingId === doc.id}
                   title="Delete"
@@ -204,7 +210,14 @@ export default function DocumentsSection({
 
       {/* Non-image files */}
       {files.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginBottom: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.375rem",
+            marginBottom: "1rem",
+          }}
+        >
           {files.map((doc) => (
             <div
               key={doc.id}
@@ -219,17 +232,27 @@ export default function DocumentsSection({
                 fontSize: "0.875rem",
               }}
             >
-              <span style={{ color: "var(--text-muted)", fontSize: "1rem" }}>📄</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "1rem" }}>
+                📄
+              </span>
               <a
                 href={doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ flex: 1, color: "var(--text-link)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                style={{
+                  flex: 1,
+                  color: "var(--text-link)",
+                  textDecoration: "none",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
               >
                 {doc.caption || doc.filename}
               </a>
               {canEdit && (
                 <button
+                  type="button"
                   onClick={() => handleDelete(doc.id)}
                   disabled={deletingId === doc.id}
                   style={{
@@ -258,7 +281,9 @@ export default function DocumentsSection({
               padding: "0.4rem 1rem",
               borderRadius: "var(--radius-md)",
               border: "1px solid var(--cream-border)",
-              background: uploading ? "var(--surface-base)" : "var(--surface-raised)",
+              background: uploading
+                ? "var(--surface-base)"
+                : "var(--surface-raised)",
               color: "var(--text-secondary)",
               fontSize: "0.875rem",
               fontWeight: 500,
@@ -277,7 +302,13 @@ export default function DocumentsSection({
             />
           </label>
           {uploadError && (
-            <p style={{ color: "var(--color-error)", fontSize: "0.8125rem", marginTop: "0.5rem" }}>
+            <p
+              style={{
+                color: "var(--color-error)",
+                fontSize: "0.8125rem",
+                marginTop: "0.5rem",
+              }}
+            >
               {uploadError}
             </p>
           )}
@@ -285,7 +316,9 @@ export default function DocumentsSection({
       )}
 
       {docs.length === 0 && !canEdit && (
-        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>No documents yet.</p>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          No documents yet.
+        </p>
       )}
     </section>
   );

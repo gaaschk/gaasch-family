@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
+import { Suspense, useState } from "react";
 
 function LoginForm() {
   const router = useRouter();
@@ -41,7 +41,10 @@ function LoginForm() {
   const errorParam = searchParams.get("error");
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+    >
       {(error ?? errorParam) && (
         <p
           role="alert"
@@ -49,20 +52,28 @@ function LoginForm() {
             color: "var(--color-error)",
             fontSize: "0.875rem",
             padding: "0.75rem 1rem",
-            background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
+            background:
+              "color-mix(in srgb, var(--color-error) 8%, transparent)",
             borderRadius: "var(--radius-md)",
-            border: "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
           }}
         >
           {error ?? "Authentication failed. Please try again."}
         </p>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}
+      >
         <label
           htmlFor="email"
           className="font-ui"
-          style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}
+          style={{
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            color: "var(--text-secondary)",
+          }}
         >
           Email
         </label>
@@ -83,16 +94,26 @@ function LoginForm() {
             outline: "none",
             transition: "border-color var(--duration-short) var(--ease-out)",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+          onFocus={(e) => {
+            e.target.style.borderColor = "var(--forest)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--cream-border)";
+          }}
         />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}
+      >
         <label
           htmlFor="password"
           className="font-ui"
-          style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}
+          style={{
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            color: "var(--text-secondary)",
+          }}
         >
           Password
         </label>
@@ -113,8 +134,12 @@ function LoginForm() {
             outline: "none",
             transition: "border-color var(--duration-short) var(--ease-out)",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+          onFocus={(e) => {
+            e.target.style.borderColor = "var(--forest)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--cream-border)";
+          }}
         />
       </div>
 
@@ -166,7 +191,12 @@ export default function LoginPage() {
         <div style={{ marginBottom: "2rem" }}>
           <h1
             className="font-display"
-            style={{ fontSize: "1.875rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.5rem" }}
+            style={{
+              fontSize: "1.875rem",
+              fontWeight: 600,
+              color: "var(--brown-text)",
+              marginBottom: "0.5rem",
+            }}
           >
             Sign in to Heirloom
           </h1>

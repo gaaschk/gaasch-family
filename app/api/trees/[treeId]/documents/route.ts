@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
-import { presignGet, getObjectBuffer } from "@/src/lib/s3";
+import { getObjectBuffer, presignGet } from "@/src/lib/s3";
 
 // ---------- GET: list documents for a tree (optionally filtered by personId) ----------
 export async function GET(
@@ -45,24 +45,32 @@ export async function POST(
     return apiError("INVALID_BODY", "Invalid request body");
   }
 
-  const { s3Key, filename, mimeType, sizeBytes, personId, category, caption } = body as {
-    s3Key?: string;
-    filename?: string;
-    mimeType?: string;
-    sizeBytes?: number;
-    personId?: string | null;
-    category?: string;
-    caption?: string | null;
-  };
+  const { s3Key, filename, mimeType, sizeBytes, personId, category, caption } =
+    body as {
+      s3Key?: string;
+      filename?: string;
+      mimeType?: string;
+      sizeBytes?: number;
+      personId?: string | null;
+      category?: string;
+      caption?: string | null;
+    };
 
-  if (!s3Key || typeof s3Key !== "string") return apiError("MISSING_S3_KEY", "s3Key is required");
+  if (!s3Key || typeof s3Key !== "string")
+    return apiError("MISSING_S3_KEY", "s3Key is required");
   if (!filename) return apiError("MISSING_FILENAME", "filename is required");
   if (!mimeType) return apiError("MISSING_MIME", "mimeType is required");
-  if (!sizeBytes || sizeBytes <= 0) return apiError("INVALID_SIZE", "sizeBytes must be > 0");
+  if (!sizeBytes || sizeBytes <= 0)
+    return apiError("INVALID_SIZE", "sizeBytes must be > 0");
 
   // Cross-tenant guard: ensure the key belongs to this tree
   if (!s3Key.startsWith(`trees/${auth.tree.id}/`)) {
-    return apiError("FORBIDDEN", "s3Key does not belong to this tree", undefined, 403);
+    return apiError(
+      "FORBIDDEN",
+      "s3Key does not belong to this tree",
+      undefined,
+      403,
+    );
   }
 
   // Validate personId belongs to this tree if provided
@@ -71,10 +79,17 @@ export async function POST(
       where: { id: personId, treeId: auth.tree.id },
       select: { id: true },
     });
-    if (!exists) return apiError("PERSON_NOT_FOUND", "Person not found in this tree", undefined, 404);
+    if (!exists)
+      return apiError(
+        "PERSON_NOT_FOUND",
+        "Person not found in this tree",
+        undefined,
+        404,
+      );
   }
 
-  const docCategory = category ?? (mimeType.startsWith("image/") ? "photo" : "other");
+  const docCategory =
+    category ?? (mimeType.startsWith("image/") ? "photo" : "other");
 
   const doc = await prisma.document.create({
     data: {
@@ -98,7 +113,12 @@ export async function POST(
       action: "create",
       entityType: "document",
       entityId: doc.id,
-      newJson: JSON.stringify({ filename, mimeType, sizeBytes, category: docCategory }),
+      newJson: JSON.stringify({
+        filename,
+        mimeType,
+        sizeBytes,
+        category: docCategory,
+      }),
     },
   });
 
@@ -172,7 +192,7 @@ async function detectPortrait(
   const data = await res.json();
   const text: string = data?.content?.[0]?.text ?? "";
   const score = parseFloat(text.match(/[\d.]+/)?.[0] ?? "0");
-  if (isNaN(score)) return;
+  if (Number.isNaN(score)) return;
 
   const isPortrait = score >= 0.6;
 

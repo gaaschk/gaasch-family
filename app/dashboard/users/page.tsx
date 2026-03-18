@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import { requireRole } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { NextResponse } from "next/server";
 import UserApprovalList from "./UserApprovalList";
 
 export default async function UsersAdminPage() {

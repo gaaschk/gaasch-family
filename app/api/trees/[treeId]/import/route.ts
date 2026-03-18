@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
+import { type NextRequest, NextResponse } from "next/server";
 import { parse as parseGedcom } from "parse-gedcom";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
+import { prisma } from "@/src/lib/prisma";
 
 type GedNode = {
   type: string;
@@ -57,7 +57,10 @@ export async function POST(
   try {
     root = parseGedcom(text) as GedRoot;
   } catch {
-    return apiError("PARSE_ERROR", "Could not parse GEDCOM file — ensure it is a valid .ged file");
+    return apiError(
+      "PARSE_ERROR",
+      "Could not parse GEDCOM file — ensure it is a valid .ged file",
+    );
   }
 
   const nodes = root.children ?? [];
@@ -96,17 +99,25 @@ export async function POST(
       }
     }
 
-    const gender = val(indi, "SEX")?.toUpperCase() === "M" ? "M"
-      : val(indi, "SEX")?.toUpperCase() === "F" ? "F" : null;
+    const gender =
+      val(indi, "SEX")?.toUpperCase() === "M"
+        ? "M"
+        : val(indi, "SEX")?.toUpperCase() === "F"
+          ? "F"
+          : null;
 
     const birthDate = deepVal(indi, "BIRT", "DATE");
     const birthPlace = deepVal(indi, "BIRT", "PLAC");
-    const deathDate = child(indi, "DEAT") ? deepVal(indi, "DEAT", "DATE") : null;
-    const deathPlace = child(indi, "DEAT") ? deepVal(indi, "DEAT", "PLAC") : null;
+    const deathDate = child(indi, "DEAT")
+      ? deepVal(indi, "DEAT", "DATE")
+      : null;
+    const deathPlace = child(indi, "DEAT")
+      ? deepVal(indi, "DEAT", "PLAC")
+      : null;
     const occupation = val(indi, "OCCU");
     const notes = val(indi, "NOTE");
 
-    let person;
+    let person: { id: string } | null = null;
     if (gedcomId) {
       const existing = await prisma.person.findUnique({
         where: { treeId_gedcomId: { treeId: auth.tree.id, gedcomId } },
@@ -114,17 +125,50 @@ export async function POST(
       if (existing) {
         person = await prisma.person.update({
           where: { id: existing.id },
-          data: { firstName, lastName, gender, birthDate, birthPlace, deathDate, deathPlace, occupation, notes },
+          data: {
+            firstName,
+            lastName,
+            gender,
+            birthDate,
+            birthPlace,
+            deathDate,
+            deathPlace,
+            occupation,
+            notes,
+          },
         });
       } else {
         person = await prisma.person.create({
-          data: { treeId: auth.tree.id, gedcomId, firstName, lastName, gender, birthDate, birthPlace, deathDate, deathPlace, occupation, notes },
+          data: {
+            treeId: auth.tree.id,
+            gedcomId,
+            firstName,
+            lastName,
+            gender,
+            birthDate,
+            birthPlace,
+            deathDate,
+            deathPlace,
+            occupation,
+            notes,
+          },
         });
       }
       gedcomIdToPersonId.set(gedcomId, person.id);
     } else {
       person = await prisma.person.create({
-        data: { treeId: auth.tree.id, firstName, lastName, gender, birthDate, birthPlace, deathDate, deathPlace, occupation, notes },
+        data: {
+          treeId: auth.tree.id,
+          firstName,
+          lastName,
+          gender,
+          birthDate,
+          birthPlace,
+          deathDate,
+          deathPlace,
+          occupation,
+          notes,
+        },
       });
     }
   }
@@ -139,15 +183,19 @@ export async function POST(
       .filter((n) => n.type === "CHIL")
       .map((n) => n.value?.replace(/@/g, "").trim() ?? "");
 
-    const husbandId = husbRef ? gedcomIdToPersonId.get(husbRef) ?? null : null;
-    const wifeId = wifeRef ? gedcomIdToPersonId.get(wifeRef) ?? null : null;
+    const husbandId = husbRef
+      ? (gedcomIdToPersonId.get(husbRef) ?? null)
+      : null;
+    const wifeId = wifeRef ? (gedcomIdToPersonId.get(wifeRef) ?? null) : null;
     const marriageDate = deepVal(fam, "MARR", "DATE");
     const marriagePlace = deepVal(fam, "MARR", "PLAC");
 
-    let family;
+    let family: { id: string } | null = null;
     if (famGedcomId) {
       const existing = await prisma.family.findUnique({
-        where: { treeId_gedcomId: { treeId: auth.tree.id, gedcomId: famGedcomId } },
+        where: {
+          treeId_gedcomId: { treeId: auth.tree.id, gedcomId: famGedcomId },
+        },
       });
       if (existing) {
         family = await prisma.family.update({
@@ -156,12 +204,25 @@ export async function POST(
         });
       } else {
         family = await prisma.family.create({
-          data: { treeId: auth.tree.id, gedcomId: famGedcomId, husbandId, wifeId, marriageDate, marriagePlace },
+          data: {
+            treeId: auth.tree.id,
+            gedcomId: famGedcomId,
+            husbandId,
+            wifeId,
+            marriageDate,
+            marriagePlace,
+          },
         });
       }
     } else {
       family = await prisma.family.create({
-        data: { treeId: auth.tree.id, husbandId, wifeId, marriageDate, marriagePlace },
+        data: {
+          treeId: auth.tree.id,
+          husbandId,
+          wifeId,
+          marriageDate,
+          marriagePlace,
+        },
       });
     }
 
@@ -169,7 +230,9 @@ export async function POST(
       const childPersonId = gedcomIdToPersonId.get(childRef);
       if (!childPersonId) continue;
       await prisma.familyChild.upsert({
-        where: { familyId_personId: { familyId: family.id, personId: childPersonId } },
+        where: {
+          familyId_personId: { familyId: family.id, personId: childPersonId },
+        },
         update: {},
         create: { familyId: family.id, personId: childPersonId },
       });
@@ -183,7 +246,10 @@ export async function POST(
       userId: auth.userId,
       action: "import",
       entityType: "person",
-      newJson: JSON.stringify({ gedcomPersons: indis.length, families: fams.length }),
+      newJson: JSON.stringify({
+        gedcomPersons: indis.length,
+        families: fams.length,
+      }),
     },
   });
 

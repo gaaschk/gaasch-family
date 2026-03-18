@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
-import { presignPut, BUCKET } from "@/src/lib/s3";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
+import { BUCKET, presignPut } from "@/src/lib/s3";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -23,7 +23,12 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   if (!BUCKET) {
-    return apiError("S3_NOT_CONFIGURED", "Document storage is not configured on this server", undefined, 503);
+    return apiError(
+      "S3_NOT_CONFIGURED",
+      "Document storage is not configured on this server",
+      undefined,
+      503,
+    );
   }
 
   let body: unknown;
@@ -43,10 +48,21 @@ export async function POST(
     return apiError("MISSING_FILENAME", "filename is required");
   }
   if (!mimeType || !ALLOWED_MIME.has(mimeType)) {
-    return apiError("INVALID_MIME", `Allowed types: ${[...ALLOWED_MIME].join(", ")}`);
+    return apiError(
+      "INVALID_MIME",
+      `Allowed types: ${[...ALLOWED_MIME].join(", ")}`,
+    );
   }
-  if (!sizeBytes || typeof sizeBytes !== "number" || sizeBytes <= 0 || sizeBytes > MAX_BYTES) {
-    return apiError("INVALID_SIZE", `File must be between 1 byte and ${MAX_BYTES / 1024 / 1024} MB`);
+  if (
+    !sizeBytes ||
+    typeof sizeBytes !== "number" ||
+    sizeBytes <= 0 ||
+    sizeBytes > MAX_BYTES
+  ) {
+    return apiError(
+      "INVALID_SIZE",
+      `File must be between 1 byte and ${MAX_BYTES / 1024 / 1024} MB`,
+    );
   }
 
   const ext = filename.split(".").pop()?.toLowerCase() ?? "bin";

@@ -20,10 +20,13 @@ export default function PersonActions({
   const abortRef = useRef<AbortController | null>(null);
 
   async function handleDelete() {
-    if (!confirm("Permanently delete this person? This cannot be undone.")) return;
+    if (!confirm("Permanently delete this person? This cannot be undone."))
+      return;
     setDeleting(true);
     try {
-      await fetch(`/api/trees/${treeId}/people/${personId}`, { method: "DELETE" });
+      await fetch(`/api/trees/${treeId}/people/${personId}`, {
+        method: "DELETE",
+      });
       router.push(`/trees/${treeSlug}`);
       router.refresh();
     } finally {
@@ -46,15 +49,19 @@ export default function PersonActions({
         return;
       }
       // Consume the stream (narrative is saved server-side when complete)
-      const reader = res.body!.getReader();
-      while (true) {
-        const { done } = await reader.read();
-        if (done) break;
+      const reader = res.body?.getReader();
+      if (reader) {
+        while (true) {
+          const { done } = await reader.read();
+          if (done) break;
+        }
       }
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
-        setGenError("Generation failed. Check that an API key is configured in tree settings.");
+        setGenError(
+          "Generation failed. Check that an API key is configured in tree settings.",
+        );
       }
     } finally {
       setGenerating(false);
@@ -71,9 +78,24 @@ export default function PersonActions({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: "0.5rem",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
+        }}
+      >
         <button
+          type="button"
           onClick={handleGenerateNarrative}
           disabled={generating}
           title="Generate a biographical narrative using AI"
@@ -100,11 +122,13 @@ export default function PersonActions({
           Edit
         </Link>
         <button
+          type="button"
           onClick={handleDelete}
           disabled={deleting}
           style={{
             ...btnBase,
-            border: "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
             background: "transparent",
             color: "var(--color-error)",
             cursor: deleting ? "not-allowed" : "pointer",
@@ -115,7 +139,14 @@ export default function PersonActions({
         </button>
       </div>
       {genError && (
-        <p style={{ fontSize: "0.8125rem", color: "var(--color-error)", maxWidth: "20rem", textAlign: "right" }}>
+        <p
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--color-error)",
+            maxWidth: "20rem",
+            textAlign: "right",
+          }}
+        >
           {genError}
         </p>
       )}

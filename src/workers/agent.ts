@@ -7,9 +7,9 @@
  *  - research        Propose new relatives via WikiTree name search
  */
 
-import { Worker, Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
-import { AgentJobData } from "../lib/queue";
+import { type Job, Worker } from "bullmq";
+import type { AgentJobData } from "../lib/queue";
 
 const prisma = new PrismaClient();
 
@@ -19,7 +19,7 @@ function makeConnectionOpts() {
     const u = new URL(url);
     return {
       host: u.hostname,
-      port: parseInt(u.port || "6379"),
+      port: parseInt(u.port || "6379", 10),
       username: u.username || undefined,
       password: u.password || undefined,
       tls: u.protocol === "rediss:" ? {} : undefined,
@@ -34,11 +34,15 @@ const connectionOpts = makeConnectionOpts();
 // ─── Geocode ──────────────────────────────────────────────────────
 type GeocodeInput = { personIds?: string[] }; // omit = all in tree
 
-async function geocodePlace(place: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodePlace(
+  place: string,
+): Promise<{ lat: number; lng: number } | null> {
   const encoded = encodeURIComponent(place);
   const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "richmond-family-history/1.0 (family-history-app)" },
+    headers: {
+      "User-Agent": "richmond-family-history/1.0 (family-history-app)",
+    },
   });
   if (!res.ok) return null;
   const data: Array<{ lat: string; lon: string }> = await res.json();
@@ -46,7 +50,11 @@ async function geocodePlace(place: string): Promise<{ lat: number; lng: number }
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-async function runGeocode(agentTaskId: string, treeId: string, input: GeocodeInput) {
+async function runGeocode(
+  _agentTaskId: string,
+  treeId: string,
+  input: GeocodeInput,
+) {
   const where = {
     treeId,
     ...(input.personIds?.length ? { id: { in: input.personIds } } : {}),
@@ -60,12 +68,23 @@ async function runGeocode(agentTaskId: string, treeId: string, input: GeocodeInp
         { deathPlace: { not: null }, deathLat: null },
       ],
     },
-    select: { id: true, birthPlace: true, birthLat: true, deathPlace: true, deathLat: true },
+    select: {
+      id: true,
+      birthPlace: true,
+      birthLat: true,
+      deathPlace: true,
+      deathLat: true,
+    },
   });
 
   let geocoded = 0;
   for (const person of people) {
-    const updates: { birthLat?: number; birthLng?: number; deathLat?: number; deathLng?: number } = {};
+    const updates: {
+      birthLat?: number;
+      birthLng?: number;
+      deathLat?: number;
+      deathLng?: number;
+    } = {};
 
     if (person.birthPlace && person.birthLat === null) {
       // Rate-limit Nominatim: 1 req/s
@@ -120,13 +139,21 @@ async function generateNarrativeForPerson(
       husbandInFamilies: {
         include: {
           wife: { select: { firstName: true, lastName: true } },
-          children: { include: { person: { select: { firstName: true, lastName: true } } } },
+          children: {
+            include: {
+              person: { select: { firstName: true, lastName: true } },
+            },
+          },
         },
       },
       wifeInFamilies: {
         include: {
           husband: { select: { firstName: true, lastName: true } },
-          children: { include: { person: { select: { firstName: true, lastName: true } } } },
+          children: {
+            include: {
+              person: { select: { firstName: true, lastName: true } },
+            },
+          },
         },
       },
     },
@@ -134,28 +161,48 @@ async function generateNarrativeForPerson(
 
   if (!person) return false;
 
-  const name = [person.firstName, person.lastName].filter(Boolean).join(" ") || "this person";
+  const name =
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    "this person";
   const facts: string[] = [];
-  if (person.gender) facts.push(`Gender: ${person.gender === "M" ? "Male" : person.gender === "F" ? "Female" : "Other"}`);
-  if (person.birthDate) facts.push(`Born: ${[person.birthDate, person.birthPlace].filter(Boolean).join(", ")}`);
-  if (person.deathDate) facts.push(`Died: ${[person.deathDate, person.deathPlace].filter(Boolean).join(", ")}`);
+  if (person.gender)
+    facts.push(
+      `Gender: ${person.gender === "M" ? "Male" : person.gender === "F" ? "Female" : "Other"}`,
+    );
+  if (person.birthDate)
+    facts.push(
+      `Born: ${[person.birthDate, person.birthPlace].filter(Boolean).join(", ")}`,
+    );
+  if (person.deathDate)
+    facts.push(
+      `Died: ${[person.deathDate, person.deathPlace].filter(Boolean).join(", ")}`,
+    );
   if (person.occupation) facts.push(`Occupation: ${person.occupation}`);
   if (person.notes) facts.push(`Notes: ${person.notes}`);
 
   const parents = person.childInFamilies.flatMap((fc) =>
-    [fc.family.husband, fc.family.wife].filter(Boolean).map(
-      (p) => [p!.firstName, p!.lastName].filter(Boolean).join(" "),
-    ),
+    [fc.family.husband, fc.family.wife]
+      .filter(Boolean)
+      .map((p) => [p?.firstName, p?.lastName].filter(Boolean).join(" ")),
   );
   if (parents.length) facts.push(`Parents: ${parents.join(", ")}`);
 
-  const spouses = [...person.husbandInFamilies.map((f) => f.wife), ...person.wifeInFamilies.map((f) => f.husband)]
+  const spouses = [
+    ...person.husbandInFamilies.map((f) => f.wife),
+    ...person.wifeInFamilies.map((f) => f.husband),
+  ]
     .filter(Boolean)
-    .map((p) => [p!.firstName, p!.lastName].filter(Boolean).join(" "));
+    .map((p) => [p?.firstName, p?.lastName].filter(Boolean).join(" "));
   if (spouses.length) facts.push(`Spouse(s): ${spouses.join(", ")}`);
 
-  const children = [...person.husbandInFamilies, ...person.wifeInFamilies]
-    .flatMap((f) => f.children.map((c) => [c.person.firstName, c.person.lastName].filter(Boolean).join(" ")));
+  const children = [
+    ...person.husbandInFamilies,
+    ...person.wifeInFamilies,
+  ].flatMap((f) =>
+    f.children.map((c) =>
+      [c.person.firstName, c.person.lastName].filter(Boolean).join(" "),
+    ),
+  );
   if (children.length) facts.push(`Children: ${children.join(", ")}`);
 
   if (!facts.length) return false;
@@ -199,13 +246,17 @@ Guidelines:
 }
 
 async function runNarrativeBatch(
-  agentTaskId: string,
+  _agentTaskId: string,
   treeId: string,
   input: NarrativeBatchInput,
 ) {
   const [apiKeySetting, modelSetting] = await Promise.all([
-    prisma.setting.findUnique({ where: { treeId_key: { treeId, key: "anthropic_api_key" } } }),
-    prisma.setting.findUnique({ where: { treeId_key: { treeId, key: "anthropic_model" } } }),
+    prisma.setting.findUnique({
+      where: { treeId_key: { treeId, key: "anthropic_api_key" } },
+    }),
+    prisma.setting.findUnique({
+      where: { treeId_key: { treeId, key: "anthropic_model" } },
+    }),
   ]);
 
   if (!apiKeySetting?.value) {
@@ -219,7 +270,12 @@ async function runNarrativeBatch(
   for (const personId of input.personIds) {
     // Small delay between requests to avoid rate limits
     if (succeeded + failed > 0) await new Promise((r) => setTimeout(r, 500));
-    const ok = await generateNarrativeForPerson(personId, treeId, apiKeySetting.value, model).catch(() => false);
+    const ok = await generateNarrativeForPerson(
+      personId,
+      treeId,
+      apiKeySetting.value,
+      model,
+    ).catch(() => false);
     if (ok) succeeded++;
     else failed++;
   }
@@ -230,10 +286,21 @@ async function runNarrativeBatch(
 // ─── Research ─────────────────────────────────────────────────────
 type ResearchInput = { personId: string };
 
-async function runResearch(agentTaskId: string, treeId: string, input: ResearchInput) {
+async function runResearch(
+  agentTaskId: string,
+  treeId: string,
+  input: ResearchInput,
+) {
   const person = await prisma.person.findFirst({
     where: { id: input.personId, treeId },
-    select: { id: true, firstName: true, lastName: true, birthDate: true, birthPlace: true, gender: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      birthDate: true,
+      birthPlace: true,
+      gender: true,
+    },
   });
 
   if (!person) throw new Error("Person not found");
@@ -247,7 +314,8 @@ async function runResearch(agentTaskId: string, treeId: string, input: ResearchI
     q: name,
     limit: "5",
     format: "json",
-    fields: "Id,Name,FirstName,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,Spouses,Children",
+    fields:
+      "Id,Name,FirstName,LastNameAtBirth,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,Spouses,Children",
   });
 
   const wtRes = await fetch(`https://api.wikitree.com/api/?${params}`, {
@@ -285,7 +353,9 @@ async function runResearch(agentTaskId: string, treeId: string, input: ResearchI
     if (alreadyExists) continue;
 
     await prisma.proposedPerson.upsert({
-      where: { treeId_source_externalId: { treeId, source: "wikitree", externalId } },
+      where: {
+        treeId_source_externalId: { treeId, source: "wikitree", externalId },
+      },
       update: {},
       create: {
         treeId,
@@ -307,7 +377,10 @@ async function runResearch(agentTaskId: string, treeId: string, input: ResearchI
     proposed++;
   }
 
-  return { proposed, message: `Found ${results.length} WikiTree results, proposed ${proposed} new people` };
+  return {
+    proposed,
+    message: `Found ${results.length} WikiTree results, proposed ${proposed} new people`,
+  };
 }
 
 // ─── Worker ───────────────────────────────────────────────────────
@@ -329,7 +402,11 @@ async function processJob(job: Job<AgentJobData>) {
         result = await runGeocode(agentTaskId, treeId, input as GeocodeInput);
         break;
       case "narrative-batch":
-        result = await runNarrativeBatch(agentTaskId, treeId, input as NarrativeBatchInput);
+        result = await runNarrativeBatch(
+          agentTaskId,
+          treeId,
+          input as NarrativeBatchInput,
+        );
         break;
       case "research":
         result = await runResearch(agentTaskId, treeId, input as ResearchInput);
@@ -365,7 +442,10 @@ export function startWorker() {
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[worker] Job ${job?.id} (${job?.data?.taskType}) failed:`, err.message);
+    console.error(
+      `[worker] Job ${job?.id} (${job?.data?.taskType}) failed:`,
+      err.message,
+    );
   });
 
   console.log("[worker] Agent worker started, waiting for jobs…");

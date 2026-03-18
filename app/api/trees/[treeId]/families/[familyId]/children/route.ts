@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 type Params = { treeId: string; familyId: string };
 
@@ -30,16 +30,30 @@ export async function POST(
   const person = await prisma.person.findFirst({
     where: { id: personId, treeId: auth.tree.id },
   });
-  if (!person) return apiError("NOT_FOUND", "Person not found in this tree", undefined, 404);
+  if (!person)
+    return apiError(
+      "NOT_FOUND",
+      "Person not found in this tree",
+      undefined,
+      404,
+    );
 
   const existing = await prisma.familyChild.findUnique({
     where: { familyId_personId: { familyId, personId } },
   });
-  if (existing) return apiError("ALREADY_EXISTS", "Person is already a child in this family", undefined, 409);
+  if (existing)
+    return apiError(
+      "ALREADY_EXISTS",
+      "Person is already a child in this family",
+      undefined,
+      409,
+    );
 
   const child = await prisma.familyChild.create({
     data: { familyId, personId },
-    include: { person: { select: { id: true, firstName: true, lastName: true } } },
+    include: {
+      person: { select: { id: true, firstName: true, lastName: true } },
+    },
   });
 
   return NextResponse.json(child, { status: 201 });
@@ -55,13 +69,22 @@ export async function DELETE(
 
   const url = new URL(req.url);
   const personId = url.searchParams.get("personId");
-  if (!personId) return apiError("MISSING_FIELDS", "personId query param is required");
+  if (!personId)
+    return apiError("MISSING_FIELDS", "personId query param is required");
 
   const existing = await prisma.familyChild.findFirst({
     where: { familyId, personId, family: { treeId: auth.tree.id } },
   });
-  if (!existing) return apiError("NOT_FOUND", "Child relationship not found", undefined, 404);
+  if (!existing)
+    return apiError(
+      "NOT_FOUND",
+      "Child relationship not found",
+      undefined,
+      404,
+    );
 
-  await prisma.familyChild.delete({ where: { familyId_personId: { familyId, personId } } });
+  await prisma.familyChild.delete({
+    where: { familyId_personId: { familyId, personId } },
+  });
   return new NextResponse(null, { status: 204 });
 }

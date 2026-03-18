@@ -256,10 +256,22 @@ function TreeCard({
         transition: "box-shadow var(--duration-short) var(--ease-out)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "0.5rem",
+        }}
+      >
         <h3
           className="font-display"
-          style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--brown-text)", lineHeight: 1.3 }}
+          style={{
+            fontSize: "1.125rem",
+            fontWeight: 600,
+            color: "var(--brown-text)",
+            lineHeight: 1.3,
+          }}
         >
           {name}
         </h3>
@@ -296,12 +308,30 @@ function TreeCard({
         </p>
       )}
 
-      <div style={{ display: "flex", gap: "1rem", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-        <span>{peopleCount} {peopleCount === 1 ? "person" : "people"}</span>
-        <span>{memberCount} {memberCount === 1 ? "member" : "members"}</span>
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          fontSize: "0.8125rem",
+          color: "var(--text-muted)",
+        }}
+      >
+        <span>
+          {peopleCount} {peopleCount === 1 ? "person" : "people"}
+        </span>
+        <span>
+          {memberCount} {memberCount === 1 ? "member" : "members"}
+        </span>
       </div>
 
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "auto", paddingTop: "0.25rem" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginTop: "auto",
+          paddingTop: "0.25rem",
+        }}
+      >
         <Link
           href={`/trees/${slug}`}
           style={{

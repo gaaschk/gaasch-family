@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccessOrToken } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccessOrToken, apiError } from "@/src/lib/auth";
 
 type Params = { treeId: string; personId: string };
 
@@ -29,13 +29,21 @@ export async function POST(
         husbandInFamilies: {
           include: {
             wife: { select: { firstName: true, lastName: true } },
-            children: { include: { person: { select: { firstName: true, lastName: true } } } },
+            children: {
+              include: {
+                person: { select: { firstName: true, lastName: true } },
+              },
+            },
           },
         },
         wifeInFamilies: {
           include: {
             husband: { select: { firstName: true, lastName: true } },
-            children: { include: { person: { select: { firstName: true, lastName: true } } } },
+            children: {
+              include: {
+                person: { select: { firstName: true, lastName: true } },
+              },
+            },
           },
         },
       },
@@ -59,30 +67,50 @@ export async function POST(
   }
 
   const model = modelSetting?.value || "claude-haiku-4-5-20251001";
-  const name = [person.firstName, person.lastName].filter(Boolean).join(" ") || "this person";
+  const name =
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    "this person";
 
   // Build facts context
   const facts: string[] = [];
-  if (person.gender) facts.push(`Gender: ${person.gender === "M" ? "Male" : person.gender === "F" ? "Female" : "Other"}`);
-  if (person.birthDate) facts.push(`Born: ${[person.birthDate, person.birthPlace].filter(Boolean).join(", ")}`);
-  if (person.deathDate) facts.push(`Died: ${[person.deathDate, person.deathPlace].filter(Boolean).join(", ")}`);
+  if (person.gender)
+    facts.push(
+      `Gender: ${person.gender === "M" ? "Male" : person.gender === "F" ? "Female" : "Other"}`,
+    );
+  if (person.birthDate)
+    facts.push(
+      `Born: ${[person.birthDate, person.birthPlace].filter(Boolean).join(", ")}`,
+    );
+  if (person.deathDate)
+    facts.push(
+      `Died: ${[person.deathDate, person.deathPlace].filter(Boolean).join(", ")}`,
+    );
   if (person.occupation) facts.push(`Occupation: ${person.occupation}`);
   if (person.notes) facts.push(`Notes: ${person.notes}`);
 
   const parents = person.childInFamilies.flatMap((fc) => {
-    return [fc.family.husband, fc.family.wife].filter(Boolean).map(
-      (p) => [p!.firstName, p!.lastName].filter(Boolean).join(" "),
-    );
+    return [fc.family.husband, fc.family.wife]
+      .filter(Boolean)
+      .map((p) => [p?.firstName, p?.lastName].filter(Boolean).join(" "));
   });
   if (parents.length) facts.push(`Parents: ${parents.join(", ")}`);
 
-  const spouses = [...person.husbandInFamilies.map((f) => f.wife), ...person.wifeInFamilies.map((f) => f.husband)]
+  const spouses = [
+    ...person.husbandInFamilies.map((f) => f.wife),
+    ...person.wifeInFamilies.map((f) => f.husband),
+  ]
     .filter(Boolean)
-    .map((p) => [p!.firstName, p!.lastName].filter(Boolean).join(" "));
+    .map((p) => [p?.firstName, p?.lastName].filter(Boolean).join(" "));
   if (spouses.length) facts.push(`Spouse(s): ${spouses.join(", ")}`);
 
-  const children = [...person.husbandInFamilies, ...person.wifeInFamilies]
-    .flatMap((f) => f.children.map((c) => [c.person.firstName, c.person.lastName].filter(Boolean).join(" ")));
+  const children = [
+    ...person.husbandInFamilies,
+    ...person.wifeInFamilies,
+  ].flatMap((f) =>
+    f.children.map((c) =>
+      [c.person.firstName, c.person.lastName].filter(Boolean).join(" "),
+    ),
+  );
   if (children.length) facts.push(`Children: ${children.join(", ")}`);
 
   const prompt = `You are writing a biographical narrative for a family history record.
@@ -117,7 +145,12 @@ Guidelines:
 
   if (!anthropicRes.ok) {
     const errText = await anthropicRes.text();
-    return apiError("ANTHROPIC_ERROR", "Anthropic API error", errText, anthropicRes.status);
+    return apiError(
+      "ANTHROPIC_ERROR",
+      "Anthropic API error",
+      errText,
+      anthropicRes.status,
+    );
   }
 
   // Stream the response back and accumulate full text
@@ -126,8 +159,13 @@ Guidelines:
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = anthropicRes.body!.getReader();
+      const reader = anthropicRes.body?.getReader();
       const decoder = new TextDecoder();
+
+      if (!reader) {
+        controller.error(new Error("No response body from Anthropic"));
+        return;
+      }
 
       try {
         while (true) {
@@ -143,7 +181,10 @@ Guidelines:
             if (data === "[DONE]") continue;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta") {
+              if (
+                parsed.type === "content_block_delta" &&
+                parsed.delta?.type === "text_delta"
+              ) {
                 const text = parsed.delta.text ?? "";
                 accumulated += text;
                 controller.enqueue(encoder.encode(text));

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 export async function GET(
   req: NextRequest,
@@ -50,7 +50,12 @@ export async function GET(
     prisma.person.count({ where }),
   ]);
 
-  return NextResponse.json({ people, total, page, pages: Math.ceil(total / limit) });
+  return NextResponse.json({
+    people,
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  });
 }
 
 export async function POST(
@@ -69,12 +74,23 @@ export async function POST(
   }
 
   const {
-    firstName, lastName, maidenName, gender,
-    birthDate, birthPlace, deathDate, deathPlace, occupation, notes,
+    firstName,
+    lastName,
+    maidenName,
+    gender,
+    birthDate,
+    birthPlace,
+    deathDate,
+    deathPlace,
+    occupation,
+    notes,
   } = body as Record<string, string | undefined>;
 
   if (!firstName?.trim() && !lastName?.trim()) {
-    return apiError("MISSING_FIELDS", "At least a first or last name is required");
+    return apiError(
+      "MISSING_FIELDS",
+      "At least a first or last name is required",
+    );
   }
 
   const validGenders = ["M", "F", "U", undefined, null, ""];

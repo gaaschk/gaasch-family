@@ -15,7 +15,9 @@ export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
   const [info, setInfo] = useState<InviteInfo | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "error" | "accepting" | "done">("loading");
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "error" | "accepting" | "done"
+  >("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,7 +87,12 @@ export default function InvitePage() {
           <>
             <h1
               className="font-display"
-              style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.75rem" }}
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 600,
+                color: "var(--brown-text)",
+                marginBottom: "0.75rem",
+              }}
             >
               Invitation unavailable
             </h1>
@@ -112,22 +119,38 @@ export default function InvitePage() {
           <>
             <h1
               className="font-display"
-              style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.5rem" }}
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 600,
+                color: "var(--brown-text)",
+                marginBottom: "0.5rem",
+              }}
             >
               You&apos;ve been invited
             </h1>
             <p style={{ color: "var(--brown-muted)", marginBottom: "1.75rem" }}>
-              Join <strong style={{ color: "var(--brown-text)" }}>{info.treeName}</strong> as a{" "}
-              <strong style={{ color: "var(--brown-text)" }}>{cap(info.role)}</strong>.
+              Join{" "}
+              <strong style={{ color: "var(--brown-text)" }}>
+                {info.treeName}
+              </strong>{" "}
+              as a{" "}
+              <strong style={{ color: "var(--brown-text)" }}>
+                {cap(info.role)}
+              </strong>
+              .
             </p>
             <button
+              type="button"
               onClick={accept}
               disabled={status === "accepting"}
               style={{
                 width: "100%",
                 padding: "0.75rem",
                 borderRadius: "var(--radius-md)",
-                background: status === "accepting" ? "var(--brown-light)" : "var(--forest)",
+                background:
+                  status === "accepting"
+                    ? "var(--brown-light)"
+                    : "var(--forest)",
                 color: "#fff",
                 fontFamily: "var(--font-ui)",
                 fontWeight: 600,
@@ -141,7 +164,8 @@ export default function InvitePage() {
               {status === "accepting" ? "Accepting…" : "Accept invitation"}
             </button>
             <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-              Not you? Make sure you&apos;re signed in as <strong>{info.email}</strong>.
+              Not you? Make sure you&apos;re signed in as{" "}
+              <strong>{info.email}</strong>.
             </p>
           </>
         )}
@@ -150,7 +174,12 @@ export default function InvitePage() {
           <>
             <h1
               className="font-display"
-              style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--brown-text)", marginBottom: "0.5rem" }}
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 600,
+                color: "var(--brown-text)",
+                marginBottom: "0.5rem",
+              }}
             >
               Welcome!
             </h1>

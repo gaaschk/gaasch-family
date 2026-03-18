@@ -1,13 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 function esc(s: string | null | undefined): string {
   return (s ?? "").replace(/\n/g, " ").trim();
 }
 
 function gedId(id: string, prefix: string): string {
-  return `@${prefix}${id.replace(/[^A-Z0-9]/gi, "").slice(0, 18).toUpperCase()}@`;
+  return `@${prefix}${id
+    .replace(/[^A-Z0-9]/gi, "")
+    .slice(0, 18)
+    .toUpperCase()}@`;
 }
 
 export async function GET(
@@ -38,7 +41,12 @@ export async function GET(
   ]);
 
   if (people.length === 0) {
-    return apiError("EMPTY_TREE", "This tree has no people to export", undefined, 404);
+    return apiError(
+      "EMPTY_TREE",
+      "This tree has no people to export",
+      undefined,
+      404,
+    );
   }
 
   // Build stable GEDCOM IDs — prefer stored gedcomId, fall back to generated
@@ -61,11 +69,13 @@ export async function GET(
   lines.push("1 GEDC");
   lines.push("2 VERS 5.5.1");
   lines.push("1 CHAR UTF-8");
-  lines.push(`1 DATE ${new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }).toUpperCase()}`);
+  lines.push(
+    `1 DATE ${new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }).toUpperCase()}`,
+  );
 
   // Individuals
   for (const p of people) {
-    const gid = personGedId.get(p.id)!;
+    const gid = personGedId.get(p.id) ?? "";
     lines.push(`0 ${gid} INDI`);
 
     const givn = esc(p.firstName);
@@ -100,29 +110,29 @@ export async function GET(
 
     // Family links
     for (const hf of p.husbandInFamilies) {
-      lines.push(`1 FAMS ${familyGedId.get(hf.id)!}`);
+      lines.push(`1 FAMS ${familyGedId.get(hf.id) ?? ""}`);
     }
     for (const wf of p.wifeInFamilies) {
-      lines.push(`1 FAMS ${familyGedId.get(wf.id)!}`);
+      lines.push(`1 FAMS ${familyGedId.get(wf.id) ?? ""}`);
     }
     for (const cf of p.childInFamilies) {
-      lines.push(`1 FAMC ${familyGedId.get(cf.familyId)!}`);
+      lines.push(`1 FAMC ${familyGedId.get(cf.familyId) ?? ""}`);
     }
   }
 
   // Families
   for (const f of families) {
-    const gid = familyGedId.get(f.id)!;
+    const gid = familyGedId.get(f.id) ?? "";
     lines.push(`0 ${gid} FAM`);
-    if (f.husbandId) lines.push(`1 HUSB ${personGedId.get(f.husbandId)!}`);
-    if (f.wifeId) lines.push(`1 WIFE ${personGedId.get(f.wifeId)!}`);
+    if (f.husbandId) lines.push(`1 HUSB ${personGedId.get(f.husbandId) ?? ""}`);
+    if (f.wifeId) lines.push(`1 WIFE ${personGedId.get(f.wifeId) ?? ""}`);
     if (f.marriageDate || f.marriagePlace) {
       lines.push("1 MARR");
       if (f.marriageDate) lines.push(`2 DATE ${esc(f.marriageDate)}`);
       if (f.marriagePlace) lines.push(`2 PLAC ${esc(f.marriagePlace)}`);
     }
     for (const ch of f.children) {
-      lines.push(`1 CHIL ${personGedId.get(ch.personId)!}`);
+      lines.push(`1 CHIL ${personGedId.get(ch.personId) ?? ""}`);
     }
   }
 
@@ -137,7 +147,10 @@ export async function GET(
       userId: auth.userId,
       action: "export",
       entityType: "person",
-      newJson: JSON.stringify({ persons: people.length, families: families.length }),
+      newJson: JSON.stringify({
+        persons: people.length,
+        families: families.length,
+      }),
     },
   });
 

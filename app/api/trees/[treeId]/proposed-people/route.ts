@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
+import { prisma } from "@/src/lib/prisma";
 
 export async function GET(
   req: NextRequest,

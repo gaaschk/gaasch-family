@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 import { getAgentQueue } from "@/src/lib/queue";
 
 // GET: list all agent tasks for a tree
@@ -12,7 +12,7 @@ export async function GET(
   const auth = await requireTreeAccess(treeId, "editor");
   if (auth instanceof NextResponse) return auth;
 
-  const limit = parseInt(req.nextUrl.searchParams.get("limit") ?? "20");
+  const limit = parseInt(req.nextUrl.searchParams.get("limit") ?? "20", 10);
 
   const tasks = await prisma.agentTask.findMany({
     where: { treeId: auth.tree.id },
@@ -46,19 +46,26 @@ export async function POST(
 
   const validTypes = ["research", "geocode", "narrative-batch"];
   if (!taskType || !validTypes.includes(taskType)) {
-    return apiError("INVALID_TASK_TYPE", `taskType must be one of: ${validTypes.join(", ")}`);
+    return apiError(
+      "INVALID_TASK_TYPE",
+      `taskType must be one of: ${validTypes.join(", ")}`,
+    );
   }
 
   // Validate input per task type
   if (taskType === "research") {
     if (!input?.personId || typeof input.personId !== "string") {
-      return apiError("MISSING_PERSON_ID", "research tasks require input.personId");
+      return apiError(
+        "MISSING_PERSON_ID",
+        "research tasks require input.personId",
+      );
     }
     const exists = await prisma.person.findFirst({
       where: { id: input.personId as string, treeId: auth.tree.id },
       select: { id: true },
     });
-    if (!exists) return apiError("NOT_FOUND", "Person not found", undefined, 404);
+    if (!exists)
+      return apiError("NOT_FOUND", "Person not found", undefined, 404);
   }
 
   if (taskType === "narrative-batch") {
@@ -71,7 +78,10 @@ export async function POST(
         take: 100,
       });
       if (!people.length) {
-        return apiError("NOTHING_TO_DO", "All people in this tree already have narratives");
+        return apiError(
+          "NOTHING_TO_DO",
+          "All people in this tree already have narratives",
+        );
       }
       (input as Record<string, unknown>).personIds = people.map((p) => p.id);
     }

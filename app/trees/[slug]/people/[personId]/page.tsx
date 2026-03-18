@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
 import { presignGet } from "@/src/lib/s3";
-import PersonActions from "./PersonActions";
 import DocumentsSection from "./DocumentsSection";
+import PersonActions from "./PersonActions";
 
 type Params = { slug: string; personId: string };
 
@@ -30,7 +30,9 @@ export default async function PersonPage({
         include: {
           family: {
             include: {
-              husband: { select: { id: true, firstName: true, lastName: true } },
+              husband: {
+                select: { id: true, firstName: true, lastName: true },
+              },
               wife: { select: { id: true, firstName: true, lastName: true } },
             },
           },
@@ -40,7 +42,16 @@ export default async function PersonPage({
         include: {
           wife: { select: { id: true, firstName: true, lastName: true } },
           children: {
-            include: { person: { select: { id: true, firstName: true, lastName: true, gender: true } } },
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                },
+              },
+            },
           },
         },
       },
@@ -48,7 +59,16 @@ export default async function PersonPage({
         include: {
           husband: { select: { id: true, firstName: true, lastName: true } },
           children: {
-            include: { person: { select: { id: true, firstName: true, lastName: true, gender: true } } },
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  gender: true,
+                },
+              },
+            },
           },
         },
       },
@@ -58,10 +78,14 @@ export default async function PersonPage({
   if (!person) notFound();
 
   const canEdit = auth.treeRole === "editor" || auth.treeRole === "admin";
-  const fullName = [person.firstName, person.lastName].filter(Boolean).join(" ") || "(unnamed)";
+  const fullName =
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    "(unnamed)";
 
   // Presign portrait and all document URLs
-  const portraitUrl = person.portrait?.s3Key ? await presignGet(person.portrait.s3Key).catch(() => null) : null;
+  const portraitUrl = person.portrait?.s3Key
+    ? await presignGet(person.portrait.s3Key).catch(() => null)
+    : null;
   const docsWithUrls = await Promise.all(
     person.documents.map(async (d) => ({
       ...d,
@@ -71,10 +95,13 @@ export default async function PersonPage({
 
   const parents = person.childInFamilies.flatMap((fc) => {
     const fam = fc.family;
-    return [fam.husband, fam.wife].filter(Boolean) as typeof fam.husband[];
+    return [fam.husband, fam.wife].filter(Boolean) as (typeof fam.husband)[];
   });
 
-  const spouseFamilies = [...person.husbandInFamilies, ...person.wifeInFamilies];
+  const spouseFamilies = [
+    ...person.husbandInFamilies,
+    ...person.wifeInFamilies,
+  ];
 
   return (
     <main style={{ background: "var(--surface-base)", minHeight: "100vh" }}>
@@ -113,36 +140,101 @@ export default async function PersonPage({
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-            <Link href="/dashboard" style={{ color: "var(--text-link)", textDecoration: "none" }}>My Trees</Link>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted)",
+              marginBottom: "0.25rem",
+            }}
+          >
+            <Link
+              href="/dashboard"
+              style={{ color: "var(--text-link)", textDecoration: "none" }}
+            >
+              My Trees
+            </Link>
             {" / "}
-            <Link href={`/trees/${slug}`} style={{ color: "var(--text-link)", textDecoration: "none" }}>{auth.tree.name}</Link>
+            <Link
+              href={`/trees/${slug}`}
+              style={{ color: "var(--text-link)", textDecoration: "none" }}
+            >
+              {auth.tree.name}
+            </Link>
           </p>
           <h1
             className="font-display"
-            style={{ fontSize: "2rem", fontWeight: 600, color: "var(--brown-text)", lineHeight: 1.2 }}
+            style={{
+              fontSize: "2rem",
+              fontWeight: 600,
+              color: "var(--brown-text)",
+              lineHeight: 1.2,
+            }}
           >
             {fullName}
           </h1>
           {person.maidenName && person.maidenName !== person.lastName && (
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>née {person.maidenName}</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>
+              née {person.maidenName}
+            </p>
           )}
         </div>
         {canEdit && (
-          <PersonActions personId={person.id} treeId={auth.tree.id} treeSlug={slug} />
+          <PersonActions
+            personId={person.id}
+            treeId={auth.tree.id}
+            treeSlug={slug}
+          />
         )}
       </header>
 
-      <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "2rem 1.5rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
+      <div
+        style={{
+          maxWidth: "52rem",
+          margin: "0 auto",
+          padding: "2rem 1.5rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2rem",
+        }}
+      >
         {/* Vital facts */}
         <section>
           <SectionLabel>Facts</SectionLabel>
           <FactGrid>
-            {person.gender && <Fact label="Gender" value={person.gender === "M" ? "Male" : person.gender === "F" ? "Female" : "Other"} />}
-            {person.birthDate && <Fact label="Born" value={[person.birthDate, person.birthPlace].filter(Boolean).join(" · ")} />}
-            {person.deathDate && <Fact label="Died" value={[person.deathDate, person.deathPlace].filter(Boolean).join(" · ")} />}
-            {!person.deathDate && person.deathPlace && <Fact label="Death place" value={person.deathPlace} />}
-            {person.occupation && <Fact label="Occupation" value={person.occupation} />}
+            {person.gender && (
+              <Fact
+                label="Gender"
+                value={
+                  person.gender === "M"
+                    ? "Male"
+                    : person.gender === "F"
+                      ? "Female"
+                      : "Other"
+                }
+              />
+            )}
+            {person.birthDate && (
+              <Fact
+                label="Born"
+                value={[person.birthDate, person.birthPlace]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
+            {person.deathDate && (
+              <Fact
+                label="Died"
+                value={[person.deathDate, person.deathPlace]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
+            {!person.deathDate && person.deathPlace && (
+              <Fact label="Death place" value={person.deathPlace} />
+            )}
+            {person.occupation && (
+              <Fact label="Occupation" value={person.occupation} />
+            )}
           </FactGrid>
         </section>
 
@@ -150,14 +242,27 @@ export default async function PersonPage({
         {(parents.length > 0 || spouseFamilies.length > 0) && (
           <section>
             <SectionLabel>Family</SectionLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
               {parents.length > 0 && (
                 <div>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>Parents</p>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    {parents.map((p) => p && (
-                      <PersonChip key={p.id} person={p} slug={slug} />
-                    ))}
+                  <p
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: "var(--text-muted)",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Parents
+                  </p>
+                  <div
+                    style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                  >
+                    {parents.map(
+                      (p) =>
+                        p && <PersonChip key={p.id} person={p} slug={slug} />,
+                    )}
                   </div>
                 </div>
               )}
@@ -165,23 +270,50 @@ export default async function PersonPage({
                 const spouse = "wife" in fam ? fam.wife : fam.husband;
                 const children = fam.children;
                 return (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: spouse families have no stable id
                   <div key={i}>
                     {spouse && (
                       <div style={{ marginBottom: "0.5rem" }}>
-                        <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-                          {person.gender === "M" ? "Wife" : person.gender === "F" ? "Husband" : "Spouse"}
+                        <p
+                          style={{
+                            fontSize: "0.8125rem",
+                            color: "var(--text-muted)",
+                            marginBottom: "0.5rem",
+                          }}
+                        >
+                          {person.gender === "M"
+                            ? "Wife"
+                            : person.gender === "F"
+                              ? "Husband"
+                              : "Spouse"}
                         </p>
                         <PersonChip person={spouse} slug={slug} />
                       </div>
                     )}
                     {children.length > 0 && (
                       <div>
-                        <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+                        <p
+                          style={{
+                            fontSize: "0.8125rem",
+                            color: "var(--text-muted)",
+                            marginBottom: "0.5rem",
+                          }}
+                        >
                           Children ({children.length})
                         </p>
-                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "0.5rem",
+                            flexWrap: "wrap",
+                          }}
+                        >
                           {children.map((fc) => (
-                            <PersonChip key={fc.person.id} person={fc.person} slug={slug} />
+                            <PersonChip
+                              key={fc.person.id}
+                              person={fc.person}
+                              slug={slug}
+                            />
                           ))}
                         </div>
                       </div>
@@ -199,7 +331,12 @@ export default async function PersonPage({
             <SectionLabel>Biography</SectionLabel>
             <div
               className="font-narrative"
-              style={{ lineHeight: 1.8, color: "var(--text-primary)", fontSize: "1.0625rem" }}
+              style={{
+                lineHeight: 1.8,
+                color: "var(--text-primary)",
+                fontSize: "1.0625rem",
+              }}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: narrative is AI-generated HTML, sanitized upstream
               dangerouslySetInnerHTML={{ __html: person.narrative }}
             />
           </section>
@@ -209,7 +346,13 @@ export default async function PersonPage({
         {person.notes && (
           <section>
             <SectionLabel>Notes</SectionLabel>
-            <p style={{ color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                lineHeight: 1.7,
+                whiteSpace: "pre-wrap",
+              }}
+            >
               {person.notes}
             </p>
           </section>
@@ -267,10 +410,21 @@ function FactGrid({ children }: { children: React.ReactNode }) {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600, marginBottom: "0.2rem" }}>
+      <dt
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          fontWeight: 600,
+          marginBottom: "0.2rem",
+        }}
+      >
         {label}
       </dt>
-      <dd style={{ color: "var(--text-primary)", fontSize: "0.9375rem" }}>{value}</dd>
+      <dd style={{ color: "var(--text-primary)", fontSize: "0.9375rem" }}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -282,7 +436,9 @@ function PersonChip({
   person: { id: string; firstName?: string | null; lastName?: string | null };
   slug: string;
 }) {
-  const name = [person.firstName, person.lastName].filter(Boolean).join(" ") || "(unnamed)";
+  const name =
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    "(unnamed)";
   return (
     <Link
       href={`/trees/${slug}/people/${person.id}`}

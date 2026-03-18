@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 
 type Params = { treeId: string; proposedId: string };
 
@@ -16,7 +16,13 @@ export async function PATCH(
   const proposal = await prisma.proposedPerson.findFirst({
     where: { id: proposedId, treeId: auth.tree.id, status: "pending" },
   });
-  if (!proposal) return apiError("NOT_FOUND", "Proposal not found or already reviewed", undefined, 404);
+  if (!proposal)
+    return apiError(
+      "NOT_FOUND",
+      "Proposal not found or already reviewed",
+      undefined,
+      404,
+    );
 
   let body: unknown;
   try {
@@ -66,7 +72,10 @@ export async function PATCH(
         deathDate: data.deathDate ?? null,
         deathPlace: data.deathPlace ?? null,
         occupation: data.occupation ?? null,
-        notes: [data.notes, data.note ? `Source: ${data.note}` : null].filter(Boolean).join("\n") || null,
+        notes:
+          [data.notes, data.note ? `Source: ${data.note}` : null]
+            .filter(Boolean)
+            .join("\n") || null,
       },
     });
 
@@ -87,12 +96,18 @@ export async function PATCH(
         action: "create",
         entityType: "person",
         entityId: created.id,
-        newJson: JSON.stringify({ source: proposal.source, externalId: proposal.externalId }),
+        newJson: JSON.stringify({
+          source: proposal.source,
+          externalId: proposal.externalId,
+        }),
       },
     });
 
     return created;
   });
 
-  return NextResponse.json({ proposal: { ...proposal, status: "accepted" }, person });
+  return NextResponse.json({
+    proposal: { ...proposal, status: "accepted" },
+    person,
+  });
 }

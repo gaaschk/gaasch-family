@@ -38,7 +38,13 @@ const card: React.CSSProperties = {
   gap: "1rem",
 };
 
-function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () => void }) {
+function GedcomImport({
+  treeId,
+  onImported,
+}: {
+  treeId: string;
+  onImported: () => void;
+}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,12 +58,17 @@ function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () =
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`/api/trees/${treeId}/import`, { method: "POST", body: form });
+      const res = await fetch(`/api/trees/${treeId}/import`, {
+        method: "POST",
+        body: form,
+      });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Import failed.");
       } else {
-        setResult(`Imported ${data.personsImported} people and ${data.familiesImported} families.`);
+        setResult(
+          `Imported ${data.personsImported} people and ${data.familiesImported} families.`,
+        );
         onImported();
       }
     } catch {
@@ -80,8 +91,15 @@ function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () =
   return (
     <section>
       <h2 style={sLabel}>GEDCOM import</h2>
-      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-        Import people and families from a <code>.ged</code> file. Existing records with matching GEDCOM IDs will be updated.
+      <p
+        style={{
+          fontSize: "0.875rem",
+          color: "var(--text-muted)",
+          marginBottom: "1rem",
+        }}
+      >
+        Import people and families from a <code>.ged</code> file. Existing
+        records with matching GEDCOM IDs will be updated.
       </p>
       <label
         style={{
@@ -97,10 +115,36 @@ function GedcomImport({ treeId, onImported }: { treeId: string; onImported: () =
         }}
       >
         {loading ? "Importing…" : "Choose .ged file"}
-        <input type="file" accept=".ged,.gedcom" onChange={handleFile} style={{ display: "none" }} disabled={loading} />
+        <input
+          type="file"
+          accept=".ged,.gedcom"
+          onChange={handleFile}
+          style={{ display: "none" }}
+          disabled={loading}
+        />
       </label>
-      {result && <p style={{ color: "var(--color-success)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{result}</p>}
-      {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{error}</p>}
+      {result && (
+        <p
+          style={{
+            color: "var(--color-success)",
+            fontSize: "0.875rem",
+            marginTop: "0.75rem",
+          }}
+        >
+          {result}
+        </p>
+      )}
+      {error && (
+        <p
+          style={{
+            color: "var(--color-error)",
+            fontSize: "0.875rem",
+            marginTop: "0.75rem",
+          }}
+        >
+          {error}
+        </p>
+      )}
     </section>
   );
 }
@@ -148,10 +192,18 @@ function GedcomExport({ treeId }: { treeId: string }) {
   return (
     <section>
       <h2 style={sLabel}>GEDCOM export</h2>
-      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-        Download all people and families as a <code>.ged</code> file compatible with most genealogy software.
+      <p
+        style={{
+          fontSize: "0.875rem",
+          color: "var(--text-muted)",
+          marginBottom: "1rem",
+        }}
+      >
+        Download all people and families as a <code>.ged</code> file compatible
+        with most genealogy software.
       </p>
       <button
+        type="button"
         onClick={handleExport}
         disabled={downloading}
         style={{
@@ -169,7 +221,17 @@ function GedcomExport({ treeId }: { treeId: string }) {
       >
         {downloading ? "Exporting…" : "Download .ged file"}
       </button>
-      {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem", marginTop: "0.75rem" }}>{error}</p>}
+      {error && (
+        <p
+          style={{
+            color: "var(--color-error)",
+            fontSize: "0.875rem",
+            marginTop: "0.75rem",
+          }}
+        >
+          {error}
+        </p>
+      )}
     </section>
   );
 }
@@ -229,31 +291,56 @@ function TreeSettings({ treeId }: { treeId: string }) {
   return (
     <section>
       <h2 style={sLabel}>AI narrative settings</h2>
-      <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
-        Configure the Anthropic API key used to generate biographical narratives for people in this tree.
+      <p
+        style={{
+          fontSize: "0.875rem",
+          color: "var(--text-muted)",
+          marginBottom: "1.25rem",
+        }}
+      >
+        Configure the Anthropic API key used to generate biographical narratives
+        for people in this tree.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         <div>
-          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: "0.375rem" }}>
+          <label
+            htmlFor="setting-api-key"
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: "0.375rem",
+            }}
+          >
             Anthropic API key
           </label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
+              id="setting-api-key"
               type="password"
               placeholder="sk-ant-…"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--forest)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--cream-border)";
+              }}
             />
             <button
+              type="button"
               onClick={() => saveSetting("anthropic_api_key", apiKey)}
               disabled={saving || !apiKey.trim()}
               style={{
                 padding: "0.5rem 1rem",
                 borderRadius: "var(--radius-md)",
-                background: saving || !apiKey.trim() ? "var(--brown-light)" : "var(--forest)",
+                background:
+                  saving || !apiKey.trim()
+                    ? "var(--brown-light)"
+                    : "var(--forest)",
                 color: "#fff",
                 fontFamily: "var(--font-ui)",
                 fontWeight: 600,
@@ -268,20 +355,37 @@ function TreeSettings({ treeId }: { treeId: string }) {
           </div>
         </div>
         <div>
-          <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)", display: "block", marginBottom: "0.375rem" }}>
+          <label
+            htmlFor="setting-model"
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: "0.375rem",
+            }}
+          >
             Model
           </label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <select
+              id="setting-model"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               style={{ ...inputStyle, cursor: "pointer", maxWidth: "20rem" }}
             >
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fast, low cost)</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (higher quality)</option>
-              <option value="claude-opus-4-6">Claude Opus 4.6 (best quality)</option>
+              <option value="claude-haiku-4-5-20251001">
+                Claude Haiku 4.5 (fast, low cost)
+              </option>
+              <option value="claude-sonnet-4-6">
+                Claude Sonnet 4.6 (higher quality)
+              </option>
+              <option value="claude-opus-4-6">
+                Claude Opus 4.6 (best quality)
+              </option>
             </select>
             <button
+              type="button"
               onClick={() => saveSetting("anthropic_model", model)}
               disabled={saving}
               style={{
@@ -301,8 +405,16 @@ function TreeSettings({ treeId }: { treeId: string }) {
             </button>
           </div>
         </div>
-        {saved && <p style={{ color: "var(--color-success)", fontSize: "0.875rem" }}>Saved.</p>}
-        {error && <p style={{ color: "var(--color-error)", fontSize: "0.875rem" }}>{error}</p>}
+        {saved && (
+          <p style={{ color: "var(--color-success)", fontSize: "0.875rem" }}>
+            Saved.
+          </p>
+        )}
+        {error && (
+          <p style={{ color: "var(--color-error)", fontSize: "0.875rem" }}>
+            {error}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -325,7 +437,7 @@ export default function TreeAdminClient({
 }) {
   const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
-  const [invites, setInvites] = useState(initialInvites);
+  const [invites, _setInvites] = useState(initialInvites);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   // Invite form state
@@ -335,9 +447,18 @@ export default function TreeAdminClient({
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  async function updateMemberRole(memberId: string, userId: string, role: string) {
+  async function updateMemberRole(
+    memberId: string,
+    userId: string,
+    role: string,
+  ) {
     if (userId === currentUserId && role !== "admin") {
-      if (!confirm("You are demoting yourself. You may lose admin access. Continue?")) return;
+      if (
+        !confirm(
+          "You are demoting yourself. You may lose admin access. Continue?",
+        )
+      )
+        return;
     }
     setLoadingId(memberId);
     try {
@@ -346,7 +467,9 @@ export default function TreeAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role }),
       });
-      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)));
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, role } : m)),
+      );
     } finally {
       setLoadingId(null);
     }
@@ -358,7 +481,9 @@ export default function TreeAdminClient({
     }
     setLoadingId(memberId);
     try {
-      await fetch(`/api/trees/${treeId}/members/${memberId}`, { method: "DELETE" });
+      await fetch(`/api/trees/${treeId}/members/${memberId}`, {
+        method: "DELETE",
+      });
       setMembers((prev) => prev.filter((m) => m.id !== memberId));
       if (userId === currentUserId) router.push("/dashboard");
     } finally {
@@ -410,24 +535,38 @@ export default function TreeAdminClient({
         {members.length === 0 ? (
           <p style={{ color: "var(--text-muted)" }}>No members yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
             {members.map((m) => (
               <div key={m.id} style={card}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                     {m.name ?? "(no name)"}
                     {m.userId === currentUserId && (
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--text-muted)",
+                          marginLeft: "0.5rem",
+                        }}
+                      >
                         (you)
                       </span>
                     )}
                   </p>
-                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>{m.email}</p>
+                  <p
+                    style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}
+                  >
+                    {m.email}
+                  </p>
                 </div>
                 <select
                   value={m.role}
                   disabled={loadingId === m.id}
-                  onChange={(e) => updateMemberRole(m.id, m.userId, e.target.value)}
+                  onChange={(e) =>
+                    updateMemberRole(m.id, m.userId, e.target.value)
+                  }
                   style={{ ...inputStyle, cursor: "pointer" }}
                 >
                   <option value="viewer">Viewer</option>
@@ -435,12 +574,14 @@ export default function TreeAdminClient({
                   <option value="admin">Admin</option>
                 </select>
                 <button
+                  type="button"
                   onClick={() => removeMember(m.id, m.userId)}
                   disabled={loadingId === m.id}
                   style={{
                     padding: "0.375rem 0.625rem",
                     borderRadius: "var(--radius-md)",
-                    border: "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
+                    border:
+                      "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
                     background: "transparent",
                     color: "var(--color-error)",
                     fontSize: "0.8125rem",
@@ -475,8 +616,12 @@ export default function TreeAdminClient({
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             style={{ ...inputStyle, flex: "1 1 200px", minWidth: "180px" }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--forest)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--cream-border)";
+            }}
           />
           <select
             value={inviteRole}
@@ -493,7 +638,9 @@ export default function TreeAdminClient({
             style={{
               padding: "0.5rem 1.25rem",
               borderRadius: "var(--radius-md)",
-              background: inviteLoading ? "var(--brown-light)" : "var(--forest)",
+              background: inviteLoading
+                ? "var(--brown-light)"
+                : "var(--forest)",
               color: "#fff",
               fontFamily: "var(--font-ui)",
               fontWeight: 600,
@@ -507,12 +654,24 @@ export default function TreeAdminClient({
         </form>
 
         {inviteError && (
-          <p style={{ color: "var(--color-error)", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+          <p
+            style={{
+              color: "var(--color-error)",
+              fontSize: "0.875rem",
+              marginTop: "0.5rem",
+            }}
+          >
             {inviteError}
           </p>
         )}
         {inviteSuccess && (
-          <p style={{ color: "var(--color-success)", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+          <p
+            style={{
+              color: "var(--color-success)",
+              fontSize: "0.875rem",
+              marginTop: "0.5rem",
+            }}
+          >
             {inviteSuccess}
           </p>
         )}
@@ -522,13 +681,23 @@ export default function TreeAdminClient({
       {invites.length > 0 && (
         <section>
           <h2 style={sectionLabel}>Pending invites ({invites.length})</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
             {invites.map((inv) => (
               <div key={inv.id} style={{ ...card, opacity: 0.8 }}>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 500, color: "var(--text-primary)" }}>{inv.email}</p>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-                    {inv.role} · expires {new Date(inv.expiresAt).toLocaleDateString()}
+                  <p style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+                    {inv.email}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {inv.role} · expires{" "}
+                    {new Date(inv.expiresAt).toLocaleDateString()}
                   </p>
                 </div>
                 <span
@@ -546,8 +715,15 @@ export default function TreeAdminClient({
               </div>
             ))}
           </div>
-          <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.75rem" }}>
-            Invites expire after 7 days and are re-sent automatically if you invite the same address again.
+          <p
+            style={{
+              fontSize: "0.8125rem",
+              color: "var(--text-muted)",
+              marginTop: "0.75rem",
+            }}
+          >
+            Invites expire after 7 days and are re-sent automatically if you
+            invite the same address again.
           </p>
         </section>
       )}
@@ -566,26 +742,44 @@ export default function TreeAdminClient({
 
       {/* Danger zone */}
       <section>
-        <h2 style={{ ...sectionLabel, color: "var(--color-error)" }}>Danger zone</h2>
+        <h2 style={{ ...sectionLabel, color: "var(--color-error)" }}>
+          Danger zone
+        </h2>
         <div
           style={{
-            border: "1px solid color-mix(in srgb, var(--color-error) 25%, transparent)",
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 25%, transparent)",
             borderRadius: "var(--radius-lg)",
             padding: "1.25rem",
           }}
         >
-          <p style={{ fontWeight: 500, color: "var(--text-primary)", marginBottom: "0.25rem" }}>
+          <p
+            style={{
+              fontWeight: 500,
+              color: "var(--text-primary)",
+              marginBottom: "0.25rem",
+            }}
+          >
             Delete this tree
           </p>
-          <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-            Permanently deletes all people, families, documents, and settings. This cannot be undone.
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--text-muted)",
+              marginBottom: "1rem",
+            }}
+          >
+            Permanently deletes all people, families, documents, and settings.
+            This cannot be undone.
           </p>
           <button
+            type="button"
             onClick={() => alert("Tree deletion coming in a future update.")}
             style={{
               padding: "0.5rem 1rem",
               borderRadius: "var(--radius-md)",
-              border: "1px solid color-mix(in srgb, var(--color-error) 40%, transparent)",
+              border:
+                "1px solid color-mix(in srgb, var(--color-error) 40%, transparent)",
               background: "transparent",
               color: "var(--color-error)",
               fontSize: "0.875rem",

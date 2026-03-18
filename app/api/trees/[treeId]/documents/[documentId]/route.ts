@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
 import { deleteObject, presignGet } from "@/src/lib/s3";
 
 type Params = { treeId: string; documentId: string };
@@ -42,7 +42,10 @@ export async function PATCH(
     return apiError("INVALID_BODY", "Invalid request body");
   }
 
-  const { caption, category } = body as { caption?: string | null; category?: string };
+  const { caption, category } = body as {
+    caption?: string | null;
+    category?: string;
+  };
 
   const updated = await prisma.document.update({
     where: { id: doc.id },
@@ -88,7 +91,10 @@ export async function DELETE(
       action: "delete",
       entityType: "document",
       entityId: doc.id,
-      oldJson: JSON.stringify({ filename: doc.filename, category: doc.category }),
+      oldJson: JSON.stringify({
+        filename: doc.filename,
+        category: doc.category,
+      }),
     },
   });
 

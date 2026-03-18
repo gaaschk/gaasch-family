@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
-import { requireTreeAccess, apiError } from "@/src/lib/auth";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { sendTreeInviteEmail } from "@/src/lib/email";
+import { prisma } from "@/src/lib/prisma";
 
 export async function POST(
   req: NextRequest,
@@ -41,7 +41,7 @@ export async function POST(
     },
   });
 
-  let invite;
+  let invite: { id: string; token: string; email: string };
   if (existing) {
     invite = await prisma.treeInvite.update({
       where: { id: existing.id },

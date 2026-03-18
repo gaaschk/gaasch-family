@@ -95,20 +95,25 @@ export default function UserApprovalList({
             No pending requests.
           </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          >
             {pendingUsers.map((u) => (
               <div key={u.id} style={cardStyle}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                     {u.name ?? "(no name)"}
                   </p>
-                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                  <p
+                    style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}
+                  >
                     {u.email}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                   {(["viewer", "editor", "admin"] as const).map((role) => (
                     <button
+                      type="button"
                       key={role}
                       onClick={() => approve(u.id, role)}
                       disabled={loadingId === u.id}
@@ -119,8 +124,8 @@ export default function UserApprovalList({
                           role === "admin"
                             ? "var(--amber)"
                             : role === "editor"
-                            ? "var(--forest)"
-                            : "var(--forest-light)",
+                              ? "var(--forest)"
+                              : "var(--forest-light)",
                         color: "#fff",
                         border: "none",
                         fontSize: "0.8125rem",
@@ -160,14 +165,18 @@ export default function UserApprovalList({
             No active users yet.
           </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
             {allUsers.map((u) => (
               <div key={u.id} style={cardStyle}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                     {u.name ?? "(no name)"}
                   </p>
-                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                  <p
+                    style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}
+                  >
                     {u.email}
                   </p>
                 </div>

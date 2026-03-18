@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { apiError, requireRole } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { requireRole, apiError } from "@/src/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -14,8 +14,10 @@ export async function GET(
   });
 
   if (!invite) return apiError("NOT_FOUND", "Invite not found", undefined, 404);
-  if (invite.expiresAt < new Date()) return apiError("EXPIRED", "Invite has expired", undefined, 410);
-  if (invite.acceptedAt) return apiError("ALREADY_ACCEPTED", "Invite already used", undefined, 410);
+  if (invite.expiresAt < new Date())
+    return apiError("EXPIRED", "Invite has expired", undefined, 410);
+  if (invite.acceptedAt)
+    return apiError("ALREADY_ACCEPTED", "Invite already used", undefined, 410);
 
   return NextResponse.json({
     email: invite.email,
@@ -40,8 +42,10 @@ export async function POST(
   });
 
   if (!invite) return apiError("NOT_FOUND", "Invite not found", undefined, 404);
-  if (invite.expiresAt < new Date()) return apiError("EXPIRED", "Invite has expired", undefined, 410);
-  if (invite.acceptedAt) return apiError("ALREADY_ACCEPTED", "Invite already used", undefined, 410);
+  if (invite.expiresAt < new Date())
+    return apiError("EXPIRED", "Invite has expired", undefined, 410);
+  if (invite.acceptedAt)
+    return apiError("ALREADY_ACCEPTED", "Invite already used", undefined, 410);
 
   // The invite was sent to a specific email; verify it matches
   if (invite.email !== auth.email.toLowerCase()) {

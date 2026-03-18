@@ -20,7 +20,13 @@ export default async function TreePage({
       where: { treeId: auth.tree.id },
       orderBy: { updatedAt: "desc" },
       take: 5,
-      select: { id: true, firstName: true, lastName: true, birthDate: true, deathDate: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        birthDate: true,
+        deathDate: true,
+      },
     }),
   ]);
 
@@ -41,19 +47,40 @@ export default async function TreePage({
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.1rem" }}>
-            <Link href="/dashboard" style={{ color: "var(--text-link)", textDecoration: "none" }}>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted)",
+              marginBottom: "0.1rem",
+            }}
+          >
+            <Link
+              href="/dashboard"
+              style={{ color: "var(--text-link)", textDecoration: "none" }}
+            >
               My Trees
             </Link>
           </p>
           <h1
             className="font-display"
-            style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--brown-text)", lineHeight: 1.2 }}
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: 600,
+              color: "var(--brown-text)",
+              lineHeight: 1.2,
+            }}
           >
             {auth.tree.name}
           </h1>
         </div>
-        <nav style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexShrink: 0 }}>
+        <nav
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            alignItems: "center",
+            flexShrink: 0,
+          }}
+        >
           {auth.treeRole === "admin" && (
             <Link
               href={`/trees/${slug}/admin`}
@@ -90,7 +117,9 @@ export default async function TreePage({
         </nav>
       </header>
 
-      <div style={{ maxWidth: "64rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div
+        style={{ maxWidth: "64rem", margin: "0 auto", padding: "2rem 1.5rem" }}
+      >
         {/* Stats row */}
         <div
           style={{
@@ -148,7 +177,8 @@ export default async function TreePage({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {[p.firstName, p.lastName].filter(Boolean).join(" ") || "(unnamed)"}
+                  {[p.firstName, p.lastName].filter(Boolean).join(" ") ||
+                    "(unnamed)"}
                 </Link>
               ))}
             </div>
@@ -181,11 +211,24 @@ function StatCard({ label, value }: { label: string; value: number }) {
     >
       <p
         className="font-display"
-        style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brown-text)", lineHeight: 1 }}
+        style={{
+          fontSize: "2rem",
+          fontWeight: 700,
+          color: "var(--brown-text)",
+          lineHeight: 1,
+        }}
       >
         {value.toLocaleString()}
       </p>
-      <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{label}</p>
+      <p
+        style={{
+          fontSize: "0.8125rem",
+          color: "var(--text-muted)",
+          marginTop: "0.25rem",
+        }}
+      >
+        {label}
+      </p>
     </div>
   );
 }

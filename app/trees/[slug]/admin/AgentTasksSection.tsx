@@ -107,8 +107,10 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
     if (!task.resultJson) return "—";
     try {
       const r = JSON.parse(task.resultJson);
-      if (task.taskType === "geocode") return `${r.geocoded}/${r.total} places geocoded`;
-      if (task.taskType === "narrative-batch") return `${r.succeeded} narratives generated, ${r.failed} failed`;
+      if (task.taskType === "geocode")
+        return `${r.geocoded}/${r.total} places geocoded`;
+      if (task.taskType === "narrative-batch")
+        return `${r.succeeded} narratives generated, ${r.failed} failed`;
       if (task.taskType === "research") return r.message ?? JSON.stringify(r);
     } catch {
       return task.resultJson;
@@ -121,12 +123,20 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
       {/* Trigger buttons */}
       <div>
         <h2 style={sLabel}>Background tasks</h2>
-        <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-          Run AI and data enrichment tasks across the whole tree. Jobs process in the background — you can leave this page and come back.
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "var(--text-muted)",
+            marginBottom: "1rem",
+          }}
+        >
+          Run AI and data enrichment tasks across the whole tree. Jobs process
+          in the background — you can leave this page and come back.
         </p>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           {(["geocode", "narrative-batch"] as const).map((type) => (
             <button
+              type="button"
               key={type}
               onClick={() => enqueue(type)}
               disabled={enqueueing === type}
@@ -134,7 +144,10 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
                 padding: "0.5rem 1.1rem",
                 borderRadius: "var(--radius-md)",
                 border: "1px solid var(--cream-border)",
-                background: enqueueing === type ? "var(--surface-base)" : "var(--surface-raised)",
+                background:
+                  enqueueing === type
+                    ? "var(--surface-base)"
+                    : "var(--surface-raised)",
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
                 fontWeight: 500,
@@ -147,7 +160,13 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
           ))}
         </div>
         {enqueueError && (
-          <p style={{ color: "var(--color-error)", fontSize: "0.8125rem", marginTop: "0.5rem" }}>
+          <p
+            style={{
+              color: "var(--color-error)",
+              fontSize: "0.8125rem",
+              marginTop: "0.5rem",
+            }}
+          >
             {enqueueError}
           </p>
         )}
@@ -157,7 +176,13 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
       {tasks.length > 0 && (
         <div>
           <h2 style={{ ...sLabel, marginBottom: "0.75rem" }}>Recent tasks</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.375rem",
+            }}
+          >
             {tasks.map((task) => (
               <div
                 key={task.id}
@@ -177,7 +202,8 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
                     width: "0.5rem",
                     height: "0.5rem",
                     borderRadius: "50%",
-                    background: STATUS_COLOR[task.status] ?? "var(--text-muted)",
+                    background:
+                      STATUS_COLOR[task.status] ?? "var(--text-muted)",
                     flexShrink: 0,
                   }}
                 />
@@ -187,7 +213,13 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
                 <span style={{ color: "var(--text-muted)", flex: 1 }}>
                   {resultSummary(task)}
                 </span>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                <span
+                  style={{
+                    color: "var(--text-muted)",
+                    fontSize: "0.75rem",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {new Date(task.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -202,16 +234,33 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
           <h2 style={sLabel}>
             Proposed people ({proposals.length} pending review)
           </h2>
-          <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-            The research agent found these potential new family members. Accept to add them to the tree, or reject to permanently dismiss.
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--text-muted)",
+              marginBottom: "1rem",
+            }}
+          >
+            The research agent found these potential new family members. Accept
+            to add them to the tree, or reject to permanently dismiss.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          >
             {proposals.map((p) => {
               const d = (() => {
-                try { return JSON.parse(p.proposedData); } catch { return {}; }
+                try {
+                  return JSON.parse(p.proposedData);
+                } catch {
+                  return {};
+                }
               })();
-              const name = [d.firstName, d.lastName].filter(Boolean).join(" ") || "(unnamed)";
-              const lifespan = [d.birthDate, d.deathDate].filter(Boolean).join(" – ");
+              const name =
+                [d.firstName, d.lastName].filter(Boolean).join(" ") ||
+                "(unnamed)";
+              const lifespan = [d.birthDate, d.deathDate]
+                .filter(Boolean)
+                .join(" – ");
               return (
                 <div
                   key={p.id}
@@ -226,17 +275,37 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 500, color: "var(--text-primary)", fontSize: "0.9375rem" }}>
+                    <p
+                      style={{
+                        fontWeight: 500,
+                        color: "var(--text-primary)",
+                        fontSize: "0.9375rem",
+                      }}
+                    >
                       {name}
                     </p>
-                    <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-                      {[lifespan, d.birthPlace, d.note].filter(Boolean).join(" · ")}
+                    <p
+                      style={{
+                        fontSize: "0.8125rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {[lifespan, d.birthPlace, d.note]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
-                    <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        marginTop: "0.1rem",
+                      }}
+                    >
                       Source: {p.source} #{p.externalId}
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => reviewProposal(p.id, "accept")}
                     disabled={reviewingId === p.id}
                     style={{
@@ -254,12 +323,14 @@ export default function AgentTasksSection({ treeId }: { treeId: string }) {
                     Accept
                   </button>
                   <button
+                    type="button"
                     onClick={() => reviewProposal(p.id, "reject")}
                     disabled={reviewingId === p.id}
                     style={{
                       padding: "0.35rem 0.875rem",
                       borderRadius: "var(--radius-md)",
-                      border: "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
+                      border:
+                        "1px solid color-mix(in srgb, var(--color-error) 30%, transparent)",
                       background: "transparent",
                       color: "var(--color-error)",
                       fontSize: "0.8125rem",

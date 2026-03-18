@@ -1,9 +1,7 @@
 import bcrypt from "bcryptjs";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { sendSignupNotificationEmail } from "@/src/lib/email";
 import { prisma } from "@/src/lib/prisma";
-import {
-  sendSignupNotificationEmail,
-} from "@/src/lib/email";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -24,22 +22,33 @@ export async function POST(req: NextRequest) {
 
   if (!name?.trim() || !email?.trim() || !password) {
     return NextResponse.json(
-      { error: "Name, email, and password are required", code: "MISSING_FIELDS" },
+      {
+        error: "Name, email, and password are required",
+        code: "MISSING_FIELDS",
+      },
       { status: 400 },
     );
   }
 
   if (password.length < 8) {
     return NextResponse.json(
-      { error: "Password must be at least 8 characters", code: "PASSWORD_TOO_SHORT" },
+      {
+        error: "Password must be at least 8 characters",
+        code: "PASSWORD_TOO_SHORT",
+      },
       { status: 400 },
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  const existing = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+  });
   if (existing) {
     return NextResponse.json(
-      { error: "An account with that email already exists", code: "EMAIL_TAKEN" },
+      {
+        error: "An account with that email already exists",
+        code: "EMAIL_TAKEN",
+      },
       { status: 409 },
     );
   }

@@ -40,15 +40,28 @@ export default async function TreeAdminPage({
       }}
     >
       <div style={{ marginBottom: "2.5rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-          <a href={`/trees/${slug}`} style={{ color: "var(--text-link)", textDecoration: "none" }}>
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "var(--text-muted)",
+            marginBottom: "0.25rem",
+          }}
+        >
+          <a
+            href={`/trees/${slug}`}
+            style={{ color: "var(--text-link)", textDecoration: "none" }}
+          >
             {auth.tree.name}
           </a>
           {" / "}Admin
         </p>
         <h1
           className="font-display"
-          style={{ fontSize: "2rem", fontWeight: 600, color: "var(--brown-text)" }}
+          style={{
+            fontSize: "2rem",
+            fontWeight: 600,
+            color: "var(--brown-text)",
+          }}
         >
           Tree settings
         </h1>

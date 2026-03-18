@@ -88,23 +88,36 @@ export default function PersonForm({
     display: "block",
   };
 
-  const field = (id: keyof PersonData, label: string, opts?: { half?: boolean; type?: string }) => (
+  const field = (
+    id: keyof PersonData,
+    label: string,
+    opts?: { half?: boolean; type?: string },
+  ) => (
     <div style={opts?.half ? {} : { gridColumn: "1 / -1" }}>
-      <label htmlFor={id} style={labelStyle}>{label}</label>
+      <label htmlFor={id} style={labelStyle}>
+        {label}
+      </label>
       <input
         id={id}
         type={opts?.type ?? "text"}
         value={data[id] ?? ""}
         onChange={(e) => set(id, e.target.value)}
         style={inputStyle}
-        onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-        onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+        onFocus={(e) => {
+          e.target.style.borderColor = "var(--forest)";
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = "var(--cream-border)";
+        }}
       />
     </div>
   );
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+    >
       {error && (
         <p
           role="alert"
@@ -112,9 +125,11 @@ export default function PersonForm({
             color: "var(--color-error)",
             fontSize: "0.875rem",
             padding: "0.75rem 1rem",
-            background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
+            background:
+              "color-mix(in srgb, var(--color-error) 8%, transparent)",
             borderRadius: "var(--radius-md)",
-            border: "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 20%, transparent)",
           }}
         >
           {error}
@@ -125,23 +140,42 @@ export default function PersonForm({
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
         <legend
           className="font-ui"
-          style={{ fontSize: "0.8125rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--brown-muted)", marginBottom: "1rem" }}
+          style={{
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--brown-muted)",
+            marginBottom: "1rem",
+          }}
         >
           Name
         </legend>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+          }}
+        >
           {field("firstName", "First name", { half: true })}
           {field("lastName", "Last name", { half: true })}
           {field("maidenName", "Maiden name", { half: true })}
           <div>
-            <label htmlFor="gender" style={labelStyle}>Gender</label>
+            <label htmlFor="gender" style={labelStyle}>
+              Gender
+            </label>
             <select
               id="gender"
               value={data.gender ?? ""}
               onChange={(e) => set("gender", e.target.value)}
               style={{ ...inputStyle, cursor: "pointer" }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--forest)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--cream-border)";
+              }}
             >
               <option value="">Unknown</option>
               <option value="M">Male</option>
@@ -156,11 +190,24 @@ export default function PersonForm({
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
         <legend
           className="font-ui"
-          style={{ fontSize: "0.8125rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--brown-muted)", marginBottom: "1rem" }}
+          style={{
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--brown-muted)",
+            marginBottom: "1rem",
+          }}
         >
           Birth
         </legend>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+          }}
+        >
           {field("birthDate", "Date", { half: true })}
           {field("birthPlace", "Place", { half: true })}
         </div>
@@ -170,11 +217,24 @@ export default function PersonForm({
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
         <legend
           className="font-ui"
-          style={{ fontSize: "0.8125rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--brown-muted)", marginBottom: "1rem" }}
+          style={{
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--brown-muted)",
+            marginBottom: "1rem",
+          }}
         >
           Death
         </legend>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+          }}
+        >
           {field("deathDate", "Date", { half: true })}
           {field("deathPlace", "Place", { half: true })}
         </div>
@@ -184,14 +244,23 @@ export default function PersonForm({
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
         <legend
           className="font-ui"
-          style={{ fontSize: "0.8125rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--brown-muted)", marginBottom: "1rem" }}
+          style={{
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--brown-muted)",
+            marginBottom: "1rem",
+          }}
         >
           More
         </legend>
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {field("occupation", "Occupation")}
           <div>
-            <label htmlFor="notes" style={labelStyle}>Notes</label>
+            <label htmlFor="notes" style={labelStyle}>
+              Notes
+            </label>
             <textarea
               id="notes"
               value={data.notes ?? ""}
@@ -203,8 +272,12 @@ export default function PersonForm({
                 lineHeight: 1.6,
                 fontFamily: "var(--font-narrative)",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--forest)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--cream-border)")}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--forest)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--cream-border)";
+              }}
             />
           </div>
         </div>
@@ -245,7 +318,11 @@ export default function PersonForm({
             transition: "background var(--duration-short) var(--ease-out)",
           }}
         >
-          {loading ? "Saving…" : mode === "create" ? "Add person" : "Save changes"}
+          {loading
+            ? "Saving…"
+            : mode === "create"
+              ? "Add person"
+              : "Save changes"}
         </button>
       </div>
     </form>
