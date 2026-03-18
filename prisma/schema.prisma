@@ -25,6 +25,7 @@ model User {
   auditLogs     AuditLog[]
   fsToken       FamilySearchToken?
   geniToken     GeniToken?
+  resetTokens   PasswordResetToken[]
 }
 
 model Account {
@@ -325,6 +326,20 @@ model SystemSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Password Reset ───────────────────────────────────────────────
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────

@@ -162,21 +162,30 @@ function LoginForm() {
         {loading ? "Signing in…" : "Sign in"}
       </button>
 
-      <p
+      <div
         style={{
-          textAlign: "center",
+          display: "flex",
+          justifyContent: "space-between",
           fontSize: "0.875rem",
           color: "var(--text-muted)",
         }}
       >
-        No account?{" "}
         <Link
-          href="/signup"
+          href="/forgot-password"
           style={{ color: "var(--text-link)", textDecoration: "underline" }}
         >
-          Request access
+          Forgot password?
         </Link>
-      </p>
+        <span>
+          No account?{" "}
+          <Link
+            href="/signup"
+            style={{ color: "var(--text-link)", textDecoration: "underline" }}
+          >
+            Request access
+          </Link>
+        </span>
+      </div>
     </form>
   );
 }

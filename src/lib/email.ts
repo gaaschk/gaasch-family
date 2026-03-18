@@ -58,6 +58,35 @@ export async function sendTreeInviteEmail(opts: {
   });
 }
 
+export async function sendPasswordResetEmail(opts: {
+  toEmail: string;
+  toName: string;
+  resetUrl: string;
+}) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: "Reset your Heirloom password",
+    text: [
+      `Hi ${opts.toName},`,
+      "",
+      "Someone requested a password reset for your Heirloom account.",
+      "Click the link below to set a new password (expires in 1 hour):",
+      "",
+      opts.resetUrl,
+      "",
+      "If you didn't request this, you can safely ignore this email.",
+    ].join("\n"),
+    html: `
+      <p>Hi ${opts.toName},</p>
+      <p>Someone requested a password reset for your Heirloom account.</p>
+      <p><a href="${opts.resetUrl}">Reset your password</a></p>
+      <p style="color:#888;font-size:12px">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+    `,
+  });
+}
+
 export async function sendApprovalEmail(opts: {
   toEmail: string;
   toName: string;

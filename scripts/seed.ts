@@ -20,7 +20,8 @@ const ADMIN_EMAIL = "gaaschk@gmail.com";
 const ADMIN_NAME = "Kevin Gaasch";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool as Parameters<typeof PrismaPg>[0]);
+// biome-ignore lint/suspicious/noExplicitAny: adapter type mismatch between pg and Prisma generics
+const adapter = new PrismaPg(pool as any);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
