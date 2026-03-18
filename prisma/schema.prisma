@@ -1,22 +1,38 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
-// ── Auth.js required models ──────────────────────────────────────────────────
+// ─── Auth.js tables ───────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          String    @default("pending") // pending | viewer | editor | admin
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  ownedTrees    Tree[]
+  treeMembers   TreeMember[]
+  auditLogs     AuditLog[]
+  fsToken       FamilySearchToken?
+  geniToken     GeniToken?
+}
 
 model Account {
   id                String  @id @default(cuid())
-  userId            String  @map("user_id")
+  userId            String
   type              String
   provider          String
-  providerAccountId String  @map("provider_account_id")
+  providerAccountId String
   refresh_token     String?
   access_token      String?
   expires_at        Int?
@@ -24,293 +40,309 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("accounts")
 }
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique @map("session_token")
-  userId       String   @map("user_id")
+  sessionToken String   @unique
+  userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime? @map("email_verified")
-  image         String?
-  role          String    @default("pending")
-  password      String?
-  tokenVersion  Int       @default(0)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  accounts    Account[]
-  sessions    Session[]
-  auditLogs   AuditLog[]
-  ownedTrees  Tree[]       @relation("TreeOwner")
-  treeMembers TreeMember[]
-  fsToken     FamilySearchToken?
-  geniToken   GeniToken?
-
-  @@map("users")
 }
 
 model VerificationToken {
   identifier String
-  token      String
+  token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
-  @@map("verification_tokens")
 }
 
-// ── Multi-tenancy models ──────────────────────────────────────────────────────
-
+// ─── Multi-tenant Tree ────────────────────────────────────────────
 model Tree {
   id          String   @id @default(cuid())
   slug        String   @unique
   name        String
   description String?
-  ownerId     String   @map("owner_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  owner     User                @relation("TreeOwner", fields: [ownerId], references: [id])
-  members   TreeMember[]
-  invites   TreeInvite[]
-  people    Person[]
-  families  Family[]
-  settings  Setting[]
-  auditLogs AuditLog[]
-  fsMatches      FamilySearchMatch[]
+  owner       User         @relation(fields: [ownerId], references: [id])
+  members     TreeMember[]
+  invites     TreeInvite[]
+  people      Person[]
+  families    Family[]
+  settings    Setting[]
+  auditLogs   AuditLog[]
+  documents   Document[]
+  agentTasks  AgentTask[]
   lineageStories LineageStory[]
-  documents      Document[]
-
-  @@map("trees")
 }
 
 model TreeMember {
-  id       String   @id @default(cuid())
-  treeId   String   @map("tree_id")
-  userId   String   @map("user_id")
-  role     String   @default("viewer")
-  joinedAt DateTime @default(now()) @map("joined_at")
+  id        String   @id @default(cuid())
+  treeId    String
+  userId    String
+  role      String   @default("viewer") // viewer | editor | admin
+  createdAt DateTime @default(now())
 
   tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([treeId, userId])
-  @@map("tree_members")
 }
 
 model TreeInvite {
-  id         String    @id @default(cuid())
-  treeId     String    @map("tree_id")
-  email      String
-  role       String    @default("viewer")
-  token      String    @unique @default(cuid())
-  invitedBy  String    @map("invited_by")
-  expiresAt  DateTime  @map("expires_at")
-  acceptedAt DateTime? @map("accepted_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  lastSentAt DateTime  @default(now()) @map("last_sent_at")
-  sentCount  Int       @default(1)     @map("sent_count")
+  id          String    @id @default(cuid())
+  treeId      String
+  email       String
+  role        String    @default("viewer")
+  token       String    @unique @default(cuid())
+  invitedById String
+  acceptedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
 
   tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
 
-  @@map("tree_invites")
+  @@index([token])
 }
 
-// ── Family history models ─────────────────────────────────────────────────────
-
+// ─── Genealogy ────────────────────────────────────────────────────
 model Person {
   id          String   @id @default(cuid())
-  treeId      String   @map("tree_id")
-  gedcomId    String?  @map("gedcom_id")
-  name        String
-  sex         String?
-  birthDate   String?  @map("birth_date")
-  birthPlace  String?  @map("birth_place")
-  deathDate   String?  @map("death_date")
-  deathPlace  String?  @map("death_place")
-  burialPlace String?  @map("burial_place")
-  burialDate  String?  @map("burial_date")
+  treeId      String
+  gedcomId    String?
+  firstName   String?
+  lastName    String?
+  maidenName  String?
+  gender      String?  // M | F | U
+  birthDate   String?
+  birthPlace  String?
+  birthLat    Float?
+  birthLng    Float?
+  deathDate   String?
+  deathPlace  String?
+  deathLat    Float?
+  deathLng    Float?
   occupation  String?
   notes       String?
   narrative   String?
-  fsPid       String?  @map("fs_pid")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  portraitId  String?
+  fsPid       String?  // FamilySearch person ID (once linked)
+  historicalEventsJson String? // JSON array of historical events
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  tree      Tree                @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  asHusband Family[]            @relation("FamilyHusband")
-  asWife    Family[]            @relation("FamilyWife")
-  childIn   FamilyChild[]
-  fsMatches FamilySearchMatch[]
+  tree              Tree              @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  childInFamilies   FamilyChild[]
+  husbandInFamilies Family[]          @relation("Husband")
+  wifeInFamilies    Family[]          @relation("Wife")
+  fsMatches         FamilySearchMatch[]
+  documents         Document[]
+  portrait          Document?         @relation("Portrait", fields: [portraitId], references: [id])
+  auditLogs         AuditLog[]
 
   @@unique([treeId, gedcomId])
-  @@map("people")
-}
-
-model FamilySearchMatch {
-  id        String   @id @default(cuid())
-  personId  String   @map("person_id")
-  treeId    String   @map("tree_id")
-  source    String   @default("familysearch") @map("source")
-  fsPid     String   @map("fs_pid")
-  score     Float
-  fsData    String   @map("fs_data")   // JSON: FsPersonSummary
-  status    String   @default("pending") // pending | accepted | rejected
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  tree   Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
-
-  @@unique([personId, source, fsPid])
-  @@map("familysearch_matches")
+  @@index([treeId, lastName, firstName])
+  @@index([treeId, birthPlace])
+  @@index([treeId, birthDate])
 }
 
 model Family {
-  id        String   @id @default(cuid())
-  treeId    String   @map("tree_id")
-  gedcomId  String?  @map("gedcom_id")
-  husband   Person?  @relation("FamilyHusband", fields: [husbId], references: [id], onDelete: SetNull)
-  husbId    String?  @map("husb_id")
-  wife      Person?  @relation("FamilyWife", fields: [wifeId], references: [id], onDelete: SetNull)
-  wifeId    String?  @map("wife_id")
-  marrDate  String?  @map("marr_date")
-  marrPlace String?  @map("marr_place")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  treeId     String
+  gedcomId   String?
+  husbandId  String?
+  wifeId     String?
+  marriageDate  String?
+  marriagePlace String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  tree     Tree         @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  tree     Tree          @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  husband  Person?       @relation("Husband", fields: [husbandId], references: [id])
+  wife     Person?       @relation("Wife", fields: [wifeId], references: [id])
   children FamilyChild[]
 
   @@unique([treeId, gedcomId])
-  @@map("families")
 }
 
 model FamilyChild {
-  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  familyId String @map("family_id")
-  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  personId String @map("person_id")
+  id       String @id @default(cuid())
+  familyId String
+  personId String
 
-  @@id([familyId, personId])
-  @@map("family_children")
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, personId])
 }
 
-model Setting {
-  id        String   @id @default(cuid())
-  treeId    String   @map("tree_id")
-  key       String
-  value     String
-  updatedAt DateTime @updatedAt @map("updated_at")
+// ─── Record Hints ─────────────────────────────────────────────────
+model FamilySearchMatch {
+  id         String   @id @default(cuid())
+  personId   String
+  source     String   @default("familysearch") // familysearch | wikitree | geni
+  externalId String   // FS pid, WikiTree id, Geni profile id
+  matchData  String   // JSON blob of matched fields
+  status     String   @default("pending") // pending | accepted | dismissed
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  @@unique([treeId, key])
-  @@map("settings")
+  @@unique([personId, source, externalId])
+  @@index([personId, source])
 }
 
+// ─── OAuth Tokens ─────────────────────────────────────────────────
 model FamilySearchToken {
   id           String   @id @default(cuid())
-  userId       String   @unique @map("user_id")
-  accessToken  String   @map("access_token")
-  refreshToken String?  @map("refresh_token")
-  expiresAt    DateTime @map("expires_at")
-  displayName  String?  @map("display_name")
-  fsCisId      String?  @map("fs_cis_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  userId       String   @unique
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("familysearch_tokens")
 }
 
 model GeniToken {
   id           String   @id @default(cuid())
-  userId       String   @unique @map("user_id")
-  accessToken  String   @map("access_token")
-  refreshToken String?  @map("refresh_token")
-  expiresAt    DateTime @map("expires_at")
-  displayName  String?  @map("display_name")
-  geniId       String?  @map("geni_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  userId       String   @unique
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
-  @@map("geni_tokens")
+// ─── Documents / Media ────────────────────────────────────────────
+model Document {
+  id           String   @id @default(cuid())
+  treeId       String
+  personId     String?
+  s3Key        String   @unique
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  category     String   @default("other") // photo | certificate | letter | other
+  caption      String?
+  portraitScore Float?  // Haiku vision quality score 0-1
+  isPortrait   Boolean  @default(false)
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  tree   Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id])
+  portraitFor Person[] @relation("Portrait")
+
+  @@index([treeId])
+  @@index([personId])
+}
+
+// ─── AI Research Agent ────────────────────────────────────────────
+model AgentTask {
+  id         String   @id @default(cuid())
+  treeId     String
+  triggeredBy String  // userId
+  status     String   @default("pending") // pending | running | completed | failed
+  taskType   String   // research | geocode | narrative-batch
+  inputJson  String   // task parameters
+  resultJson String?  // task output
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tree     Tree            @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  proposed ProposedPerson[]
+
+  @@index([treeId, status])
+}
+
+model ProposedPerson {
+  id           String   @id @default(cuid())
+  treeId       String
+  agentTaskId  String
+  source       String   // familysearch | geni | manual
+  externalId   String   // source person ID
+  proposedData String   // JSON: name, dates, places, relationships
+  status       String   @default("pending") // pending | accepted | rejected
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agentTask AgentTask @relation(fields: [agentTaskId], references: [id], onDelete: Cascade)
+
+  // rejected proposals never deleted — they act as permanent "don't re-propose" signals
+  @@unique([treeId, source, externalId])
+  @@index([treeId, status])
+}
+
+// ─── Lineage Stories ──────────────────────────────────────────────
+model LineageStory {
+  id         String   @id @default(cuid())
+  treeId     String
+  title      String
+  lineType   String   // paternal | maternal | custom
+  personIds  String   // JSON array of person IDs in order
+  narrative  String?
+  shareToken String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@index([shareToken])
+}
+
+// ─── Settings ─────────────────────────────────────────────────────
+model Setting {
+  id        String   @id @default(cuid())
+  treeId    String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@unique([treeId, key])
 }
 
 model SystemSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("system_settings")
-}
-
-model LineageStory {
-  id           String   @id @default(cuid())
-  treeId       String   @map("tree_id")
-  personIdsKey String   @map("person_ids_key")
-  html         String
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
-
-  @@unique([treeId, personIdsKey])
-  @@map("lineage_stories")
-}
-
-// ── Document Vault ───────────────────────────────────────────────────────────
-
-model Document {
-  id         String   @id @default(cuid())
-  treeId     String   @map("tree_id")
-  personId   String?  @map("person_id")
-  title      String
-  filename   String
-  mimeType   String   @map("mime_type")
-  size       Int
-  storageKey String   @map("storage_key")
-  category   String   @default("other")
-  notes      String?
-  uploadedBy String   @map("uploaded_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
-
-  @@map("documents")
-}
-
-model AuditLog {
   id        String   @id @default(cuid())
-  tableName String   @map("table_name")
-  recordId  String   @map("record_id")
-  action    String
-  oldData   String?  @map("old_data")
-  newData   String?  @map("new_data")
-  treeId    String?  @map("tree_id")
-  user      User?    @relation(fields: [userId], references: [id])
-  userId    String?  @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-  tree Tree? @relation(fields: [treeId], references: [id])
+// ─── Audit Log ────────────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  treeId     String
+  userId     String
+  personId   String?
+  action     String   // create | update | delete | generate-narrative | import | export
+  entityType String   // person | family | document | member | setting
+  entityId   String?
+  oldJson    String?
+  newJson    String?
+  createdAt  DateTime @default(now())
 
-  @@map("audit_log")
+  tree   Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id])
+  person Person? @relation(fields: [personId], references: [id])
+
+  @@index([treeId, createdAt])
 }

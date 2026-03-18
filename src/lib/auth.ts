@@ -1,185 +1,146 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
-import type { UserRole } from '@/types';
+import { NextResponse } from "next/server";
+import { auth } from "@/src/auth";
+import { prisma } from "@/src/lib/prisma";
 
-const ROLE_ORDER: Record<string, number> = {
+type PlatformRole = "pending" | "viewer" | "editor" | "admin";
+type TreeRole = "viewer" | "editor" | "admin";
+
+const PLATFORM_ROLE_ORDER: Record<string, number> = {
   pending: -1,
-  viewer:   0,
-  editor:   1,
-  admin:    2,
+  viewer: 0,
+  editor: 1,
+  admin: 2,
 };
 
 const TREE_ROLE_ORDER: Record<string, number> = {
   viewer: 0,
   editor: 1,
-  admin:  2,
+  admin: 2,
 };
 
-/**
- * Verifies the request has a valid Auth.js session and the user's platform role
- * meets or exceeds minRole.
- *
- * Returns `{ userId, email, role }` on success, or a NextResponse (401/403) on failure.
- */
-export async function requireRole(
-  minRole: UserRole,
-): Promise<{ userId: string; email: string; role: UserRole } | NextResponse> {
+export function apiError(
+  code: string,
+  error: string,
+  details?: unknown,
+  status = 400,
+) {
+  return NextResponse.json({ error, code, details }, { status });
+}
+
+export async function requireRole(minRole: PlatformRole = "viewer") {
   const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
+  if (!session?.user) {
+    return apiError(
+      "UNAUTHENTICATED",
+      "Authentication required",
+      undefined,
+      401,
+    );
   }
-
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const role = (session.user as { role?: string }).role ?? "pending";
+  if (PLATFORM_ROLE_ORDER[role] < PLATFORM_ROLE_ORDER[minRole]) {
+    return apiError(
+      "INSUFFICIENT_ROLE",
+      "Insufficient platform role",
+      undefined,
+      403,
+    );
   }
-
-  if (ROLE_ORDER[user.role] < ROLE_ORDER[minRole]) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return { userId: user.id, email: user.email, role: user.role as UserRole };
+  return { userId: session.user.id!, email: session.user.email!, role };
 }
 
-/**
- * Like requireRole, but also accepts an `Authorization: Bearer <token>` header
- * validated against the `api_token` setting in the database.
- *
- * On valid token, returns `{ userId: 'api', email: 'api-token', role: 'editor' }`.
- */
-export async function requireRoleOrToken(
-  req: Request,
-  minRole: UserRole,
-): Promise<{ userId: string; email: string; role: UserRole } | NextResponse> {
-  // Try session first
-  const sessionResult = await requireRole(minRole);
-  if (!(sessionResult instanceof NextResponse)) return sessionResult;
-
-  // Fall back to Bearer token (checks any api_token setting)
-  const bearer = req.headers.get('authorization');
-  if (!bearer?.startsWith('Bearer ')) return sessionResult;
-
-  const token = bearer.slice(7).trim();
-  const setting = await prisma.setting.findFirst({ where: { key: 'api_token' } });
-
-  if (!setting?.value || setting.value !== token) {
-    return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
-  }
-
-  if (ROLE_ORDER['editor'] < ROLE_ORDER[minRole]) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return { userId: 'api', email: 'api-token', role: 'editor' };
-}
-
-/**
- * Checks that the authenticated user has access to the given tree with at
- * least `minTreeRole` level.
- *
- * Resolution order:
- *   1. Tree owner → always "admin"
- *   2. TreeMember row → use that row's role
- *   3. No membership → 403
- *
- * The `treeIdOrSlug` parameter may be either a tree UUID or the tree's slug.
- *
- * Returns `{ userId, email, treeRole, tree }` on success, or a NextResponse.
- */
 export async function requireTreeAccess(
   treeIdOrSlug: string,
-  minTreeRole: 'viewer' | 'editor' | 'admin',
-): Promise<
-  | { userId: string; email: string; treeRole: string; tree: { id: string; slug: string; name: string; ownerId: string } }
-  | NextResponse
-> {
+  minRole: TreeRole = "viewer",
+) {
   const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
+  if (!session?.user) {
+    return apiError(
+      "UNAUTHENTICATED",
+      "Authentication required",
+      undefined,
+      401,
+    );
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const userId = session.user.id!;
+  const userPlatformRole =
+    (session.user as { role?: string }).role ?? "pending";
 
-  // Resolve tree by id or slug
   const tree = await prisma.tree.findFirst({
     where: { OR: [{ id: treeIdOrSlug }, { slug: treeIdOrSlug }] },
-    select: { id: true, slug: true, name: true, ownerId: true },
   });
 
   if (!tree) {
-    return NextResponse.json({ error: 'Tree not found' }, { status: 404 });
+    return apiError("TREE_NOT_FOUND", "Tree not found", undefined, 404);
   }
 
-  // Determine effective tree role
-  let treeRole: string;
-  if (tree.ownerId === user.id) {
-    treeRole = 'admin';
-  } else {
-    const member = await prisma.treeMember.findUnique({
-      where: { treeId_userId: { treeId: tree.id, userId: user.id } },
-    });
-    if (!member) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    treeRole = member.role;
+  // Platform admins have full tree access
+  if (userPlatformRole === "admin") {
+    return {
+      userId,
+      email: session.user.email!,
+      treeRole: "admin" as TreeRole,
+      tree,
+    };
   }
 
-  if (TREE_ROLE_ORDER[treeRole] < TREE_ROLE_ORDER[minTreeRole]) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Check tree membership
+  const member = await prisma.treeMember.findUnique({
+    where: { treeId_userId: { treeId: tree.id, userId } },
+  });
+
+  if (!member) {
+    return apiError(
+      "NOT_A_MEMBER",
+      "Not a member of this tree",
+      undefined,
+      403,
+    );
   }
 
-  return { userId: user.id, email: user.email, treeRole, tree };
+  if (TREE_ROLE_ORDER[member.role] < TREE_ROLE_ORDER[minRole]) {
+    return apiError(
+      "INSUFFICIENT_TREE_ROLE",
+      "Insufficient tree role",
+      undefined,
+      403,
+    );
+  }
+
+  return {
+    userId,
+    email: session.user.email!,
+    treeRole: member.role as TreeRole,
+    tree,
+  };
 }
 
-/**
- * Like requireTreeAccess, but also accepts a Bearer token matched against
- * the tree's `api_token` setting.
- */
 export async function requireTreeAccessOrToken(
   req: Request,
   treeIdOrSlug: string,
-  minTreeRole: 'viewer' | 'editor' | 'admin',
-): Promise<
-  | { userId: string; email: string; treeRole: string; tree: { id: string; slug: string; name: string; ownerId: string } }
-  | NextResponse
-> {
-  const sessionResult = await requireTreeAccess(treeIdOrSlug, minTreeRole);
-  if (!(sessionResult instanceof NextResponse)) return sessionResult;
-
-  // Fall back to Bearer token
-  const bearer = req.headers.get('authorization');
-  if (!bearer?.startsWith('Bearer ')) return sessionResult;
-
-  const token = bearer.slice(7).trim();
-
-  // Resolve tree
-  const tree = await prisma.tree.findFirst({
-    where: { OR: [{ id: treeIdOrSlug }, { slug: treeIdOrSlug }] },
-    select: { id: true, slug: true, name: true, ownerId: true },
-  });
-
-  if (!tree) {
-    return NextResponse.json({ error: 'Tree not found' }, { status: 404 });
+  minRole: TreeRole = "viewer",
+) {
+  // Check Bearer token first
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const tree = await prisma.tree.findFirst({
+      where: { OR: [{ id: treeIdOrSlug }, { slug: treeIdOrSlug }] },
+    });
+    if (tree) {
+      const setting = await prisma.setting.findUnique({
+        where: { treeId_key: { treeId: tree.id, key: "api_token" } },
+      });
+      if (setting?.value === token) {
+        return {
+          userId: "api",
+          email: "api",
+          treeRole: "editor" as TreeRole,
+          tree,
+        };
+      }
+    }
   }
-
-  const apiTokenSetting = await prisma.setting.findFirst({
-    where: { treeId: tree.id, key: 'api_token' },
-  });
-
-  if (!apiTokenSetting?.value || apiTokenSetting.value !== token) {
-    return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
-  }
-
-  if (TREE_ROLE_ORDER['editor'] < TREE_ROLE_ORDER[minTreeRole]) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return { userId: 'api', email: 'api-token', treeRole: 'editor', tree };
+  return requireTreeAccess(treeIdOrSlug, minRole);
 }
