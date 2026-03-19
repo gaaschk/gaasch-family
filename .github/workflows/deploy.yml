@@ -46,7 +46,6 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r prisma .next/standalone/prisma
           cp ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
-          cp prisma.config.ts .next/standalone/prisma.config.ts
           mkdir -p .next/standalone/scripts
           cp scripts/seed.ts .next/standalone/scripts/seed.ts
           # Copy Prisma query engine binary (not bundled by Next.js standalone automatically)
