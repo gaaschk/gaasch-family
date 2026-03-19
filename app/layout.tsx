@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
+import { Suspense } from "react";
 import { EmailVerificationBanner } from "@/src/components/EmailVerificationBanner";
 import "./globals.css";
 
@@ -18,7 +19,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SessionProvider>
-          <EmailVerificationBanner />
+          <Suspense>
+            <EmailVerificationBanner />
+          </Suspense>
           {children}
         </SessionProvider>
       </body>
