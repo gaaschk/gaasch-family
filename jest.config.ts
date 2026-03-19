@@ -7,6 +7,13 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
+  transform: {
+    "^.+\\.[tj]sx?$": ["ts-jest", { diagnostics: false }],
+  },
+  transformIgnorePatterns: [
+    "node_modules/(?!(msw|@mswjs|until-async)/)",
+  ],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/.claude/", "/e2e/"],
 };
 
 export default config;
