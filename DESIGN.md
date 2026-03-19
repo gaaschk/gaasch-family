@@ -383,7 +383,7 @@ Three-button toggle: `Paternal Line` | `Maternal Line` | `Custom Path`
 - Empty table: warm message + [Add First Person] CTA
 - Bulk actions bar appears on row select (fixed at bottom)
 
-### Auth Pages (Login, Signup, Reset Password)
+### Auth Pages (Login, Signup, Forgot/Reset Password)
 - Centered single-column layout, max-width 420px
 - Logo "Heirloom" in Fraunces italic, centered above form
 - Background: `--parchment` (same as app — no separate "auth background")
@@ -391,7 +391,218 @@ Three-button toggle: `Paternal Line` | `Maternal Line` | `Custom Path`
 - Input labels: ALL CAPS Instrument Sans, `--brown-muted`
 - Primary CTA: forest green full-width button
 - Links: `--forest`, hover underline
-- Google OAuth button: standard Google styling (brand requirement)
+
+**Page copy — login:**
+- H1: "Sign in to Heirloom" (Fraunces 30px, `--brown-text`)
+- Subhead: "Your family's living history" (Source Serif 4 italic, `--brown-muted`)
+- Bottom links: "Forgot password?" left | "Sign up" right — Instrument Sans 14px, `--forest`
+
+**Page copy — signup:**
+- H1: "Start your family history" (Fraunces 30px, `--brown-text`) — NOT "Request access"
+- Subhead: "Your tree. Your story. Private." (Source Serif 4 italic, `--brown-muted`)
+- Primary CTA button: "Create account" — NOT "Request access"
+- Bottom link: "Already have an account? Sign in"
+- Remove all "invite-only" and "admin approval" language entirely
+
+**Screen hierarchy — login:**
+```
+1st: Logo (Heirloom wordmark, Fraunces italic, amber on last letter)
+2nd: Heading + subhead
+3rd: Google button → Apple button (most users take these paths)
+4th: "or" divider
+5th: Email/password form
+6th: Forgot password / Sign up links
+```
+
+**Screen hierarchy — signup:**
+```
+1st: Logo
+2nd: "Start your family history" + subhead
+3rd: Google button → Apple button
+4th: "or" divider
+5th: Name / email / password form
+6th: "Create account" button
+7th: "Already have an account? Sign in"
+```
+
+**OAuth buttons (Google / Apple):**
+- Appear above the email/password form, separated by an "or" divider (`--border-light` hairlines + Instrument Sans 12px "or" centered)
+- **Google:** follows Google brand guidelines exactly — white/light bg, Google logo SVG, "Continue with Google" in Roboto (Google's requirement). Border: `--border`, 1px. Radius: `--radius-md` (6px). Full width. Height: 44px (touch target).
+- **Apple:** follows Apple HIG — black background, white Apple logo SVG, "Continue with Apple" in San Francisco / system-ui. Radius: `--radius-md`. Full width. Height: 44px. Dark mode: white bg, black text (Apple requirement).
+- Order: Google → Apple → divider → email form. Most common provider first.
+- OAuth buttons use standard brand styles even though they deviate from the Heirloom palette — this is a brand compliance requirement, not a design inconsistency.
+- On mobile, both OAuth buttons are stacked, full width, with 8px gap between them.
+- `aria-label` for Google button: "Continue with Google" (matches visible text — no change needed)
+- `aria-label` for Apple button: "Continue with Apple" (matches visible text — no change needed)
+- Apple button dark mode: black bg (#000) with white text — contrast ratio ~21:1 ✓; light bg (#fff) with black text on dark app background fails WCAG against `--parchment-3` behind the form card, so ensure Apple button is rendered within the card (parchment-2 bg), not against the page background
+
+### Email Verification Banner
+Shown on every authenticated page until the user verifies their email. Soft block — the user can use the full app, but the banner persists.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  ⚑  Please verify your email — we sent a link to            │
+│     user@example.com.  [Resend email]  [×]                   │
+└──────────────────────────────────────────────────────────────┘
+```
+- Position: fixed top of page, above all content (not inside the sidebar or nav)
+- Background: `--amber-bg` (`#FDF3E4`); border-bottom: 1px solid `--amber-light`
+- Icon `⚑`: amber color (`--amber`)
+- Body text: Instrument Sans 14px, `--brown-text`
+- Email address: Geist Mono, `--brown-2`
+- "Resend email": `--forest`, underline on hover; clicking debounces 60s and shows "Email sent" confirmation inline
+- Dismiss `[×]`: `--brown-muted`; dismisses for the session only (banner returns on next login until verified)
+- Height: 44px single-line on desktop; auto-height on mobile if email wraps
+- No banner once `emailVerified` is set — do not show a "verified" success toast (unnecessary noise)
+- **Keyboard:** dismiss button is Tab-focusable; `aria-label="Dismiss verification banner"`; visible focus ring (3px `--forest`)
+- **Mobile:** banner text truncates at one line on small screens — long email addresses truncated with ellipsis, not wrapping to two lines (preserve 44px height)
+
+### Onboarding Wizard
+Shown after any signup (credentials, Google, or Apple) when the user has 0 tree memberships. Route: `/onboarding`. Skipped if the user already has a tree or has accepted an invite.
+
+**Routing logic (applies to all signup methods):**
+- After any successful sign-in or sign-up: check `TreeMember` count for the user
+- If `count === 0` → redirect to `/onboarding`
+- If `count >= 1` → redirect to `/dashboard` (or `callbackUrl` if set)
+- This is method-agnostic: credentials, Google, or Apple all follow the same logic
+- If a user signs up via credentials, then later signs in via Google with the same email, NextAuth links the accounts automatically — they go to `/dashboard` like any return visit, no special message needed
+
+**Wizard layout:**
+```
+┌────────────────────────────────────────────────────────┐
+│  Heirloom  (Fraunces italic, centered, amber accent)   │
+│                                                        │
+│  "Your ancestors are waiting."  (Fraunces 36px)         │
+│  "Let's build your tree."                              │
+│  (Source Serif 4 italic, --brown-muted, 18px)          │
+│                                                        │
+│  ┌──────────────────┐   ┌──────────────────────────┐  │
+│  │  Build your tree │   │  Join a family tree      │  │
+│  │                  │   │                          │  │
+│  │  [tree icon]     │   │  [invite icon]           │  │
+│  │                  │   │                          │  │
+│  │  Start fresh or  │   │  Someone sent you a      │  │
+│  │  import a GEDCOM │   │  link — enter the code   │  │
+│  └──────────────────┘   └──────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+```
+- Page background: `--parchment`
+- Two option cards: `--parchment-2` bg, `--border` border, `--radius-xl`, 40px padding
+- Card hover: `--parchment-3` bg, border shifts to `--forest` (1px)
+- Selected card: `--forest-bg` bg, `--forest` border (2px), forest checkmark top-right
+- Icons: simple line icons in `--forest`, ~40px
+
+**Path A: Create a new tree**
+```
+Step 1 of 2 — "Name your tree"
+┌─────────────────────────────────────┐
+│  Tree name                          │
+│  [________________] input           │
+│  "e.g. The Gaasch Family"           │
+│  (Instrument Sans 13px, --brown-muted)│
+│                                     │
+│  [ Continue → ]  (forest button)    │
+└─────────────────────────────────────┘
+
+Step 2 of 2 — "Import your family data (optional)"
+┌─────────────────────────────────────┐
+│  "Have a GEDCOM file?"              │
+│  (Source Serif 4, 16px)             │
+│                                     │
+│  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐  │
+│  │   Drop your .ged file here    │  │
+│  │   or [browse files]           │  │
+│  │   (dashed amber border on     │  │
+│  │    drag-over, otherwise       │  │
+│  │    --border-light)            │  │
+│  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │
+│                                     │
+│  "GEDCOM is a standard export from  │
+│   Ancestry, FamilySearch, and most  │
+│   genealogy software."              │
+│  (Source Serif 4 italic, 14px, muted)│
+│                                     │
+│  [ Skip for now ]  [ Import & Finish]│
+└─────────────────────────────────────┘
+```
+- Step indicator: Instrument Sans 12px, ALL CAPS, `--brown-muted`. E.g. "STEP 1 OF 2"
+- Progress: thin amber line under the header, 50% / 100% fill
+- GEDCOM upload during import: show progress bar (`--forest` fill) + "Importing N of M people…"
+- After completion → redirect to `/trees/[new-slug]`
+
+**Path B: Enter invite code**
+```
+┌─────────────────────────────────────┐
+│  "Enter your invite code"           │
+│  (Fraunces 24px)                    │
+│                                     │
+│  [________________________] input   │
+│  Geist Mono, placeholder "abc-xyz"  │
+│                                     │
+│  [ Join Tree ]  (forest button)     │
+│                                     │
+│  "Don't have a code? Ask the tree   │
+│   admin to send you an invite."     │
+│  (Source Serif 4 italic, 14px, muted)│
+└─────────────────────────────────────┘
+```
+- Invalid code: inline error below input, `--error` color, Instrument Sans 14px. "That code is invalid or has expired."
+- Success: → redirect to `/trees/[slug]` with a brief welcome toast: "Welcome to [Tree Name]."
+
+### Welcome Email
+Sent after any signup (credentials, Google, Apple). Single-purpose: confirm the account, set the tone, direct to onboarding.
+
+**Structure:**
+```
+[Heirloom wordmark — Fraunces italic, centered]
+
+────────────────────────────────────
+
+Your family history starts here.
+
+We're glad you're here, {first_name}. Heirloom is your
+private space to build, explore, and share your family tree
+— enriched by AI-generated biographies and records from
+across the world.
+
+[Start building your tree →]   ← forest green button, full width
+
+────────────────────────────────────
+
+If you didn't create this account, you can safely ignore
+this email.
+```
+- Background: `#FAF5EC` (parchment — not white)
+- Font: email-safe serif stack for body (`Georgia, 'Times New Roman', serif`); wordmark rendered as text in a web font via font embedding or image fallback
+- CTA button: `#2D4A35` (forest green), white text, 6px radius
+- No hero image, no icon grid, no social links — just the message
+- `EMAIL_FROM` display name: "Heirloom" (not "noreply@…")
+- Subject line: "Your family history starts here" — matches the email heading
+
+**Wizard interaction states:**
+
+| State | Loading | Error | Success |
+|-------|---------|-------|---------|
+| Create tree | — | "That name is taken — try another" inline | → Step 2 |
+| GEDCOM import | Progress bar + "Importing N of M people…" | "Import failed at line N: [message]" red alert | Green alert "N people imported" → redirect |
+| Join with code | Spinner inside button | "Invalid or expired code" inline | "Welcome to [Tree Name]" toast → redirect |
+
+**Mobile onboarding layout (≤640px):**
+- Path selection cards: stack vertically (single column), full width, 16px gap
+- Each card: 80px height on mobile (compressed from desktop), icon 28px
+- Step 2 GEDCOM drop zone: becomes a tap-to-browse button on mobile (drag-and-drop not applicable)
+- "Skip for now" / "Import & Finish" buttons: stack vertically, full width on mobile
+
+**Keyboard & accessibility:**
+- Path selection cards: focusable with Tab; `role="button"` or `<button>` wrapper; Enter/Space to select
+- GEDCOM file input: visible "Browse files" button with keyboard focus; `accept=".ged,.gedcom"` attribute
+- Progress step indicator: `aria-label="Step 1 of 2"` on the step counter element
+- Invite code input: `type="text"` not `type="number"` (invite codes may have dashes/letters)
+
+**Onboarding tone:**
+- Warm and purposeful. Not gamified. Not "Let's get you set up!" energy.
+- "Your ancestors are waiting." not "You're almost there! 🎉"
+- "Skip for now" is always available — never trap the user in a wizard.
 
 ### Mobile Navigation (≤768px)
 - Sidebar becomes bottom navigation bar: 5 icons max (Explorer, Directory, Chat, Inbox, More)
@@ -426,6 +637,12 @@ The interactive graph visualization is **desktop/tablet only** (≥768px). On mo
 | EU Eligibility Checker | "Analyzing your tree…" spinner | "Add ancestors with European birth places to check eligibility." | "Analysis failed. [Retry]" | Cards per country (likely/possible/insufficient) | — |
 | Heritage Card | "Generating your card…" spinner | No ancestors in line: "Add parents to generate a heritage card." | "Card generation failed. [Retry]" | Card renders + share button | — |
 | Tree Member Invite | Sending spinner | No members: "Invite family members to collaborate." + [Invite] CTA | "Invite failed. Check the email address." | Green toast "Invitation sent to [email]" | — |
+| OAuth Login (Google/Apple) | Button replaced by spinner (inline) | "Could not sign in with Google/Apple. Try again or use email." — amber inline alert | → Dashboard or /onboarding | — | — |
+| Signup — duplicate email | — | — | "An account with that email already exists. [Sign in instead]" — inline error with forest-colored link to /login | — | — |
+| Email Verification | "Sending…" inline next to Resend link | "Couldn't send — try again in a moment." | Banner disappears; no success toast | — | — |
+| Onboarding — Create Tree | — | "That name is already taken." inline | → Step 2 (GEDCOM prompt) | — | — |
+| Onboarding — GEDCOM Import | Progress bar + "Importing N of M people…" | Red alert "Import failed at line N: [message]" with skip option | Green alert "N people, N families imported" → /trees/[slug] | Partial: progress shown | — |
+| Onboarding — Join with Code | Spinner in button | "That code is invalid or expired." inline | "Welcome to [Tree Name]." toast → /trees/[slug] | — | — |
 
 ## User Journey & Emotional Arc
 
@@ -458,7 +675,23 @@ STEP | USER DOES              | SHOULD FEEL           | DESIGNED BY
 6    | Shares heritage card    | Joyful               | Card is beautiful enough to share
 ```
 
-### Journey 3: Casual family member (viewer role)
+### Journey 3: New user, OAuth signup + GEDCOM import
+```
+STEP | USER DOES              | SHOULD FEEL           | DESIGNED BY
+-----|------------------------|----------------------|----------------------------------
+1    | Lands on /signup        | Safe, familiar       | Google/Apple buttons prominent;
+     |                        |                      | no email required for OAuth
+2    | Taps "Continue with    | Trusted              | Native Google/Apple sheet appears;
+     | Google"                |                      | returns seamlessly
+3    | Lands on /onboarding   | Guided, not lost     | Two clear paths; warm tone
+4    | Chooses "Start a tree" | Purposeful           | One field, clean form
+5    | Sees GEDCOM prompt     | Relieved (easy path) | "Skip for now" always visible;
+     |                        |                      | drag-drop feels familiar
+6    | Imports .ged file      | Impressed            | Progress bar; "N people imported"
+7    | Lands on tree explorer | Amazed               | Their family, already beautiful
+```
+
+### Journey 4: Casual family member (viewer role)
 ```
 STEP | USER DOES              | SHOULD FEEL           | DESIGNED BY
 -----|------------------------|----------------------|----------------------------------
@@ -470,6 +703,21 @@ STEP | USER DOES              | SHOULD FEEL           | DESIGNED BY
 5    | Browses map             | Wonder               | Seeing family migrate across a map
 6    | Shares heritage card    | Identity, pride      | The artifact is worth sharing
 ```
+
+### Files to delete as part of open signup
+- `app/awaiting-approval/page.tsx` — dead code once open signup ships
+- Remove the `pending` role redirect block from `src/middleware.ts`
+
+### Auth Page Copy Changes (required for open signup)
+These specific strings in the existing code MUST change:
+| Current copy | New copy | File |
+|---|---|---|
+| "Request access" (H1) | "Start your family history" | `app/signup/page.tsx` |
+| "Heirloom is invite-only. An admin will approve your account." | "Your tree. Your story. Private." | `app/signup/page.tsx` |
+| "Request access" (button label) | "Create account" | `app/signup/page.tsx` |
+| "No account? Request access" | "No account? Sign up" | `app/login/page.tsx` |
+| "Request submitted" (success state) | Redirect to /onboarding directly | `app/signup/page.tsx` |
+| "An admin will review your request…" | Remove entirely | `app/signup/page.tsx` |
 
 ### Tone Rules (apply to all copy)
 - **Headings:** Dignified, factual. Never "Amazing!" or "Wow!". Let the content be the wow.
@@ -516,3 +764,7 @@ STEP | USER DOES              | SHOULD FEEL           | DESIGNED BY
 | 2026-03-18 | Chat panel = bottom sheet (60vh) | Consistent across mobile/desktop; conversational feel; doesn't fight the content behind it |
 | 2026-03-18 | Heritage card: paternal / maternal / custom path | Three modes give flexibility; custom picker lets user trace any ancestor line |
 | 2026-03-18 | Person avatars: AI-recommended portrait detection | When photo uploaded, AI suggests if it's a good portrait; one-tap to confirm as avatar |
+| 2026-03-18 | OAuth buttons (Google/Apple) use brand-required styles | Google and Apple mandate specific visual treatments; compliant even though they deviate from parchment palette |
+| 2026-03-18 | Email verification = soft block with persistent banner | Users can access the app immediately; banner is amber (not red) — informative, not alarming |
+| 2026-03-18 | Onboarding wizard at /onboarding, 2-path (create / join) | Avoids blank-slate confusion on first login; GEDCOM import in Step 2 means early users can have a full tree in minutes |
+| 2026-03-18 | Onboarding GEDCOM import is optional ("Skip for now") | Never trap the user; the app is useful without a GEDCOM file |

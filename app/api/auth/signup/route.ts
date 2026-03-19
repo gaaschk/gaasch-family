@@ -1,6 +1,7 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { type NextRequest, NextResponse } from "next/server";
-import { sendSignupNotificationEmail } from "@/src/lib/email";
+import { sendVerificationEmail, sendWelcomeEmail } from "@/src/lib/email";
 import { prisma } from "@/src/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -40,8 +41,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   const existing = await prisma.user.findUnique({
-    where: { email: email.trim().toLowerCase() },
+    where: { email: normalizedEmail },
   });
   if (existing) {
     return NextResponse.json(
@@ -58,29 +61,35 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.create({
     data: {
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       passwordHash,
-      role: "pending",
+      role: "viewer",
     },
   });
 
-  // Notify admins (best-effort, non-blocking)
-  try {
-    const admins = await prisma.user.findMany({
-      where: { role: "admin" },
-      select: { email: true },
-    });
-    const adminEmails = admins.map((a) => a.email);
-    const approveUrl = `${process.env.AUTH_URL ?? ""}/dashboard/users`;
-    await sendSignupNotificationEmail({
-      newUserName: user.name ?? email,
-      newUserEmail: user.email,
-      adminEmails,
-      approveUrl,
-    });
-  } catch {
-    // notification failure is not fatal
-  }
+  // Create email verification token (24hr TTL)
+  const token = randomBytes(32).toString("hex");
+  await prisma.emailVerificationToken.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
+  });
+
+  const appUrl = process.env.AUTH_URL ?? "";
+  const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
+
+  // Fire-and-forget emails
+  sendWelcomeEmail({
+    toEmail: user.email,
+    toName: user.name ?? name.trim(),
+  }).catch(() => {});
+  sendVerificationEmail({
+    toEmail: user.email,
+    toName: user.name ?? name.trim(),
+    verifyUrl,
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }

@@ -8,21 +8,19 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const userRole = (auth?.user as { role?: string })?.role;
       const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
       const isOnTrees = nextUrl.pathname.startsWith("/trees");
       const isOnInvite = nextUrl.pathname.startsWith("/invite");
       const isOnAdmin = nextUrl.pathname.startsWith("/admin");
+      const isOnOnboarding = nextUrl.pathname.startsWith("/onboarding");
 
-      // Pending users may only see /awaiting-approval and public pages
-      if (isLoggedIn && userRole === "pending") {
-        if (nextUrl.pathname !== "/awaiting-approval") {
-          return Response.redirect(new URL("/awaiting-approval", nextUrl));
-        }
-        return true;
-      }
-
-      if (isOnDashboard || isOnTrees || isOnInvite || isOnAdmin) {
+      if (
+        isOnDashboard ||
+        isOnTrees ||
+        isOnInvite ||
+        isOnAdmin ||
+        isOnOnboarding
+      ) {
         if (isLoggedIn) return true;
         return false;
       }
@@ -31,7 +29,9 @@ export const authConfig: NextAuthConfig = {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role ?? "pending";
+        token.role = (user as { role?: string }).role ?? "viewer";
+        token.emailVerified =
+          (user as { emailVerified?: Date | null }).emailVerified ?? null;
       }
       return token;
     },
@@ -39,6 +39,8 @@ export const authConfig: NextAuthConfig = {
       if (token && session.user) {
         session.user.id = token.id as string;
         (session.user as { role?: string }).role = token.role as string;
+        (session.user as { emailVerified?: Date | null }).emailVerified =
+          token.emailVerified as Date | null;
       }
       return session;
     },
