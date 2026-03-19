@@ -79,8 +79,7 @@ export default function ResetPasswordPage() {
           <div
             style={{
               padding: "1rem 1.25rem",
-              background:
-                "color-mix(in srgb, var(--forest) 8%, transparent)",
+              background: "color-mix(in srgb, var(--forest) 8%, transparent)",
               border:
                 "1px solid color-mix(in srgb, var(--forest) 20%, transparent)",
               borderRadius: "var(--radius-md)",

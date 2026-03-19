@@ -1,6 +1,6 @@
 import { POST } from "@/app/api/auth/forgot-password/route";
-import { prisma } from "@/src/lib/prisma";
 import * as email from "@/src/lib/email";
+import { prisma } from "@/src/lib/prisma";
 
 jest.mock("@/src/lib/prisma", () => ({
   prisma: {
@@ -13,7 +13,12 @@ jest.mock("@/src/lib/email", () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
 }));
 
-const mockUser = { id: "user_1", email: "test@example.com", name: "Test", passwordHash: "hashed" };
+const mockUser = {
+  id: "user_1",
+  email: "test@example.com",
+  name: "Test",
+  passwordHash: "hashed",
+};
 
 function makeRequest(body: unknown) {
   return new Request("http://localhost/api/auth/forgot-password", {
@@ -44,7 +49,10 @@ describe("POST /api/auth/forgot-password", () => {
   });
 
   it("returns 200 without sending email for OAuth-only user (no passwordHash)", async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...mockUser, passwordHash: null });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ...mockUser,
+      passwordHash: null,
+    });
     const res = await POST(makeRequest({ email: mockUser.email }));
     expect(res.status).toBe(200);
     expect(email.sendPasswordResetEmail).not.toHaveBeenCalled();
@@ -52,8 +60,12 @@ describe("POST /api/auth/forgot-password", () => {
 
   it("expires existing tokens and creates a new one for a valid user", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-    (prisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
-    (prisma.passwordResetToken.create as jest.Mock).mockResolvedValue({ id: "tok_1" });
+    (prisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValue({
+      count: 1,
+    });
+    (prisma.passwordResetToken.create as jest.Mock).mockResolvedValue({
+      id: "tok_1",
+    });
 
     const res = await POST(makeRequest({ email: mockUser.email }));
 
@@ -62,7 +74,9 @@ describe("POST /api/auth/forgot-password", () => {
       expect.objectContaining({ where: { userId: mockUser.id, usedAt: null } }),
     );
     expect(prisma.passwordResetToken.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ userId: mockUser.id }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: mockUser.id }),
+      }),
     );
     // Email is fire-and-forget; give it a tick to resolve
     await Promise.resolve();
@@ -73,9 +87,15 @@ describe("POST /api/auth/forgot-password", () => {
 
   it("still returns 200 when email sending fails", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-    (prisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
-    (prisma.passwordResetToken.create as jest.Mock).mockResolvedValue({ id: "tok_2" });
-    (email.sendPasswordResetEmail as jest.Mock).mockRejectedValue(new Error("SMTP error"));
+    (prisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.passwordResetToken.create as jest.Mock).mockResolvedValue({
+      id: "tok_2",
+    });
+    (email.sendPasswordResetEmail as jest.Mock).mockRejectedValue(
+      new Error("SMTP error"),
+    );
 
     const res = await POST(makeRequest({ email: mockUser.email }));
     expect(res.status).toBe(200);

@@ -46,6 +46,7 @@ export async function requireRole(minRole: PlatformRole = "viewer") {
       403,
     );
   }
+  // biome-ignore lint/style/noNonNullAssertion: session.user.id and email are always set after auth
   return { userId: session.user.id!, email: session.user.email!, role };
 }
 
@@ -63,6 +64,7 @@ export async function requireTreeAccess(
     );
   }
 
+  // biome-ignore lint/style/noNonNullAssertion: session.user.id is always set after auth
   const userId = session.user.id!;
   const userPlatformRole =
     (session.user as { role?: string }).role ?? "pending";
@@ -79,6 +81,7 @@ export async function requireTreeAccess(
   if (userPlatformRole === "admin") {
     return {
       userId,
+      // biome-ignore lint/style/noNonNullAssertion: session.user.email is always set after auth
       email: session.user.email!,
       treeRole: "admin" as TreeRole,
       tree,
@@ -110,6 +113,7 @@ export async function requireTreeAccess(
 
   return {
     userId,
+    // biome-ignore lint/style/noNonNullAssertion: session.user.email is always set after auth
     email: session.user.email!,
     treeRole: member.role as TreeRole,
     tree,

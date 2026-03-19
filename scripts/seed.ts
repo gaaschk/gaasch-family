@@ -11,9 +11,9 @@
  */
 
 import { randomBytes } from "node:crypto";
-import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import pg from "pg";
 
 const ADMIN_EMAIL = "gaaschk@gmail.com";
@@ -27,7 +27,9 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const existingCount = await prisma.user.count();
   if (existingCount > 0) {
-    console.log(`Database already has ${existingCount} user(s) — skipping seed.`);
+    console.log(
+      `Database already has ${existingCount} user(s) — skipping seed.`,
+    );
     return;
   }
 

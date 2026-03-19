@@ -4,7 +4,7 @@ import pg from "pg";
 
 function createPrismaClient() {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: adapter type mismatch between pg and Prisma generics
   const adapter = new PrismaPg(pool as any);
   return new PrismaClient({
     adapter,

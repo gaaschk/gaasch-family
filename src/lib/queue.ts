@@ -25,11 +25,11 @@ function makeConnectionOpts() {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: BullMQ result type is intentionally unknown
 let _queue: Queue<AgentJobData, any, string> | null = null;
 let _queueEvents: QueueEvents | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: BullMQ result type is intentionally unknown
 export function getAgentQueue(): Queue<AgentJobData, any, string> | null {
   if (!process.env.REDIS_URL) return null;
   if (!_queue) {

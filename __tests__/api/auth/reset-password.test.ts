@@ -1,6 +1,6 @@
+import bcrypt from "bcryptjs";
 import { POST } from "@/app/api/auth/reset-password/route";
 import { prisma } from "@/src/lib/prisma";
-import bcrypt from "bcryptjs";
 
 jest.mock("@/src/lib/prisma", () => ({
   prisma: {
@@ -52,7 +52,9 @@ describe("POST /api/auth/reset-password", () => {
 
   it("returns 400 when token is not found in DB", async () => {
     (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(null);
-    const res = await POST(makeRequest({ token: "unknown", password: "validpass123" }));
+    const res = await POST(
+      makeRequest({ token: "unknown", password: "validpass123" }),
+    );
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toMatch(/invalid or has expired/);
@@ -63,7 +65,9 @@ describe("POST /api/auth/reset-password", () => {
       ...mockToken,
       usedAt: new Date(),
     });
-    const res = await POST(makeRequest({ token: "abc123", password: "validpass123" }));
+    const res = await POST(
+      makeRequest({ token: "abc123", password: "validpass123" }),
+    );
     expect(res.status).toBe(400);
   });
 
@@ -72,15 +76,21 @@ describe("POST /api/auth/reset-password", () => {
       ...mockToken,
       expiresAt: new Date(Date.now() - 1000), // 1 second ago
     });
-    const res = await POST(makeRequest({ token: "abc123", password: "validpass123" }));
+    const res = await POST(
+      makeRequest({ token: "abc123", password: "validpass123" }),
+    );
     expect(res.status).toBe(400);
   });
 
   it("updates password and marks token used in a transaction for valid token", async () => {
-    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(mockToken);
+    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(
+      mockToken,
+    );
     (prisma.$transaction as jest.Mock).mockResolvedValue([{}, {}]);
 
-    const res = await POST(makeRequest({ token: "abc123", password: "validpass123" }));
+    const res = await POST(
+      makeRequest({ token: "abc123", password: "validpass123" }),
+    );
 
     expect(res.status).toBe(200);
     expect(bcrypt.hash).toHaveBeenCalledWith("validpass123", 12);
@@ -88,10 +98,16 @@ describe("POST /api/auth/reset-password", () => {
   });
 
   it("returns 500 with user-friendly message when DB transaction fails", async () => {
-    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(mockToken);
-    (prisma.$transaction as jest.Mock).mockRejectedValue(new Error("DB connection lost"));
+    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(
+      mockToken,
+    );
+    (prisma.$transaction as jest.Mock).mockRejectedValue(
+      new Error("DB connection lost"),
+    );
 
-    const res = await POST(makeRequest({ token: "abc123", password: "validpass123" }));
+    const res = await POST(
+      makeRequest({ token: "abc123", password: "validpass123" }),
+    );
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toMatch(/something went wrong/i);
