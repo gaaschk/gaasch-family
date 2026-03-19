@@ -73,7 +73,7 @@ jobs:
             set -e
             cd /var/www/heirloom
             set -a && source /var/www/heirloom/.env.production && set +a
-            npx --yes tsx node_modules/.bin/prisma migrate deploy
+            npx --yes tsx node_modules/.bin/prisma db push
             npx --yes tsx scripts/seed.ts
             pm2 describe heirloom > /dev/null 2>&1 \
               && pm2 reload heirloom --update-env \
