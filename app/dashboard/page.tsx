@@ -25,6 +25,11 @@ export default async function DashboardPage() {
     }),
   ]);
 
+  // Redirect to onboarding if user has no trees
+  if (ownedTrees.length === 0 && memberRows.length === 0) {
+    redirect("/onboarding");
+  }
+
   const memberTrees = memberRows
     .filter((m) => m.tree.ownerId !== auth.userId)
     .map((m) => ({ ...m.tree, myRole: m.role }));

@@ -23,7 +23,7 @@ describe("GET /api/auth/verify-email", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("redirects to /login?error=invalid_token when no token param", async () => {
-    const res = await GET(makeRequest() );
+    const res = await GET(makeRequest());
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login?error=invalid_token");
   });
@@ -33,9 +33,7 @@ describe("GET /api/auth/verify-email", () => {
       null,
     );
 
-    const res = await GET(
-      makeRequest("nonexistent_token") ,
-    );
+    const res = await GET(makeRequest("nonexistent_token"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login?error=invalid_token");
   });
@@ -53,9 +51,7 @@ describe("GET /api/auth/verify-email", () => {
       expiredToken,
     );
 
-    const res = await GET(
-      makeRequest("expired_token") ,
-    );
+    const res = await GET(makeRequest("expired_token"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login?error=token_expired");
     expect(prisma.emailVerificationToken.delete).toHaveBeenCalledWith({
@@ -77,9 +73,7 @@ describe("GET /api/auth/verify-email", () => {
       validToken,
     );
 
-    const res = await GET(
-      makeRequest("valid_token") ,
-    );
+    const res = await GET(makeRequest("valid_token"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/dashboard?verified=1");
 

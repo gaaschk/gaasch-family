@@ -4,7 +4,7 @@ import { requireRole } from "@/src/lib/auth";
 import { sendVerificationEmail } from "@/src/lib/email";
 import { prisma } from "@/src/lib/prisma";
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   const authResult = await requireRole("viewer");
   if (authResult instanceof NextResponse) return authResult;
 
