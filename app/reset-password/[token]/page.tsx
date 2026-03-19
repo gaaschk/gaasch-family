@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
@@ -13,6 +13,13 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +46,7 @@ export default function ResetPasswordPage() {
         setError(data.error ?? "Something went wrong.");
       } else {
         setDone(true);
-        setTimeout(() => router.push("/login"), 3000);
+        timerRef.current = setTimeout(() => router.push("/login"), 3000);
       }
     } catch {
       setError("Something went wrong. Please try again.");
