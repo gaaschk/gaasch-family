@@ -8,30 +8,6 @@ function getTransport() {
 
 const FROM = process.env.EMAIL_FROM ?? "Heirloom <noreply@example.com>";
 
-export async function sendSignupNotificationEmail(opts: {
-  newUserName: string;
-  newUserEmail: string;
-  adminEmails: string[];
-  approveUrl: string;
-}) {
-  if (opts.adminEmails.length === 0) return;
-  const transport = getTransport();
-  await transport.sendMail({
-    from: FROM,
-    to: opts.adminEmails.join(", "),
-    subject: `New access request: ${opts.newUserName}`,
-    text: [
-      `${opts.newUserName} (${opts.newUserEmail}) has requested access to Heirloom.`,
-      "",
-      `Approve here: ${opts.approveUrl}`,
-    ].join("\n"),
-    html: `
-      <p><strong>${opts.newUserName}</strong> (${opts.newUserEmail}) has requested access to Heirloom.</p>
-      <p><a href="${opts.approveUrl}">Review pending users</a></p>
-    `,
-  });
-}
-
 export async function sendTreeInviteEmail(opts: {
   toEmail: string;
   treeName: string;
@@ -107,6 +83,85 @@ export async function sendApprovalEmail(opts: {
       <p>Hi ${opts.toName},</p>
       <p>Your access to Heirloom has been approved.</p>
       <p><a href="${opts.loginUrl}">Sign in to Heirloom</a></p>
+    `,
+  });
+}
+
+export async function sendWelcomeEmail(opts: {
+  toEmail: string;
+  toName: string;
+}) {
+  const transport = getTransport();
+  const appUrl = process.env.AUTH_URL ?? "https://heirloom.family";
+  await transport.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: "Your family history starts here",
+    text: [
+      `Hi ${opts.toName},`,
+      "",
+      "Your Heirloom account is ready. Start building your family tree at:",
+      "",
+      appUrl,
+      "",
+      "If you didn't create this account, you can safely ignore this email.",
+    ].join("\n"),
+    html: `
+      <div style="background:#FAF5EC;padding:40px 0;font-family:Georgia,'Times New Roman',serif;">
+        <div style="max-width:480px;margin:0 auto;background:#FAF5EC;padding:40px 32px;">
+          <p style="font-family:Georgia,serif;font-size:28px;font-weight:400;color:#2C1A0E;margin:0 0 24px;">Heirloom</p>
+          <p style="font-size:20px;color:#2C1A0E;margin:0 0 16px;">Your family history starts here.</p>
+          <p style="font-size:15px;color:#5C3D1E;line-height:1.7;margin:0 0 32px;">
+            We're glad you're here, ${opts.toName}. Heirloom is your private space to build, explore,
+            and share your family tree — enriched by AI-generated biographies.
+          </p>
+          <a href="${appUrl}/onboarding" style="display:block;background:#2D4A35;color:#FAF5EC;text-decoration:none;padding:14px 24px;border-radius:6px;font-family:system-ui,sans-serif;font-size:15px;font-weight:600;text-align:center;">
+            Start building your tree →
+          </a>
+          <p style="font-size:12px;color:#8B6544;margin:32px 0 0;line-height:1.5;">
+            If you didn't create this account, you can safely ignore this email.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendVerificationEmail(opts: {
+  toEmail: string;
+  toName: string;
+  verifyUrl: string;
+}) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: FROM,
+    to: opts.toEmail,
+    subject: "Verify your Heirloom email address",
+    text: [
+      `Hi ${opts.toName},`,
+      "",
+      "Please verify your email address by clicking this link (expires in 24 hours):",
+      "",
+      opts.verifyUrl,
+      "",
+      "If you didn't create an Heirloom account, you can safely ignore this email.",
+    ].join("\n"),
+    html: `
+      <div style="background:#FAF5EC;padding:40px 0;font-family:Georgia,'Times New Roman',serif;">
+        <div style="max-width:480px;margin:0 auto;background:#FAF5EC;padding:40px 32px;">
+          <p style="font-family:Georgia,serif;font-size:28px;font-weight:400;color:#2C1A0E;margin:0 0 24px;">Heirloom</p>
+          <p style="font-size:18px;color:#2C1A0E;margin:0 0 16px;">Verify your email address</p>
+          <p style="font-size:15px;color:#5C3D1E;line-height:1.7;margin:0 0 32px;">
+            Hi ${opts.toName}, click the button below to verify your email. This link expires in 24 hours.
+          </p>
+          <a href="${opts.verifyUrl}" style="display:block;background:#2D4A35;color:#FAF5EC;text-decoration:none;padding:14px 24px;border-radius:6px;font-family:system-ui,sans-serif;font-size:15px;font-weight:600;text-align:center;">
+            Verify email address →
+          </a>
+          <p style="font-size:12px;color:#8B6544;margin:32px 0 0;line-height:1.5;">
+            If you didn't create an Heirloom account, you can safely ignore this email.
+          </p>
+        </div>
+      </div>
     `,
   });
 }
