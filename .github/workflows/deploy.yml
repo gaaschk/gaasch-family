@@ -34,6 +34,11 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Push schema to production DB
+        run: npx tsx node_modules/.bin/prisma db push --skip-generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Build
         run: npm run build
         env:
@@ -72,7 +77,6 @@ jobs:
             set -e
             cd /var/www/heirloom
             set -a && source /var/www/heirloom/.env.production && set +a
-            npx --yes prisma db push
             npx --yes tsx scripts/seed.ts || true
             pm2 describe heirloom > /dev/null 2>&1 \
               && pm2 reload heirloom --update-env \
