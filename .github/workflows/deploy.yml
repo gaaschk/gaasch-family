@@ -49,9 +49,8 @@ jobs:
           cp prisma.config.ts .next/standalone/prisma.config.ts
           mkdir -p .next/standalone/scripts
           cp scripts/seed.ts .next/standalone/scripts/seed.ts
-          # Copy generated Prisma client and query engine into standalone node_modules
+          # Copy Prisma query engine binary (not bundled by Next.js standalone automatically)
           cp -r node_modules/.prisma .next/standalone/node_modules/.prisma
-          cp -r node_modules/@prisma/client .next/standalone/node_modules/@prisma/client
 
       - name: Configure SSH
         run: |
