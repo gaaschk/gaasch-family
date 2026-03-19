@@ -3,7 +3,20 @@ import { PrismaClient } from "@prisma/client";
 import pg from "pg";
 
 function createPrismaClient() {
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const connStr = process.env.DATABASE_URL ?? "";
+  // Log connection target (password redacted) to help diagnose auth issues
+  try {
+    const u = new URL(connStr);
+    console.log(
+      `[prisma] connecting as ${u.username} to ${u.hostname}${u.pathname}`,
+    );
+  } catch {
+    console.log("[prisma] DATABASE_URL unset or unparseable");
+  }
+  const pool = new pg.Pool({ connectionString: connStr });
+  pool.on("error", (err) =>
+    console.error("[prisma:pool] idle client error", err),
+  );
   // biome-ignore lint/suspicious/noExplicitAny: adapter type mismatch between pg and Prisma generics
   const adapter = new PrismaPg(pool as any);
   return new PrismaClient({
