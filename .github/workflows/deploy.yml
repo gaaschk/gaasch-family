@@ -34,6 +34,11 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Push schema to production DB
+        run: npx tsx node_modules/.bin/prisma db push
+        env:
+          DATABASE_URL: "postgresql://dbmasteruser:${{ secrets.DB_PASSWORD }}@ls-2a98626fe60a057de40dcf3e7cd5c257496a402d.c6dyqcyyoecj.us-east-1.rds.amazonaws.com:5432/heirloom"
+
       - name: Build
         run: npm run build
         env:
@@ -45,7 +50,6 @@ jobs:
           cp -r public .next/standalone/public
           cp -r .next/static .next/standalone/.next/static
           cp -r prisma .next/standalone/prisma
-          cp prisma.config.ts .next/standalone/prisma.config.ts
           cp ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
           mkdir -p .next/standalone/scripts
           cp scripts/seed.ts .next/standalone/scripts/seed.ts
@@ -73,7 +77,6 @@ jobs:
             set -e
             cd /var/www/heirloom
             set -a && source /var/www/heirloom/.env.production && set +a
-            npx --yes prisma db push
             npx --yes tsx scripts/seed.ts || true
             pm2 describe heirloom > /dev/null 2>&1 \
               && pm2 reload heirloom --update-env \
