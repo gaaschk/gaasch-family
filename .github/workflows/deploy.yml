@@ -35,7 +35,7 @@ jobs:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: Push schema to production DB
-        run: npx tsx node_modules/.bin/prisma db push --skip-generate
+        run: npx tsx node_modules/.bin/prisma db push
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
