@@ -558,12 +558,43 @@ Claiming work is complete without verification is dishonesty, not efficiency.
 
 ---
 
+## Step 6.75: Clean history for PR
+
+Before pushing, ensure the branch has a clean commit history. Messy iterative fix commits (e.g., 23 commits for a 2-file change) waste reviewer time and pollute git history.
+
+1. Count commits on this branch:
+   ```bash
+   git log origin/<base>..HEAD --oneline | wc -l
+   ```
+
+2. Check total diff size:
+   ```bash
+   git diff origin/<base>...HEAD --stat | tail -1
+   ```
+
+3. **Decision logic:**
+   - **<= 5 commits:** Keep as-is — already clean enough.
+   - **> 5 commits AND < 200 lines changed:** Squash into a single commit. The diff is small, so bisectability doesn't matter:
+     ```bash
+     git reset --soft origin/<base>
+     ```
+     Then re-commit with a clean message summarizing all changes. Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` in the commit.
+   - **> 5 commits AND >= 200 lines changed:** Keep the bisectable commits from Step 6. They were intentionally structured for clarity.
+
+4. **After squash:** The VERSION + CHANGELOG commit from Step 6 is now folded into the single commit. This is fine — the PR body has the full context.
+
+**Note:** `git reset --soft` is safe — it preserves all changes in the working tree. Step 7 uses `--force-with-lease` to handle the rewritten history.
+
+---
+
 ## Step 7: Push
 
-Push to the remote with upstream tracking:
+Push to the remote with upstream tracking. Use `--force-with-lease` to safely handle
+any history rewriting from Step 6.75 (it will only force-push if no one else has pushed
+to the branch since our last fetch — otherwise it aborts safely):
 
 ```bash
-git push -u origin <branch-name>
+git push -u origin <branch-name> --force-with-lease
 ```
 
 ---
@@ -611,7 +642,58 @@ EOF
 )"
 ```
 
-**Output the PR URL** — this should be the final output the user sees.
+**Save the PR number** — you'll need it for Step 9.
+
+---
+
+## Step 9: Verify CI checks pass
+
+**Do NOT report the PR as ready until CI passes.** This is non-negotiable.
+
+1. Wait for checks to appear and complete:
+   ```bash
+   gh pr checks <pr-number> --watch
+   ```
+   If `--watch` exits with "no checks reported", wait 15 seconds and retry (max 3 retries).
+
+2. **If all checks pass:** Output "CI: All checks passed." and the PR URL.
+
+3. **If any check fails:**
+   - Read the failed run logs:
+     ```bash
+     gh run view <run-id> --log-failed
+     ```
+   - Diagnose and fix the issue.
+   - Commit the fix, push (`--force-with-lease` if history was rewritten).
+   - Return to the top of Step 9 and re-monitor. **Max 3 fix attempts.**
+   - If 3 attempts fail: **STOP** and escalate to the user with the failure details.
+
+4. **After CI passes:** Output the PR URL. This is the final output the user sees.
+
+---
+
+## Step 10: Post-merge deploy monitoring (optional)
+
+This step runs only if the PR is merged during this session (e.g., the user merges it or auto-merge is enabled). If the PR is not yet merged, skip this step.
+
+1. Check if a deploy workflow exists and was triggered:
+   ```bash
+   gh run list --workflow=deploy.yml --branch=<base> --limit 1 --json status,conclusion,databaseId
+   ```
+
+2. If a deploy run is in progress, monitor it:
+   ```bash
+   gh run watch <run-id>
+   ```
+
+3. **If deploy succeeds:** Output "Deploy: Success."
+
+4. **If deploy fails:**
+   - Read the failed logs: `gh run view <run-id> --log-failed`
+   - Report the failure with diagnosis and recommended fix.
+   - Do NOT attempt to fix deploy issues automatically — they often involve infrastructure or secrets. Escalate to the user.
+
+5. **If no deploy workflow found:** Skip silently. Not all repos have automated deploys.
 
 ---
 
@@ -619,7 +701,7 @@ EOF
 
 - **Never skip tests.** If tests fail, stop.
 - **Never skip the pre-landing review.** If checklist.md is unreadable, stop.
-- **Never force push.** Use regular `git push` only.
+- **Never force push without `--force-with-lease`.** After Step 6.75 rebase, `--force-with-lease` is required and safe. Never use bare `--force`.
 - **Never ask for confirmation** except for MINOR/MAJOR version bumps and pre-landing review ASK items (batched into at most one AskUserQuestion).
 - **Always use the 4-digit version format** from the VERSION file.
 - **Date format in CHANGELOG:** `YYYY-MM-DD`
@@ -628,4 +710,6 @@ EOF
 - **Use Greptile reply templates from greptile-triage.md.** Every reply includes evidence (inline diff, code references, re-rank suggestion). Never post vague replies.
 - **Never push without fresh verification evidence.** If code changed after Step 3 tests, re-run before pushing.
 - **Step 3.4 generates coverage tests.** They must pass before committing. Never commit failing tests.
-- **The goal is: user says `/ship`, next thing they see is the review + PR URL.**
+- **Always clean history before PR creation.** Squash iterative fix commits when the diff is small (Step 6.75).
+- **Never report PR as ready until CI passes.** Monitor checks in Step 9 and fix failures automatically (max 3 attempts).
+- **The goal is: user says `/ship`, next thing they see is a clean PR with passing CI.**

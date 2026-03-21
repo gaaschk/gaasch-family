@@ -158,6 +158,26 @@ cd .claude/skills/gstack && ./setup
 ```
 This builds the binary and registers the skills.
 
+## PR workflow
+
+When creating a PR:
+1. **Rebase and squash first.** Before `gh pr create`, rebase onto `origin/main` and squash iterative fix commits into clean, logical commits. Use `git reset --soft origin/main` + re-commit, or interactive rebase.
+2. **Monitor CI checks.** After creating the PR, run `gh pr checks <number> --watch`. If checks fail, read logs with `gh run view <run-id> --log-failed`, fix the issue, commit, push, and monitor again. Do not tell the user the PR is ready until all checks pass.
+3. **Fix deploy failures too.** If the deploy workflow fails after merge, investigate and fix proactively — don't wait for the user to report it.
+
+## Deploy pipeline
+
+- CI runs lint, typecheck, and build. The deploy workflow runs on push to `main`.
+- `prisma db push` runs in CI using `DB_PASSWORD` GitHub secret to construct the full `DATABASE_URL`. The standalone build on the server does NOT have `node_modules`, so prisma CLI cannot run there.
+- The app runs on AWS Lightsail. Runtime env vars (including `DATABASE_URL`) live in `/var/www/heirloom/.env.production` on the server — NOT in GitHub secrets.
+
+## Prisma 7 config
+
+This project uses Prisma 7 with `prisma.config.ts`. Three rules:
+1. **No `url` in `schema.prisma`** — Prisma 7 forbids it when `prisma.config.ts` exists.
+2. **Use `datasource.url` in `prisma.config.ts`** — not `migrate.url` or any other property.
+3. **Use `process.env.DATABASE_URL`** — not the `env()` helper from `prisma/config`, which throws when the variable is undefined and breaks CI steps that don't need a DB connection.
+
 ## First-time setup
 
 1. `npm install`
