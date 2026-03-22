@@ -178,6 +178,24 @@ This project uses Prisma 7 with `prisma.config.ts`. Three rules:
 2. **Use `datasource.url` in `prisma.config.ts`** — not `migrate.url` or any other property.
 3. **Use `process.env.DATABASE_URL`** — not the `env()` helper from `prisma/config`, which throws when the variable is undefined and breaks CI steps that don't need a DB connection.
 
+## Deploy Configuration (configured by /setup-deploy)
+- Platform: AWS Lightsail (Ubuntu, custom deploy via GitHub Actions)
+- Production URL: https://family.kevingaasch.com
+- Deploy workflow: `.github/workflows/deploy.yml` (triggers on CI success on `main`)
+- Deploy status command: `gh run list --workflow=deploy.yml --limit 1`
+- Merge method: squash
+- Project type: web app (Next.js 15 standalone)
+- Post-deploy health check: `curl -sf https://family.kevingaasch.com -o /dev/null -w "%{http_code}"`
+
+### Custom deploy hooks
+- Pre-merge: CI workflow runs lint, typecheck, build (`.github/workflows/ci.yml`)
+- Deploy trigger: automatic — deploy.yml fires when CI passes on `main`
+- Deploy status: `gh run list --workflow=deploy.yml --limit 1 --json status,conclusion -q '.[0]'`
+- Health check: `curl -sf https://family.kevingaasch.com -o /dev/null -w "%{http_code}"`
+- Process manager: PM2 (process name: `heirloom`)
+- Server path: `/var/www/heirloom/`
+- SSH: `ssh -i ~/.ssh/deploy_key ubuntu@{DEPLOY_HOST}` (host in GitHub secrets)
+
 ## First-time setup
 
 1. `npm install`
