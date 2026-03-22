@@ -45,13 +45,11 @@ describe("POST /api/trees", () => {
           findUniqueOrThrow: jest.fn().mockResolvedValue(mockTree),
         },
         treeMember: {
-          create: jest
-            .fn()
-            .mockResolvedValue({
-              treeId: "tree_1",
-              userId: "user_1",
-              role: "admin",
-            }),
+          create: jest.fn().mockResolvedValue({
+            treeId: "tree_1",
+            userId: "user_1",
+            role: "admin",
+          }),
         },
       };
       const result = await fn(tx);
