@@ -28,7 +28,7 @@ A **multi-tenant private family history web application**. Multiple families can
 /                         Platform landing page
 /home                     Authenticated dashboard (tree list)
 /login                    Sign in (email/password or Google)
-/signup                   Request access
+/signup                   Create account
 /forgot-password          Password reset request
 /set-password             Set password from email link
 /awaiting-approval        Holding page for pending users

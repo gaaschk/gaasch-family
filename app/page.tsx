@@ -16,25 +16,25 @@ export default function LandingPage() {
         className="font-narrative text-xl mb-8"
         style={{ color: "var(--brown-muted)" }}
       >
-        Your private family history platform.
+        Preserve your family&apos;s story. Free to start.
       </p>
       <div className="flex gap-4">
         <Link
-          href="/login"
+          href="/signup"
           className="px-6 py-3 rounded-lg font-ui font-medium transition-colors"
           style={{ background: "var(--forest)", color: "var(--text-inverse)" }}
         >
-          Sign in
+          Create your tree
         </Link>
         <Link
-          href="/signup"
+          href="/login"
           className="px-6 py-3 rounded-lg font-ui font-medium border transition-colors"
           style={{
             borderColor: "var(--cream-border)",
             color: "var(--brown-text)",
           }}
         >
-          Request access
+          Sign in
         </Link>
       </div>
     </main>
