@@ -39,11 +39,19 @@ describe("POST /api/trees", () => {
     (prisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
       const tx = {
         tree: {
-          create: jest.fn().mockResolvedValue({ id: "tree_1", slug: "my-family" }),
+          create: jest
+            .fn()
+            .mockResolvedValue({ id: "tree_1", slug: "my-family" }),
           findUniqueOrThrow: jest.fn().mockResolvedValue(mockTree),
         },
         treeMember: {
-          create: jest.fn().mockResolvedValue({ treeId: "tree_1", userId: "user_1", role: "admin" }),
+          create: jest
+            .fn()
+            .mockResolvedValue({
+              treeId: "tree_1",
+              userId: "user_1",
+              role: "admin",
+            }),
         },
       };
       const result = await fn(tx);
