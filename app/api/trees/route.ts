@@ -71,14 +71,22 @@ export async function POST(req: NextRequest) {
     slug = `${slug}-${Date.now().toString(36)}`;
   }
 
-  const tree = await prisma.tree.create({
-    data: {
-      name: name.trim(),
-      slug,
-      description: description?.trim() || null,
-      ownerId: auth.userId,
-    },
-    include: { _count: { select: { people: true, members: true } } },
+  const tree = await prisma.$transaction(async (tx) => {
+    const t = await tx.tree.create({
+      data: {
+        name: name.trim(),
+        slug,
+        description: description?.trim() || null,
+        ownerId: auth.userId,
+      },
+    });
+    await tx.treeMember.create({
+      data: { treeId: t.id, userId: auth.userId, role: "admin" },
+    });
+    return tx.tree.findUniqueOrThrow({
+      where: { id: t.id },
+      include: { _count: { select: { people: true, members: true } } },
+    });
   });
 
   return NextResponse.json(tree, { status: 201 });
