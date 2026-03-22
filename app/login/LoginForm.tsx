@@ -39,12 +39,29 @@ export function LoginForm() {
   }
 
   const errorParam = searchParams.get("error");
+  const fromSignup = searchParams.get("from") === "signup";
 
   return (
     <form
       onSubmit={handleSubmit}
       style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
     >
+      {fromSignup && !error && (
+        <p
+          style={{
+            color: "var(--forest)",
+            fontSize: "0.875rem",
+            padding: "0.75rem 1rem",
+            background: "var(--forest-bg)",
+            borderRadius: "var(--radius-md)",
+            border:
+              "1px solid color-mix(in srgb, var(--forest) 20%, transparent)",
+          }}
+        >
+          Account created! Sign in to get started.
+        </p>
+      )}
+
       {(error ?? errorParam) && (
         <p
           role="alert"
@@ -177,12 +194,12 @@ export function LoginForm() {
           Forgot password?
         </Link>
         <span>
-          No account?{" "}
+          New here?{" "}
           <Link
             href="/signup"
             style={{ color: "var(--text-link)", textDecoration: "underline" }}
           >
-            Sign up
+            Create a free account
           </Link>
         </span>
       </div>

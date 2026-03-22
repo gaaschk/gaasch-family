@@ -52,7 +52,7 @@ Attach documents — photos, certificates, letters — to the tree or to individ
 
 ### Platform Level
 
-New users request access and must be approved by a platform administrator before they can do anything. Once approved, they can create their own trees or be invited to others.
+New users can sign up freely and immediately create their own trees or be invited to existing ones by tree admins.
 
 ### Tree Level
 
