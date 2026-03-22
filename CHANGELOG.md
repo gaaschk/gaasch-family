@@ -2,6 +2,11 @@
 
 All notable changes to Heirloom will be documented in this file.
 
+## [0.1.0.2] - 2026-03-22
+
+### Changed
+- USER_REQUIREMENTS.md updated to reflect open self-service signup (removed stale admin-approval language from Overview and Account Creation Flow)
+
 ## [0.1.0.1] - 2026-03-22
 
 ### Changed
