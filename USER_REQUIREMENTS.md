@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-A **multi-tenant private family history web application**. Multiple families can each own a private genealogy tree. Each tree has its own members, data, and settings. Users are invited to trees by tree administrators; the platform is not publicly open for self-registration (accounts require admin approval).
+A **multi-tenant private family history web application**. Multiple families can each own a private genealogy tree. Each tree has its own members, data, and settings. New users can sign up freely and immediately create their own trees or be invited to existing ones by tree admins.
 
 ### Core Capabilities
 - Interactive family tree explorer
@@ -70,11 +70,10 @@ A **multi-tenant private family history web application**. Multiple families can
 - **Google OAuth** — sign in with Google account
 
 ### 3.2 Account Creation Flow
-1. User submits email at `/signup`
-2. System sends email verification link
-3. User clicks link → `/set-password` → creates password
-4. Account created with **pending** role (requires admin approval)
-5. Platform admin reviews at `/admin/users` and promotes role
+1. User fills in name, email, and password at `/signup`
+2. Account created with **viewer** role — immediately active
+3. User is redirected to `/login` with a success banner ("Account created! Sign in to get started.")
+4. After signing in, user can create trees or be invited to existing ones
 
 ### 3.3 Password Reset Flow
 1. User submits email at `/forgot-password`

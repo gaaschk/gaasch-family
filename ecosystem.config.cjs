@@ -1,7 +1,9 @@
 // PM2 ecosystem config — checked in, no secrets.
 // Secrets live in /var/www/heirloom/.env.production on the server (never committed).
-// PM2 loads that file directly via env_file so the daemon always has the right env,
-// even after a server reboot.
+// NOTE: PM2's env_file option is unreliable — it may not inject env vars on start.
+// For manual restarts, source the env file first:
+//   set -a && source /var/www/heirloom/.env.production && set +a && pm2 start ecosystem.config.cjs
+// The deploy workflow (.github/workflows/deploy.yml) already does this correctly.
 
 module.exports = {
   apps: [

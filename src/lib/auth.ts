@@ -88,6 +88,17 @@ export async function requireTreeAccess(
     };
   }
 
+  // Tree owner has full admin access
+  if (tree.ownerId === userId) {
+    return {
+      userId,
+      // biome-ignore lint/style/noNonNullAssertion: session.user.email is always set after auth
+      email: session.user.email!,
+      treeRole: "admin" as TreeRole,
+      tree,
+    };
+  }
+
   // Check tree membership
   const member = await prisma.treeMember.findUnique({
     where: { treeId_userId: { treeId: tree.id, userId } },

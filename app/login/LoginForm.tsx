@@ -47,7 +47,7 @@ export function LoginForm() {
       style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
     >
       {fromSignup && !error && (
-        <p
+        <output
           style={{
             color: "var(--forest)",
             fontSize: "0.875rem",
@@ -56,10 +56,11 @@ export function LoginForm() {
             borderRadius: "var(--radius-md)",
             border:
               "1px solid color-mix(in srgb, var(--forest) 20%, transparent)",
+            display: "block",
           }}
         >
           Account created! Sign in to get started.
-        </p>
+        </output>
       )}
 
       {(error ?? errorParam) && (
