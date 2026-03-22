@@ -78,10 +78,8 @@ describe('selectTests', () => {
     const result = selectTests(['plan-ceo-review/SKILL.md'], E2E_TOUCHFILES);
     expect(result.selected).toContain('plan-ceo-review');
     expect(result.selected).toContain('plan-ceo-review-selective');
-    expect(result.selected).toContain('plan-ceo-review-benefits');
-    expect(result.selected).toContain('autoplan-core');
-    expect(result.selected.length).toBe(4);
-    expect(result.skipped.length).toBe(Object.keys(E2E_TOUCHFILES).length - 4);
+    expect(result.selected.length).toBe(2);
+    expect(result.skipped.length).toBe(Object.keys(E2E_TOUCHFILES).length - 2);
   });
 
   test('global touchfile triggers ALL tests', () => {
@@ -117,27 +115,23 @@ describe('selectTests', () => {
     expect(result.selected).toContain('plan-ceo-review-selective');
     expect(result.selected).toContain('retro');
     expect(result.selected).toContain('retro-base-branch');
-    // Also selects journey routing tests (*/SKILL.md.tmpl matches retro/SKILL.md.tmpl)
-    expect(result.selected.length).toBeGreaterThanOrEqual(4);
+    expect(result.selected.length).toBe(4);
   });
 
   test('works with LLM_JUDGE_TOUCHFILES', () => {
     const result = selectTests(['qa/SKILL.md'], LLM_JUDGE_TOUCHFILES);
     expect(result.selected).toContain('qa/SKILL.md workflow');
     expect(result.selected).toContain('qa/SKILL.md health rubric');
-    expect(result.selected).toContain('qa/SKILL.md anti-refusal');
-    expect(result.selected.length).toBe(3);
+    expect(result.selected.length).toBe(2);
   });
 
-  test('SKILL.md.tmpl root template selects root-dependent tests and routing tests', () => {
+  test('SKILL.md.tmpl root template only selects root-dependent tests', () => {
     const result = selectTests(['SKILL.md.tmpl'], E2E_TOUCHFILES);
     // Should select the 7 tests that depend on root SKILL.md
     expect(result.selected).toContain('skillmd-setup-discovery');
     expect(result.selected).toContain('contributor-mode');
     expect(result.selected).toContain('session-awareness');
-    // Also selects journey routing tests (SKILL.md.tmpl in their touchfiles)
-    expect(result.selected).toContain('journey-ideation');
-    // Should NOT select unrelated non-routing tests
+    // Should NOT select unrelated tests
     expect(result.selected).not.toContain('plan-ceo-review');
     expect(result.selected).not.toContain('retro');
   });
@@ -192,17 +186,14 @@ describe('detectBaseBranch', () => {
   });
 });
 
-// --- Completeness: every testName in skill-e2e-*.test.ts has a TOUCHFILES entry ---
+// --- Completeness: every testName in skill-e2e.test.ts has a TOUCHFILES entry ---
 
 describe('TOUCHFILES completeness', () => {
   test('every E2E testName has a TOUCHFILES entry', () => {
-    // Read all split E2E test files
-    const testDir = path.join(ROOT, 'test');
-    const e2eFiles = fs.readdirSync(testDir).filter(f => f.startsWith('skill-e2e-') && f.endsWith('.test.ts'));
-    let e2eContent = '';
-    for (const f of e2eFiles) {
-      e2eContent += fs.readFileSync(path.join(testDir, f), 'utf-8') + '\n';
-    }
+    const e2eContent = fs.readFileSync(
+      path.join(ROOT, 'test', 'skill-e2e.test.ts'),
+      'utf-8',
+    );
 
     // Extract all testName: 'value' entries
     const testNameRegex = /testName:\s*['"`]([^'"`]+)['"`]/g;

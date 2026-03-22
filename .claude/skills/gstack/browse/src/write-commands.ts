@@ -7,10 +7,8 @@
 
 import type { BrowserManager } from './browser-manager';
 import { findInstalledBrowsers, importCookies } from './cookie-import-browser';
-import { validateNavigationUrl } from './url-validation';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TEMP_DIR, isPathWithin } from './platform';
 
 export async function handleWriteCommand(
   command: string,
@@ -23,7 +21,6 @@ export async function handleWriteCommand(
     case 'goto': {
       const url = args[0];
       if (!url) throw new Error('Usage: browse goto <url>');
-      validateNavigationUrl(url);
       const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const status = response?.status() || 'unknown';
       return `Navigated to ${url} (${status})`;
@@ -278,9 +275,9 @@ export async function handleWriteCommand(
       if (!filePath) throw new Error('Usage: browse cookie-import <json-file>');
       // Path validation — prevent reading arbitrary files
       if (path.isAbsolute(filePath)) {
-        const safeDirs = [TEMP_DIR, process.cwd()];
+        const safeDirs = ['/tmp', process.cwd()];
         const resolved = path.resolve(filePath);
-        if (!safeDirs.some(dir => isPathWithin(resolved, dir))) {
+        if (!safeDirs.some(dir => resolved === dir || resolved.startsWith(dir + '/'))) {
           throw new Error(`Path must be within: ${safeDirs.join(', ')}`);
         }
       }

@@ -6,18 +6,16 @@ import type { BrowserManager } from './browser-manager';
 import { handleSnapshot } from './snapshot';
 import { getCleanText } from './read-commands';
 import { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS } from './commands';
-import { validateNavigationUrl } from './url-validation';
 import * as Diff from 'diff';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TEMP_DIR, isPathWithin } from './platform';
 
 // Security: Path validation to prevent path traversal attacks
-const SAFE_DIRECTORIES = [TEMP_DIR, process.cwd()];
+const SAFE_DIRECTORIES = ['/tmp', process.cwd()];
 
-export function validateOutputPath(filePath: string): void {
+function validateOutputPath(filePath: string): void {
   const resolved = path.resolve(filePath);
-  const isSafe = SAFE_DIRECTORIES.some(dir => isPathWithin(resolved, dir));
+  const isSafe = SAFE_DIRECTORIES.some(dir => resolved === dir || resolved.startsWith(dir + '/'));
   if (!isSafe) {
     throw new Error(`Path must be within: ${SAFE_DIRECTORIES.join(', ')}`);
   }
@@ -89,7 +87,7 @@ export async function handleMetaCommand(
     case 'screenshot': {
       // Parse priority: flags (--viewport, --clip) → selector (@ref, CSS) → output path
       const page = bm.getPage();
-      let outputPath = `${TEMP_DIR}/browse-screenshot.png`;
+      let outputPath = '/tmp/browse-screenshot.png';
       let clipRect: { x: number; y: number; width: number; height: number } | undefined;
       let targetSelector: string | undefined;
       let viewportOnly = false;
@@ -148,7 +146,7 @@ export async function handleMetaCommand(
 
     case 'pdf': {
       const page = bm.getPage();
-      const pdfPath = args[0] || `${TEMP_DIR}/browse-page.pdf`;
+      const pdfPath = args[0] || '/tmp/browse-page.pdf';
       validateOutputPath(pdfPath);
       await page.pdf({ path: pdfPath, format: 'A4' });
       return `PDF saved: ${pdfPath}`;
@@ -156,7 +154,7 @@ export async function handleMetaCommand(
 
     case 'responsive': {
       const page = bm.getPage();
-      const prefix = args[0] || `${TEMP_DIR}/browse-responsive`;
+      const prefix = args[0] || '/tmp/browse-responsive';
       validateOutputPath(prefix);
       const viewports = [
         { name: 'mobile', width: 375, height: 812 },
@@ -223,11 +221,9 @@ export async function handleMetaCommand(
       if (!url1 || !url2) throw new Error('Usage: browse diff <url1> <url2>');
 
       const page = bm.getPage();
-      validateNavigationUrl(url1);
       await page.goto(url1, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const text1 = await getCleanText(page);
 
-      validateNavigationUrl(url2);
       await page.goto(url2, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const text2 = await getCleanText(page);
 
@@ -248,19 +244,6 @@ export async function handleMetaCommand(
     // ─── Snapshot ─────────────────────────────────────
     case 'snapshot': {
       return await handleSnapshot(args, bm);
-    }
-
-    // ─── Handoff ────────────────────────────────────
-    case 'handoff': {
-      const message = args.join(' ') || 'User takeover requested';
-      return await bm.handoff(message);
-    }
-
-    case 'resume': {
-      bm.resume();
-      // Re-snapshot to capture current page state after human interaction
-      const snapshot = await handleSnapshot(['-i'], bm);
-      return `RESUMED\n${snapshot}`;
     }
 
     default:

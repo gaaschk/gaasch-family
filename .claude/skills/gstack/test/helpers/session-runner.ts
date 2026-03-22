@@ -41,12 +41,6 @@ export interface SkillTestResult {
   output: string;
   costEstimate: CostEstimate;
   transcript: any[];
-  /** Which model was used for this test (added for Sonnet/Opus split diagnostics) */
-  model: string;
-  /** Time from spawn to first NDJSON line, in ms (added for rate-limit diagnostics) */
-  firstResponseMs: number;
-  /** Peak latency between consecutive tool calls, in ms */
-  maxInterTurnMs: number;
 }
 
 const BROWSE_ERROR_PATTERNS = [
@@ -122,8 +116,6 @@ export async function runSkillTest(options: {
   timeout?: number;
   testName?: string;
   runId?: string;
-  /** Model to use. Defaults to claude-sonnet-4-6 (overridable via EVALS_MODEL env). */
-  model?: string;
 }): Promise<SkillTestResult> {
   const {
     prompt,
@@ -134,7 +126,6 @@ export async function runSkillTest(options: {
     testName,
     runId,
   } = options;
-  const model = options.model ?? process.env.EVALS_MODEL ?? 'claude-sonnet-4-6';
 
   const startTime = Date.now();
   const startedAt = new Date().toISOString();
@@ -153,7 +144,6 @@ export async function runSkillTest(options: {
   // avoid shell escaping issues. --verbose is required for stream-json mode.
   const args = [
     '-p',
-    '--model', model,
     '--output-format', 'stream-json',
     '--verbose',
     '--dangerously-skip-permissions',
@@ -161,10 +151,8 @@ export async function runSkillTest(options: {
     '--allowed-tools', ...allowedTools,
   ];
 
-  // Write prompt to a temp file OUTSIDE workingDirectory to avoid race conditions
-  // where afterAll cleanup deletes the dir before cat reads the file (especially
-  // with --concurrent --retry). Using os.tmpdir() + unique suffix keeps it stable.
-  const promptFile = path.join(os.tmpdir(), `.prompt-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  // Write prompt to a temp file and pipe it via shell to avoid stdin buffering issues
+  const promptFile = path.join(workingDirectory, '.prompt-tmp');
   fs.writeFileSync(promptFile, prompt);
 
   const proc = Bun.spawn(['sh', '-c', `cat "${promptFile}" | claude ${args.map(a => `"${a}"`).join(' ')}`], {
@@ -187,9 +175,6 @@ export async function runSkillTest(options: {
   const collectedLines: string[] = [];
   let liveTurnCount = 0;
   let liveToolCount = 0;
-  let firstResponseMs = 0;
-  let lastToolTime = 0;
-  let maxInterTurnMs = 0;
   const stderrPromise = new Response(proc.stderr).text();
 
   const reader = proc.stdout.getReader();
@@ -216,15 +201,7 @@ export async function runSkillTest(options: {
             for (const item of content) {
               if (item.type === 'tool_use') {
                 liveToolCount++;
-                const now = Date.now();
-                const elapsed = Math.round((now - startTime) / 1000);
-                // Track timing telemetry
-                if (firstResponseMs === 0) firstResponseMs = now - startTime;
-                if (lastToolTime > 0) {
-                  const interTurn = now - lastToolTime;
-                  if (interTurn > maxInterTurnMs) maxInterTurnMs = interTurn;
-                }
-                lastToolTime = now;
+                const elapsed = Math.round((Date.now() - startTime) / 1000);
                 const progressLine = `  [${elapsed}s] turn ${liveTurnCount} tool #${liveToolCount}: ${item.name}(${truncate(JSON.stringify(item.input || {}), 80)})\n`;
                 process.stderr.write(progressLine);
 
@@ -353,5 +330,5 @@ export async function runSkillTest(options: {
     turnsUsed,
   };
 
-  return { toolCalls, browseErrors, exitReason, duration, output: resultLine?.result || '', costEstimate, transcript, model, firstResponseMs, maxInterTurnMs };
+  return { toolCalls, browseErrors, exitReason, duration, output: resultLine?.result || '', costEstimate, transcript };
 }

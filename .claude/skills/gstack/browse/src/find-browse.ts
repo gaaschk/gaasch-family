@@ -27,21 +27,16 @@ function getGitRoot(): string | null {
 export function locateBinary(): string | null {
   const root = getGitRoot();
   const home = homedir();
-  const markers = ['.codex', '.agents', '.claude'];
 
   // Workspace-local takes priority (for development)
   if (root) {
-    for (const m of markers) {
-      const local = join(root, m, 'skills', 'gstack', 'browse', 'dist', 'browse');
-      if (existsSync(local)) return local;
-    }
+    const local = join(root, '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse');
+    if (existsSync(local)) return local;
   }
 
   // Global fallback
-  for (const m of markers) {
-    const global = join(home, m, 'skills', 'gstack', 'browse', 'dist', 'browse');
-    if (existsSync(global)) return global;
-  }
+  const global = join(home, '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse');
+  if (existsSync(global)) return global;
 
   return null;
 }
