@@ -17,10 +17,10 @@ A Next.js 15 multi-tenant private family history platform. Multiple families can
 ```bash
 npm run dev              # Start dev server (http://localhost:3000)
 npm run build            # Production build
-npm run lint             # ESLint
+npm run lint             # Biome check
 
-npm run db:migrate       # Run Prisma migrations against .env.local (creates/updates prisma/dev.db)
-npm run db:seed          # Import JSON data from ../gaasch-family/src/data/ into SQLite
+npm run db:migrate       # Run Prisma migrations against .env.local
+npm run db:seed          # Create bootstrap admin user on empty DB
 npm run db:studio        # Open Prisma Studio GUI
 npm run db:generate      # Regenerate Prisma client after schema changes
 npm run db:push          # Push schema to DB without migration (dev only)
@@ -29,17 +29,6 @@ npm run db:push          # Push schema to DB without migration (dev only)
 All `db:*` scripts use `dotenv -e .env.local` to inject `DATABASE_URL`.
 
 After any `prisma/schema.prisma` change, run `npm run db:migrate` (creates a migration) then `npm run db:generate` (regenerates the client).
-
-### Migration notes (multi-tenant transition)
-
-The repo contains two schema files during the migration period:
-- `prisma/schema.prisma` — intermediate: adds Tree/TreeMember/TreeInvite models + nullable `treeId`/`gedcomId` on Person/Family/Setting
-- `prisma/schema.final.prisma` — final: CUID PKs, NOT NULL `treeId`, composite unique keys
-
-Migration workflow:
-1. `npm run db:migrate` — apply intermediate schema (Migration 1)
-2. `dotenv -e .env.local -- tsx scripts/migrate-to-multi-tenant.ts` — one-time data migration
-3. Replace `schema.prisma` with `schema.final.prisma` content, then `npm run db:migrate` again (Migration 2)
 
 ## Architecture
 
@@ -64,11 +53,10 @@ Auth.js v5 (NextAuth beta) uses **two config files** to satisfy Next.js Edge Run
 Session tokens are JWTs (30-minute expiry). The `role` and `id` fields are embedded in the token via JWT/session callbacks.
 
 ### Authorization
-`src/lib/auth.ts` exports four helpers:
+`src/lib/auth.ts` exports three helpers:
 - `requireRole(minRole)` — platform-level (create trees, approve users). Returns `{ userId, email, role }` or `NextResponse` 401/403.
-- `requireRoleOrToken(req, minRole)` — same, plus `Authorization: Bearer` fallback against any tree's `api_token` setting.
-- `requireTreeAccess(treeIdOrSlug, minRole)` — tree-scoped; checks owner or TreeMember row. Returns `{ userId, email, treeRole, tree }` or `NextResponse`.
-- `requireTreeAccessOrToken(req, treeIdOrSlug, minRole)` — same, plus Bearer token checked against the tree's `api_token` setting.
+- `requireTreeAccess(treeIdOrSlug, minRole)` — tree-scoped; checks platform admin, tree owner, or TreeMember row. Tree owners always get `admin` tree role. Returns `{ userId, email, treeRole, tree }` or `NextResponse`.
+- `requireTreeAccessOrToken(req, treeIdOrSlug, minRole)` — same as `requireTreeAccess`, plus `Authorization: Bearer` fallback checked against the tree's `api_token` setting.
 
 Role hierarchies:
 - Platform: `pending (-1) < viewer (0) < editor (1) < admin (2)`
@@ -77,7 +65,7 @@ Role hierarchies:
 Middleware (`src/middleware.ts`) redirects unauthenticated users away from `/dashboard`, `/trees/*`, `/invite/*`, and redirects `pending` users to `/awaiting-approval`.
 
 ### Database
-SQLite via Prisma. Key models:
+PostgreSQL via Prisma. Key models:
 - `Tree` — each tree has a slug, name, ownerId
 - `TreeMember` — `(treeId, userId)` unique; role is viewer/editor/admin
 - `TreeInvite` — email invitation with expiry and accept token
@@ -104,28 +92,17 @@ Platform-level routes (`/api/trees`, `/api/users`) use `requireRole`.
 Old routes (`/api/people`, `/api/families`, `/api/settings`, `/api/export`, `/api/import`) have been deleted.
 
 ### AI narrative generation
-`POST /api/trees/[treeId]/people/[id]/generate-narrative` — requires `editor` tree role or Bearer token. Reads `anthropic_api_key` and `anthropic_model` from the tree's `Setting` rows. Streams Claude's response as `text/plain`, accumulates full HTML, saves to `Person.narrative`, writes audit log.
-
-### generate-narratives script
-```bash
-node scripts/generate-narratives.mjs \
-  --tree gaasch-family \
-  --token <api_token_from_settings> \
-  --ids <cuid1,cuid2,...> \
-  [--url https://family.example.com] \
-  [--model claude-haiku-4-5-20251001] \
-  [--concurrency 5]
-```
+`POST /api/trees/[treeId]/people/[personId]/generate-narrative` — requires `editor` tree role or Bearer token. Reads `anthropic_api_key` and `anthropic_model` from the tree's `Setting` rows. Streams Claude's response as `text/plain`, accumulates full HTML, saves to `Person.narrative`, writes audit log.
 
 ### Tree view page
-`src/app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership, then renders `<PublicTreeExplorer treeSlug={slug} role={treeRole} />` and `<PublicDirectorySection treeSlug={slug} />`.
+`app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership via `requireTreeAccess`, then renders tree stats, recent people, and `<PeopleDirectory>`.
 
 ## Environment Variables
 
 Required in `.env.local`:
 | Variable | Notes |
 |---|---|
-| `DATABASE_URL` | `file:./prisma/dev.db` locally |
+| `DATABASE_URL` | `postgresql://user:password@localhost:5432/heirloom_dev` locally |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `AUTH_URL` | `http://localhost:3000` locally |
 | `EMAIL_SERVER` | SMTP string (use Ethereal for local dev) |
@@ -201,7 +178,7 @@ This project uses Prisma 7 with `prisma.config.ts`. Three rules:
 1. `npm install`
 2. `cp .env.local.example .env.local` and fill in values
 3. `npm run db:migrate`
-4. `dotenv -e .env.local -- tsx scripts/migrate-to-multi-tenant.ts` (if migrating from single-tree data)
+4. `npm run db:seed` (creates bootstrap admin on first run; no-op if users exist)
 5. `npm run dev`
-6. Sign in, then promote your user to `admin` via Prisma Studio or SQLite CLI
+6. Sign in with the bootstrap admin credentials printed by the seed step
 7. Create your first tree at `/trees/new`
