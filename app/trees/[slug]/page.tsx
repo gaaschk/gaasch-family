@@ -59,7 +59,7 @@ export default async function TreePage({
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
+          <div
             style={{
               fontSize: "0.75rem",
               color: "var(--text-muted)",
@@ -67,7 +67,7 @@ export default async function TreePage({
             }}
           >
             <TreeSwitcher currentSlug={slug} trees={myTrees} />
-          </p>
+          </div>
           <h1
             className="font-display"
             style={{
