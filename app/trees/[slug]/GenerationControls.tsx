@@ -62,7 +62,8 @@ export default function GenerationControls({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 0,
+            padding: "10px",
+            margin: "-10px",
             fontSize: "14px",
             lineHeight: 1,
           }}
@@ -99,7 +100,8 @@ export default function GenerationControls({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 0,
+            padding: "10px",
+            margin: "-10px",
             fontSize: "14px",
             lineHeight: 1,
           }}
@@ -135,7 +137,8 @@ export default function GenerationControls({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 0,
+            padding: "10px",
+            margin: "-10px",
             fontSize: "14px",
             lineHeight: 1,
           }}
@@ -172,7 +175,8 @@ export default function GenerationControls({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 0,
+            padding: "10px",
+            margin: "-10px",
             fontSize: "14px",
             lineHeight: 1,
           }}

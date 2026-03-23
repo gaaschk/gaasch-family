@@ -29,7 +29,9 @@ export default function ViewTabs({
   }
 
   return (
-    <nav
+    <div
+      role="tablist"
+      aria-label="Tree views"
       style={{
         display: "flex",
         gap: "1.5rem",
@@ -42,6 +44,8 @@ export default function ViewTabs({
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => handleTabClick(tab.id)}
             style={{
               background: "none",
@@ -54,7 +58,7 @@ export default function ViewTabs({
               fontWeight: isActive ? 600 : 400,
               color: isActive ? "var(--brown-text)" : "var(--brown-muted)",
               cursor: "pointer",
-              fontFamily: "inherit",
+              fontFamily: "var(--font-ui, inherit)",
               lineHeight: 1.4,
             }}
           >
@@ -62,6 +66,6 @@ export default function ViewTabs({
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 }

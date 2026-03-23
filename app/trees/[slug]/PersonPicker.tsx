@@ -26,12 +26,14 @@ export default function PersonPicker({
   const [results, setResults] = useState<PersonResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   async function search(q: string) {
     setLoading(true);
+    setSearchError(false);
     try {
       const url = `/api/trees/${treeId}/people?q=${encodeURIComponent(q)}&page=1`;
       const res = await fetch(url);
@@ -39,9 +41,11 @@ export default function PersonPicker({
         const data = await res.json();
         setResults((data.people as PersonResult[]).slice(0, 8));
         setOpen(true);
+      } else {
+        setSearchError(true);
       }
     } catch {
-      // swallow network errors silently
+      setSearchError(true);
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,13 @@ export default function PersonPicker({
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setQuery(val);
+    if (!val.trim()) {
+      setResults([]);
+      setOpen(false);
+      setSearchError(false);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(val), 250);
   }
@@ -92,16 +103,23 @@ export default function PersonPicker({
         minWidth: "240px",
       }}
     >
-      <p
+      <label
+        htmlFor="person-picker-input"
         style={{
-          fontSize: "0.8125rem",
+          display: "block",
+          fontSize: "11px",
+          fontWeight: 600,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
           color: "var(--brown-muted)",
           marginBottom: "0.375rem",
+          fontFamily: "var(--font-ui, inherit)",
         }}
       >
         {label}
-      </p>
+      </label>
       <input
+        id="person-picker-input"
         type="search"
         placeholder="Search for a person…"
         value={query}
@@ -140,55 +158,80 @@ export default function PersonPicker({
         </p>
       )}
 
-      {open && results.length > 0 && (
-        <div
+      {searchError && !loading && (
+        <p
           style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            background: "var(--parchment-2)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "0 4px 16px rgba(44,26,14,0.12)",
-            overflow: "hidden",
+            fontSize: "0.8125rem",
+            color: "var(--error, #c0392b)",
+            marginTop: "0.25rem",
           }}
         >
-          <ul style={{ listStyle: "none", margin: 0, padding: "0.375rem 0" }}>
-            {results.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => handleSelect(p.id)}
+          Search unavailable
+        </p>
+      )}
+
+      {open &&
+        (results.length > 0 || (!loading && !searchError && query.trim())) && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: "var(--parchment-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "0 4px 16px rgba(44,26,14,0.12)",
+              overflow: "hidden",
+            }}
+          >
+            <ul style={{ listStyle: "none", margin: 0, padding: "0.375rem 0" }}>
+              {results.length === 0 && (
+                <li
                   style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
                     padding: "0.5rem 1rem",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
                     fontSize: "0.875rem",
-                    color: "var(--brown-text)",
-                    fontFamily: "inherit",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background =
-                      "var(--parchment-3)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background =
-                      "none";
+                    color: "var(--brown-muted)",
+                    fontStyle: "italic",
                   }}
                 >
-                  {displayName(p)}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                  No results for &ldquo;{query}&rdquo;
+                </li>
+              )}
+              {results.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(p.id)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "0.5rem 1rem",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                      color: "var(--brown-text)",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "var(--parchment-3)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "none";
+                    }}
+                  >
+                    {displayName(p)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
     </div>
   );
 }

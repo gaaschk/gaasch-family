@@ -1,46 +1,23 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import ChartZoomWrapper from "./ChartZoomWrapper";
+import {
+  type AncestorNode,
+  bloodlinePath,
+  type DescNode,
+  flatten,
+  formatYear,
+  leafCount,
+} from "./chart-utils";
 import GenerationControls from "./GenerationControls";
 import PersonPicker from "./PersonPicker";
-
-type AncestorNode = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  birthDate: string | null;
-  deathDate: string | null;
-  gender: string | null;
-  father: AncestorNode | null;
-  mother: AncestorNode | null;
-};
-
-type DescNode = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  birthDate: string | null;
-  deathDate: string | null;
-  gender: string | null;
-  children: DescNode[];
-};
+import PersonSlideOver from "./PersonSlideOver";
 
 const CX = 400;
 const CY = 400;
 const RING_RADII = [0, 75, 150, 225, 300, 370, 440];
-
-// Colors per generation index (1-6)
-const GEN_COLORS = [
-  "",
-  "#F2EBE0",
-  "#FAF5EC",
-  "#F2EBE0",
-  "#FAF5EC",
-  "#F2EBE0",
-  "#FAF5EC",
-];
-const DESC_GEN_COLORS = ["", "#E8DDD0", "#F2EBE0", "#E8DDD0", "#F2EBE0"];
 
 function polarToXY(
   cx: number,
@@ -73,28 +50,6 @@ function arcPath(
     `A ${innerR} ${innerR} 0 ${largeArc} 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)}`,
     "Z",
   ].join(" ");
-}
-
-function flatten(
-  node: AncestorNode | null,
-  num: number,
-  maxGen: number,
-  map: Map<number, AncestorNode>,
-) {
-  if (!node || Math.floor(Math.log2(num)) >= maxGen) return;
-  map.set(num, node);
-  flatten(node.father, num * 2, maxGen, map);
-  flatten(node.mother, num * 2 + 1, maxGen, map);
-}
-
-function formatYear(date: string): string {
-  const m = date.match(/\b(\d{4})\b/);
-  return m ? m[1] : date;
-}
-
-function leafCount(node: DescNode, maxDepth: number): number {
-  if (maxDepth === 0 || node.children.length === 0) return 1;
-  return node.children.reduce((s, c) => s + leafCount(c, maxDepth - 1), 0);
 }
 
 type ArcSegment = {
@@ -198,6 +153,7 @@ export default function FanChartView({
   const [error, setError] = useState<string | null>(null);
   const [hoveredNum, setHoveredNum] = useState<number | null>(null);
   const [hoveredDescId, setHoveredDescId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +221,16 @@ export default function FanChartView({
     params.set("view", "fan");
     params.set("root", personId);
     router.push(`/trees/${treeSlug}?${params.toString()}`);
+    setSelectedPersonId(null);
   }
+
+  const handleNodeClick = useCallback((personId: string) => {
+    setSelectedPersonId((prev) => (prev === personId ? null : personId));
+  }, []);
+
+  const handleCloseSlideOver = useCallback(() => {
+    setSelectedPersonId(null);
+  }, []);
 
   if (loading) {
     return (
@@ -364,7 +329,6 @@ export default function FanChartView({
       : [];
 
   const viewBox = descendantGens > 0 ? "0 0 800 600" : "0 0 800 510";
-  const maxHeight = descendantGens > 0 ? "600px" : "520px";
 
   const rootName =
     [root.firstName, root.lastName].filter(Boolean).join(" ") || "(unnamed)";
@@ -372,8 +336,20 @@ export default function FanChartView({
 
   const currentRoot = rootPersonId;
 
+  // Bloodline highlight
+  const selectedNum = selectedPersonId
+    ? (() => {
+        for (const [num, node] of nodeMap) {
+          if (node.id === selectedPersonId) return num;
+        }
+        if (root.id === selectedPersonId) return 1;
+        return null;
+      })()
+    : null;
+  const highlightNums = selectedNum ? bloodlinePath(selectedNum) : null;
+
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div
         style={{
           border: "1px solid var(--border-light)",
@@ -383,282 +359,303 @@ export default function FanChartView({
           overflowX: "auto",
         }}
       >
-        <svg
-          viewBox={viewBox}
-          style={{ width: "100%", maxHeight, display: "block" }}
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <title>Fan chart</title>
+        <ChartZoomWrapper>
+          <svg
+            viewBox={viewBox}
+            width={800}
+            height={descendantGens > 0 ? 600 : 510}
+            style={{ display: "block" }}
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <title>Fan chart</title>
 
-          {/* Ancestor arc segments */}
-          {segments.map((seg) => {
-            const isHovered = hoveredNum === seg.num;
-            const baseFill = GEN_COLORS[seg.gen] ?? "#F2EBE0";
-            const fill = isHovered ? "#E8DDD0" : baseFill;
+            {/* Ancestor arc segments */}
+            {segments.map((seg) => {
+              const isHovered = hoveredNum === seg.num;
+              const isOnPath = highlightNums?.has(seg.num);
 
-            const midR = (seg.innerR + seg.outerR) / 2;
-            const textPos = polarToXY(CX, CY, midR, seg.midAngle);
-            const name =
-              [seg.node.firstName, seg.node.lastName]
-                .filter(Boolean)
-                .join(" ") || "(unnamed)";
-            const birth = seg.node.birthDate
-              ? formatYear(seg.node.birthDate)
-              : "";
+              const midR = (seg.innerR + seg.outerR) / 2;
+              const textPos = polarToXY(CX, CY, midR, seg.midAngle);
+              const name =
+                [seg.node.firstName, seg.node.lastName]
+                  .filter(Boolean)
+                  .join(" ") || "(unnamed)";
+              const birth = seg.node.birthDate
+                ? formatYear(seg.node.birthDate)
+                : "";
 
-            const rotateAngle = seg.midAngle - 90;
-            const arcSpanDeg = seg.endAngle - seg.startAngle;
-            const showFullText = seg.gen <= 2;
-            const showShortText = seg.gen === 3 && arcSpanDeg > 10;
+              const rotateAngle = seg.midAngle - 90;
+              const arcSpanDeg = seg.endAngle - seg.startAngle;
+              const showFullText = seg.gen <= 2;
+              const showShortText = seg.gen === 3 && arcSpanDeg > 10;
 
-            return (
-              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
-              <g
-                key={seg.num}
-                onClick={() => navigateToRoot(seg.node.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    navigateToRoot(seg.node.id);
-                }}
-                onMouseEnter={() => setHoveredNum(seg.num)}
-                onMouseLeave={() => setHoveredNum(null)}
-                tabIndex={0}
-                role="button"
-                aria-label={`View ${name} as root`}
-                style={{ cursor: "pointer" }}
-              >
-                <path
-                  d={seg.path}
-                  fill={fill}
-                  stroke="#C4B09A"
-                  strokeWidth={0.75}
-                  style={{ transition: "fill 120ms ease" }}
-                />
-                {showFullText && (
-                  <text
-                    x={textPos.x}
-                    y={textPos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
-                    style={{ pointerEvents: "none" }}
-                  >
-                    <tspan
+              return (
+                // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+                <g
+                  key={seg.num}
+                  onClick={() => handleNodeClick(seg.node.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      handleNodeClick(seg.node.id);
+                  }}
+                  onMouseEnter={() => setHoveredNum(seg.num)}
+                  onMouseLeave={() => setHoveredNum(null)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View ${name} details`}
+                  style={{ cursor: "pointer" }}
+                  opacity={highlightNums !== null && !isOnPath ? 0.35 : 1}
+                >
+                  <path
+                    d={seg.path}
+                    stroke={isOnPath ? "var(--forest)" : "var(--border)"}
+                    strokeWidth={isOnPath ? 1.5 : 0.75}
+                    style={{
+                      fill: isHovered
+                        ? "var(--parchment-3)"
+                        : seg.gen % 2 === 1
+                          ? "var(--parchment-2)"
+                          : "var(--parchment)",
+                      transition: "fill 120ms ease",
+                    }}
+                  />
+                  {showFullText && (
+                    <text
                       x={textPos.x}
-                      dy="-6"
-                      className="font-display"
-                      style={{ fontSize: "12px", fill: "var(--brown-text)" }}
+                      y={textPos.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
+                      style={{ pointerEvents: "none" }}
                     >
-                      {name.length > 18 ? `${name.slice(0, 18)}…` : name}
-                    </tspan>
-                    {birth && (
                       <tspan
                         x={textPos.x}
-                        dy="14"
-                        className="font-mono"
-                        style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                        dy="-6"
+                        className="font-display"
+                        style={{ fontSize: "12px", fill: "var(--brown-text)" }}
                       >
-                        {birth}
+                        {name.length > 18 ? `${name.slice(0, 18)}…` : name}
                       </tspan>
-                    )}
-                  </text>
-                )}
-                {showShortText && (
-                  <text
-                    x={textPos.x}
-                    y={textPos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
-                    className="font-display"
-                    style={{
-                      fontSize: "10px",
-                      fill: "var(--brown-text)",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    {(seg.node.firstName ?? "").slice(0, 10) ||
-                      (seg.node.lastName ?? "").slice(0, 10) ||
-                      "?"}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Descendant arc segments */}
-          {descSegments.map((seg) => {
-            const isHovered = hoveredDescId === seg.node.id;
-            const baseFill = DESC_GEN_COLORS[seg.gen] ?? "#E8DDD0";
-            const fill = isHovered ? "#DDD0BE" : baseFill;
-
-            const midR = (seg.innerR + seg.outerR) / 2;
-            const textPos = polarToXY(CX, CY, midR, seg.midAngle);
-            const name =
-              [seg.node.firstName, seg.node.lastName]
-                .filter(Boolean)
-                .join(" ") || "(unnamed)";
-            const birth = seg.node.birthDate
-              ? formatYear(seg.node.birthDate)
-              : "";
-
-            const rotateAngle = seg.midAngle - 90;
-            const arcSpanDeg = seg.endAngle - seg.startAngle;
-            const showFullText = seg.gen <= 2 && arcSpanDeg > 20;
-            const showShortText = seg.gen === 3 && arcSpanDeg > 20;
-
-            return (
-              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
-              <g
-                key={`desc-${seg.node.id}-${seg.gen}`}
-                onClick={() => navigateToRoot(seg.node.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    navigateToRoot(seg.node.id);
-                }}
-                onMouseEnter={() => setHoveredDescId(seg.node.id)}
-                onMouseLeave={() => setHoveredDescId(null)}
-                tabIndex={0}
-                role="button"
-                aria-label={`View ${name} as root`}
-                style={{ cursor: "pointer" }}
-              >
-                <path
-                  d={seg.path}
-                  fill={fill}
-                  stroke="#C4B09A"
-                  strokeWidth={0.75}
-                  style={{ transition: "fill 120ms ease" }}
-                />
-                {showFullText && (
-                  <text
-                    x={textPos.x}
-                    y={textPos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
-                    style={{ pointerEvents: "none" }}
-                  >
-                    <tspan
+                      {birth && (
+                        <tspan
+                          x={textPos.x}
+                          dy="14"
+                          className="font-mono"
+                          style={{
+                            fontSize: "10px",
+                            fill: "var(--brown-muted)",
+                          }}
+                        >
+                          {birth}
+                        </tspan>
+                      )}
+                    </text>
+                  )}
+                  {showShortText && (
+                    <text
                       x={textPos.x}
-                      dy="-6"
+                      y={textPos.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
                       className="font-display"
-                      style={{ fontSize: "12px", fill: "var(--brown-text)" }}
+                      style={{
+                        fontSize: "10px",
+                        fill: "var(--brown-text)",
+                        pointerEvents: "none",
+                      }}
                     >
-                      {name.length > 18 ? `${name.slice(0, 18)}…` : name}
-                    </tspan>
-                    {birth && (
+                      {(seg.node.firstName ?? "").slice(0, 10) ||
+                        (seg.node.lastName ?? "").slice(0, 10) ||
+                        "?"}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* Descendant arc segments */}
+            {descSegments.map((seg) => {
+              const isHovered = hoveredDescId === seg.node.id;
+
+              const midR = (seg.innerR + seg.outerR) / 2;
+              const textPos = polarToXY(CX, CY, midR, seg.midAngle);
+              const name =
+                [seg.node.firstName, seg.node.lastName]
+                  .filter(Boolean)
+                  .join(" ") || "(unnamed)";
+              const birth = seg.node.birthDate
+                ? formatYear(seg.node.birthDate)
+                : "";
+
+              const rotateAngle = seg.midAngle - 90;
+              const arcSpanDeg = seg.endAngle - seg.startAngle;
+              const showFullText = seg.gen <= 2 && arcSpanDeg > 20;
+              const showShortText = seg.gen === 3 && arcSpanDeg > 20;
+
+              return (
+                // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+                <g
+                  key={`desc-${seg.node.id}-${seg.gen}`}
+                  onClick={() => handleNodeClick(seg.node.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      handleNodeClick(seg.node.id);
+                  }}
+                  onMouseEnter={() => setHoveredDescId(seg.node.id)}
+                  onMouseLeave={() => setHoveredDescId(null)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View ${name} details`}
+                  style={{ cursor: "pointer" }}
+                >
+                  <path
+                    d={seg.path}
+                    stroke="var(--border)"
+                    strokeWidth={0.75}
+                    style={{
+                      fill: isHovered
+                        ? "var(--parchment-2)"
+                        : "var(--parchment-3)",
+                      transition: "fill 120ms ease",
+                    }}
+                  />
+                  {showFullText && (
+                    <text
+                      x={textPos.x}
+                      y={textPos.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
+                      style={{ pointerEvents: "none" }}
+                    >
                       <tspan
                         x={textPos.x}
-                        dy="14"
-                        className="font-mono"
-                        style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                        dy="-6"
+                        className="font-display"
+                        style={{ fontSize: "12px", fill: "var(--brown-text)" }}
                       >
-                        {birth}
+                        {name.length > 18 ? `${name.slice(0, 18)}…` : name}
                       </tspan>
-                    )}
-                  </text>
-                )}
-                {showShortText && (
+                      {birth && (
+                        <tspan
+                          x={textPos.x}
+                          dy="14"
+                          className="font-mono"
+                          style={{
+                            fontSize: "10px",
+                            fill: "var(--brown-muted)",
+                          }}
+                        >
+                          {birth}
+                        </tspan>
+                      )}
+                    </text>
+                  )}
+                  {showShortText && (
+                    <text
+                      x={textPos.x}
+                      y={textPos.y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
+                      className="font-display"
+                      style={{
+                        fontSize: "10px",
+                        fill: "var(--brown-text)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {(seg.node.firstName ?? "").slice(0, 10) ||
+                        (seg.node.lastName ?? "").slice(0, 10) ||
+                        "?"}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* Empty descendant arc outline when no children */}
+            {descendantGens > 0 &&
+              descRoot &&
+              descRoot.children.length === 0 && (
+                <>
+                  <path
+                    d={arcPath(CX, CY, RING_RADII[1], RING_RADII[2], 120, 240)}
+                    fill="none"
+                    stroke="var(--border-light)"
+                    strokeWidth={1}
+                    strokeDasharray="4 3"
+                  />
                   <text
-                    x={textPos.x}
-                    y={textPos.y}
+                    x={CX}
+                    y={CY + (RING_RADII[1] + RING_RADII[2]) / 2 + 20}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
-                    className="font-display"
                     style={{
-                      fontSize: "10px",
-                      fill: "var(--brown-text)",
-                      pointerEvents: "none",
+                      fontSize: "11px",
+                      fill: "var(--border)",
+                      fontStyle: "italic",
                     }}
                   >
-                    {(seg.node.firstName ?? "").slice(0, 10) ||
-                      (seg.node.lastName ?? "").slice(0, 10) ||
-                      "?"}
+                    No children recorded
                   </text>
-                )}
-              </g>
-            );
-          })}
+                </>
+              )}
 
-          {/* Empty descendant arc outline when no children */}
-          {descendantGens > 0 && descRoot && descRoot.children.length === 0 && (
-            <>
-              <path
-                d={arcPath(CX, CY, RING_RADII[1], RING_RADII[2], 120, 240)}
-                fill="none"
-                stroke="var(--border-light)"
-                strokeWidth={1}
-                strokeDasharray="4 3"
+            {/* Center circle (root / gen 0) */}
+            {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
+            <g
+              onClick={() => handleNodeClick(root.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ")
+                  handleNodeClick(root.id);
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`View ${rootName} details`}
+              style={{ cursor: "pointer" }}
+            >
+              <circle
+                cx={CX}
+                cy={CY}
+                r={RING_RADII[1]}
+                fill="var(--forest-bg)"
+                stroke="var(--forest)"
+                strokeWidth={1.5}
               />
               <text
                 x={CX}
-                y={CY + (RING_RADII[1] + RING_RADII[2]) / 2 + 20}
+                y={CY - 8}
                 textAnchor="middle"
-                dominantBaseline="central"
+                className="font-display"
                 style={{
-                  fontSize: "11px",
-                  fill: "var(--border)",
-                  fontStyle: "italic",
-                }}
-              >
-                No children recorded
-              </text>
-            </>
-          )}
-
-          {/* Center circle (root / gen 0) */}
-          {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
-          <g
-            onClick={() => navigateToRoot(root.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") navigateToRoot(root.id);
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label={`${rootName} (root)`}
-            style={{ cursor: "pointer" }}
-          >
-            <circle
-              cx={CX}
-              cy={CY}
-              r={RING_RADII[1]}
-              fill="var(--forest-bg)"
-              stroke="var(--forest)"
-              strokeWidth={1.5}
-            />
-            <text
-              x={CX}
-              y={CY - 8}
-              textAnchor="middle"
-              className="font-display"
-              style={{
-                fontSize: "13px",
-                fill: "var(--brown-text)",
-                fontWeight: 600,
-                pointerEvents: "none",
-              }}
-            >
-              {rootName.length > 18 ? `${rootName.slice(0, 18)}…` : rootName}
-            </text>
-            {rootBirth && (
-              <text
-                x={CX}
-                y={CY + 10}
-                textAnchor="middle"
-                className="font-mono"
-                style={{
-                  fontSize: "10px",
-                  fill: "var(--brown-muted)",
+                  fontSize: "13px",
+                  fill: "var(--brown-text)",
+                  fontWeight: 600,
                   pointerEvents: "none",
                 }}
               >
-                {rootBirth}
+                {rootName.length > 18 ? `${rootName.slice(0, 18)}…` : rootName}
               </text>
-            )}
-          </g>
-        </svg>
+              {rootBirth && (
+                <text
+                  x={CX}
+                  y={CY + 10}
+                  textAnchor="middle"
+                  className="font-mono"
+                  style={{
+                    fontSize: "10px",
+                    fill: "var(--brown-muted)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {rootBirth}
+                </text>
+              )}
+            </g>
+          </svg>
+        </ChartZoomWrapper>
       </div>
 
       <GenerationControls
@@ -676,6 +673,15 @@ export default function FanChartView({
           label="Change root person:"
         />
       </div>
+
+      {/* Slide-over panel */}
+      <PersonSlideOver
+        treeId={treeId}
+        treeSlug={treeSlug}
+        personId={selectedPersonId}
+        onClose={handleCloseSlideOver}
+        onViewAsRoot={navigateToRoot}
+      />
     </div>
   );
 }

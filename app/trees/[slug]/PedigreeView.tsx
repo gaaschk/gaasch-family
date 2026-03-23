@@ -1,30 +1,20 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ChartMinimap from "./ChartMinimap";
+import ChartZoomWrapper from "./ChartZoomWrapper";
+import {
+  type AncestorNode,
+  bloodlinePath,
+  type DescNode,
+  flatten,
+  leafCount,
+  lifespanText,
+} from "./chart-utils";
 import GenerationControls from "./GenerationControls";
 import PersonPicker from "./PersonPicker";
-
-type AncestorNode = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  birthDate: string | null;
-  deathDate: string | null;
-  gender: string | null;
-  father: AncestorNode | null;
-  mother: AncestorNode | null;
-};
-
-type DescNode = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  birthDate: string | null;
-  deathDate: string | null;
-  gender: string | null;
-  children: DescNode[];
-};
+import PersonSlideOver from "./PersonSlideOver";
 
 type DescLayoutNode = {
   node: DescNode;
@@ -36,38 +26,6 @@ type DescLayoutNode = {
 const BOX_W = 180;
 const BOX_H = 56;
 const GEN_GAP = 60;
-
-function flatten(
-  node: AncestorNode | null,
-  num: number,
-  maxGen: number,
-  map: Map<number, AncestorNode>,
-) {
-  if (!node || Math.floor(Math.log2(num)) >= maxGen) return;
-  map.set(num, node);
-  flatten(node.father, num * 2, maxGen, map);
-  flatten(node.mother, num * 2 + 1, maxGen, map);
-}
-
-function formatYear(date: string): string {
-  const m = date.match(/\b(\d{4})\b/);
-  return m ? m[1] : date;
-}
-
-function lifespanText(
-  birthDate: string | null,
-  deathDate: string | null,
-): string {
-  if (!birthDate && !deathDate) return "";
-  const b = birthDate ? formatYear(birthDate) : "?";
-  const d = deathDate ? formatYear(deathDate) : "";
-  return d ? `${b}–${d}` : `b. ${b}`;
-}
-
-function leafCount(node: DescNode, maxDepth: number): number {
-  if (maxDepth === 0 || node.children.length === 0) return 1;
-  return node.children.reduce((s, c) => s + leafCount(c, maxDepth - 1), 0);
-}
 
 function buildDescLayout(
   root: DescNode,
@@ -129,6 +87,8 @@ export default function PedigreeView({
   const [descRoot, setDescRoot] = useState<DescNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,7 +156,16 @@ export default function PedigreeView({
     params.set("view", "pedigree");
     params.set("root", personId);
     router.push(`/trees/${treeSlug}?${params.toString()}`);
+    setSelectedPersonId(null);
   }
+
+  const handleNodeClick = useCallback((personId: string) => {
+    setSelectedPersonId((prev) => (prev === personId ? null : personId));
+  }, []);
+
+  const handleCloseSlideOver = useCallback(() => {
+    setSelectedPersonId(null);
+  }, []);
 
   if (loading) {
     return (
@@ -281,6 +250,18 @@ export default function PedigreeView({
     return { x, y };
   }
 
+  // Bloodline highlight
+  const selectedNum = selectedPersonId
+    ? (() => {
+        for (const [num, node] of nodeMap) {
+          if (node.id === selectedPersonId) return num;
+        }
+        if (ancestorRoot.id === selectedPersonId) return 1;
+        return null;
+      })()
+    : null;
+  const highlightNums = selectedNum ? bloodlinePath(selectedNum) : null;
+
   // Descendant layout
   const descLayout =
     descendantGens > 0 && descRoot
@@ -288,7 +269,7 @@ export default function PedigreeView({
       : [];
 
   // Ancestor connector lines
-  const connectors: { key: string; d: string }[] = [];
+  const connectors: { key: string; d: string; highlighted: boolean }[] = [];
   for (const [num] of nodeMap) {
     if (num === 1) continue;
     const parentNum = Math.floor(num / 2);
@@ -303,9 +284,13 @@ export default function PedigreeView({
     const y2 = child.y + BOX_H / 2;
     const mx = (x1 + x2) / 2;
 
+    const highlighted =
+      (highlightNums?.has(num) && highlightNums.has(parentNum)) ?? false;
+
     connectors.push({
       key: `anc-${parentNum}-${num}`,
       d: `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`,
+      highlighted,
     });
   }
 
@@ -356,10 +341,12 @@ export default function PedigreeView({
     ancestorRoot.birthDate,
     ancestorRoot.deathDate,
   );
+  const rootSelected = selectedPersonId === ancestorRoot.id;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div
+        ref={scrollContainerRef}
         style={{
           overflowX: "auto",
           overflowY: "auto",
@@ -368,110 +355,234 @@ export default function PedigreeView({
           background: "var(--parchment)",
           padding: "1rem",
           maxHeight: "680px",
+          position: "relative",
         }}
       >
-        <svg
-          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          style={{ width: "100%", maxHeight: "640px", display: "block" }}
-          preserveAspectRatio="xMinYMid meet"
-        >
-          <title>Pedigree chart</title>
-
-          {/* Ancestor connector lines */}
-          {connectors.map((c) => (
-            <path
-              key={c.key}
-              d={c.d}
-              fill="none"
-              stroke="var(--border)"
-              strokeWidth={1.5}
-            />
-          ))}
-
-          {/* Descendant connector lines */}
-          {descConnectors.map((c) => (
-            <path
-              key={c.key}
-              d={c.d}
-              fill="none"
-              stroke="var(--border)"
-              strokeWidth={1.5}
-            />
-          ))}
-
-          {/* Root person box */}
-          {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
-          <g
-            onClick={() => navigateToRoot(ancestorRoot.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ")
-                navigateToRoot(ancestorRoot.id);
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label={`View ${rootName} as root`}
-            style={{ cursor: "pointer" }}
+        <ChartZoomWrapper>
+          <svg
+            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+            width={SVG_W}
+            height={SVG_H}
+            style={{ display: "block" }}
+            preserveAspectRatio="xMinYMid meet"
           >
-            <rect
-              x={rootX}
-              y={rootY}
-              width={BOX_W}
-              height={BOX_H}
-              rx={8}
-              fill="var(--forest-bg)"
-              stroke="var(--forest)"
-              strokeWidth={1.5}
-            />
-            <text
-              x={rootX + 10}
-              y={rootY + BOX_H / 2 - (rootDates ? 8 : 0)}
-              className="font-display"
-              style={{
-                fontSize: "13px",
-                fill: "var(--brown-text)",
-                fontWeight: 600,
+            <title>Pedigree chart</title>
+
+            {/* Ancestor connector lines */}
+            {connectors.map((c) => (
+              <path
+                key={c.key}
+                d={c.d}
+                fill="none"
+                stroke={
+                  highlightNums !== null
+                    ? c.highlighted
+                      ? "var(--forest)"
+                      : "var(--border)"
+                    : "var(--border)"
+                }
+                strokeWidth={c.highlighted ? 2.5 : 1.5}
+                opacity={highlightNums !== null && !c.highlighted ? 0.35 : 1}
+              />
+            ))}
+
+            {/* Descendant connector lines */}
+            {descConnectors.map((c) => (
+              <path
+                key={c.key}
+                d={c.d}
+                fill="none"
+                stroke="var(--border)"
+                strokeWidth={1.5}
+              />
+            ))}
+
+            {/* Root person box */}
+            {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
+            <g
+              onClick={() => handleNodeClick(ancestorRoot.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ")
+                  handleNodeClick(ancestorRoot.id);
               }}
-              dominantBaseline="central"
+              tabIndex={0}
+              role="button"
+              aria-label={`View ${rootName} details`}
+              style={{ cursor: "pointer" }}
             >
-              <tspan>
-                {rootName.length > 22 ? `${rootName.slice(0, 22)}…` : rootName}
-              </tspan>
-            </text>
-            {rootDates && (
+              <rect
+                x={rootX}
+                y={rootY}
+                width={BOX_W}
+                height={BOX_H}
+                rx={8}
+                fill="var(--forest-bg)"
+                stroke={rootSelected ? "var(--forest)" : "var(--forest)"}
+                strokeWidth={rootSelected ? 2.5 : 1.5}
+              />
               <text
                 x={rootX + 10}
-                y={rootY + BOX_H / 2 + 10}
-                className="font-mono"
-                style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                y={rootY + BOX_H / 2 - (rootDates ? 8 : 0)}
+                className="font-display"
+                style={{
+                  fontSize: "13px",
+                  fill: "var(--brown-text)",
+                  fontWeight: 600,
+                }}
                 dominantBaseline="central"
               >
-                {rootDates}
+                <tspan>
+                  {rootName.length > 22
+                    ? `${rootName.slice(0, 22)}…`
+                    : rootName}
+                </tspan>
               </text>
-            )}
-          </g>
+              {rootDates && (
+                <text
+                  x={rootX + 10}
+                  y={rootY + BOX_H / 2 + 10}
+                  className="font-mono"
+                  style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                  dominantBaseline="central"
+                >
+                  {rootDates}
+                </text>
+              )}
+            </g>
 
-          {/* Ancestor person boxes (num > 1) */}
-          {Array.from(nodeMap.entries())
-            .filter(([num]) => num !== 1)
-            .map(([num, node]) => {
-              const { x, y } = boxPosition(num);
+            {/* Ancestor person boxes (num > 1) */}
+            {Array.from(nodeMap.entries())
+              .filter(([num]) => num !== 1)
+              .map(([num, node]) => {
+                const { x, y } = boxPosition(num);
+                const name =
+                  [node.firstName, node.lastName].filter(Boolean).join(" ") ||
+                  "(unnamed)";
+                const dates = lifespanText(node.birthDate, node.deathDate);
+                const isOnPath = highlightNums?.has(num);
+                const isSelected = selectedPersonId === node.id;
+
+                return (
+                  // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+                  <g
+                    key={num}
+                    onClick={() => handleNodeClick(node.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ")
+                        handleNodeClick(node.id);
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View ${name} details`}
+                    style={{ cursor: "pointer" }}
+                    opacity={highlightNums !== null && !isOnPath ? 0.35 : 1}
+                  >
+                    <rect
+                      x={x}
+                      y={y}
+                      width={BOX_W}
+                      height={BOX_H}
+                      rx={8}
+                      fill="var(--parchment-2)"
+                      stroke={
+                        isSelected || isOnPath
+                          ? "var(--forest)"
+                          : "var(--border)"
+                      }
+                      strokeWidth={isSelected || isOnPath ? 1.5 : 1}
+                    />
+                    <text
+                      x={x + 10}
+                      y={y + BOX_H / 2 - (dates ? 8 : 0)}
+                      className="font-display"
+                      style={{
+                        fontSize: "13px",
+                        fill: "var(--brown-text)",
+                        fontWeight: 400,
+                      }}
+                      dominantBaseline="central"
+                    >
+                      <tspan>
+                        {name.length > 22 ? `${name.slice(0, 22)}…` : name}
+                      </tspan>
+                    </text>
+                    {dates && (
+                      <text
+                        x={x + 10}
+                        y={y + BOX_H / 2 + 10}
+                        className="font-mono"
+                        style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                        dominantBaseline="central"
+                      >
+                        {dates}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+
+            {/* Empty ancestor placeholders */}
+            {Array.from({ length: ancestorGens }, (_, gen) =>
+              Array.from({ length: 2 ** gen }, (__, idx) => {
+                const num = 2 ** gen + idx;
+                if (num === 1) return null;
+                if (nodeMap.has(num)) return null;
+                const parentNum = Math.floor(num / 2);
+                if (gen > 0 && !nodeMap.has(parentNum)) return null;
+                if (gen === 0) return null;
+                const { x, y } = boxPosition(num);
+                return (
+                  <g key={`empty-${num}`}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={BOX_W}
+                      height={BOX_H}
+                      rx={8}
+                      fill="transparent"
+                      stroke="var(--border-light)"
+                      strokeWidth={1}
+                      strokeDasharray="4 3"
+                    />
+                    <text
+                      x={x + BOX_W / 2}
+                      y={y + BOX_H / 2}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      style={{ fontSize: "11px", fill: "var(--border)" }}
+                    >
+                      Not recorded
+                    </text>
+                  </g>
+                );
+              }),
+            )}
+
+            {/* Descendant person boxes */}
+            {descLayout.map((item) => {
+              const x = rootX - item.gen * (BOX_W + GEN_GAP) - BOX_W;
+              const y = item.yCenter - BOX_H / 2;
               const name =
-                [node.firstName, node.lastName].filter(Boolean).join(" ") ||
-                "(unnamed)";
-              const dates = lifespanText(node.birthDate, node.deathDate);
+                [item.node.firstName, item.node.lastName]
+                  .filter(Boolean)
+                  .join(" ") || "(unnamed)";
+              const dates = lifespanText(
+                item.node.birthDate,
+                item.node.deathDate,
+              );
 
               return (
                 // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
                 <g
-                  key={num}
-                  onClick={() => navigateToRoot(node.id)}
+                  key={`desc-box-${item.node.id}`}
+                  onClick={() => handleNodeClick(item.node.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ")
-                      navigateToRoot(node.id);
+                      handleNodeClick(item.node.id);
                   }}
                   tabIndex={0}
                   role="button"
-                  aria-label={`View ${name} as root`}
+                  aria-label={`View ${name} details`}
                   style={{ cursor: "pointer" }}
                 >
                   <rect
@@ -514,127 +625,39 @@ export default function PedigreeView({
               );
             })}
 
-          {/* Empty ancestor placeholders */}
-          {Array.from({ length: ancestorGens }, (_, gen) =>
-            Array.from({ length: 2 ** gen }, (__, idx) => {
-              const num = 2 ** gen + idx;
-              if (num === 1) return null;
-              if (nodeMap.has(num)) return null;
-              const parentNum = Math.floor(num / 2);
-              if (gen > 0 && !nodeMap.has(parentNum)) return null;
-              if (gen === 0) return null;
-              const { x, y } = boxPosition(num);
-              return (
-                <g key={`empty-${num}`}>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={BOX_W}
-                    height={BOX_H}
-                    rx={8}
-                    fill="transparent"
-                    stroke="var(--border-light)"
-                    strokeWidth={1}
-                    strokeDasharray="4 3"
-                  />
-                  <text
-                    x={x + BOX_W / 2}
-                    y={y + BOX_H / 2}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    style={{ fontSize: "11px", fill: "var(--border)" }}
-                  >
-                    Not recorded
-                  </text>
-                </g>
-              );
-            }),
-          )}
-
-          {/* Descendant person boxes */}
-          {descLayout.map((item) => {
-            const x = rootX - item.gen * (BOX_W + GEN_GAP) - BOX_W;
-            const y = item.yCenter - BOX_H / 2;
-            const name =
-              [item.node.firstName, item.node.lastName]
-                .filter(Boolean)
-                .join(" ") || "(unnamed)";
-            const dates = lifespanText(
-              item.node.birthDate,
-              item.node.deathDate,
-            );
-
-            return (
-              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
-              <g
-                key={`desc-box-${item.node.id}`}
-                onClick={() => navigateToRoot(item.node.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    navigateToRoot(item.node.id);
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`View ${name} as root`}
-                style={{ cursor: "pointer" }}
-              >
-                <rect
-                  x={x}
-                  y={y}
-                  width={BOX_W}
-                  height={BOX_H}
-                  rx={8}
-                  fill="var(--parchment-2)"
-                  stroke="var(--border)"
-                  strokeWidth={1}
-                />
+            {/* No children placeholder */}
+            {descendantGens > 0 &&
+              descRoot &&
+              descRoot.children.length === 0 && (
                 <text
-                  x={x + 10}
-                  y={y + BOX_H / 2 - (dates ? 8 : 0)}
-                  className="font-display"
-                  style={{
-                    fontSize: "13px",
-                    fill: "var(--brown-text)",
-                    fontWeight: 400,
-                  }}
+                  x={rootX - (BOX_W + GEN_GAP) / 2}
+                  y={rootCenterY}
+                  textAnchor="middle"
                   dominantBaseline="central"
+                  style={{
+                    fontSize: "11px",
+                    fill: "var(--border)",
+                    fontStyle: "italic",
+                  }}
                 >
-                  <tspan>
-                    {name.length > 22 ? `${name.slice(0, 22)}…` : name}
-                  </tspan>
+                  No children recorded
                 </text>
-                {dates && (
-                  <text
-                    x={x + 10}
-                    y={y + BOX_H / 2 + 10}
-                    className="font-mono"
-                    style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
-                    dominantBaseline="central"
-                  >
-                    {dates}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+              )}
+          </svg>
+        </ChartZoomWrapper>
 
-          {/* No children placeholder */}
-          {descendantGens > 0 && descRoot && descRoot.children.length === 0 && (
-            <text
-              x={rootX - (BOX_W + GEN_GAP) / 2}
-              y={rootCenterY}
-              textAnchor="middle"
-              dominantBaseline="central"
-              style={{
-                fontSize: "11px",
-                fill: "var(--border)",
-                fontStyle: "italic",
-              }}
-            >
-              No children recorded
-            </text>
-          )}
-        </svg>
+        {/* Minimap */}
+        <ChartMinimap
+          ancestorGens={ancestorGens}
+          ancestorRoot={ancestorRoot}
+          svgW={SVG_W}
+          svgH={SVG_H}
+          boxW={BOX_W}
+          boxH={BOX_H}
+          genGap={GEN_GAP}
+          rootX={rootX}
+          scrollContainerRef={scrollContainerRef}
+        />
       </div>
 
       <GenerationControls
@@ -652,6 +675,15 @@ export default function PedigreeView({
           label="Change root person:"
         />
       </div>
+
+      {/* Slide-over panel */}
+      <PersonSlideOver
+        treeId={treeId}
+        treeSlug={treeSlug}
+        personId={selectedPersonId}
+        onClose={handleCloseSlideOver}
+        onViewAsRoot={navigateToRoot}
+      />
     </div>
   );
 }
