@@ -85,8 +85,6 @@ export default function TreeSwitcher({
 
       {open && (
         <div
-          role="listbox"
-          aria-label="Your trees"
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -116,7 +114,7 @@ export default function TreeSwitcher({
               {trees.map((tree) => {
                 const isCurrent = tree.slug === currentSlug;
                 return (
-                  <li key={tree.id} role="option" aria-selected={isCurrent}>
+                  <li key={tree.id}>
                     {isCurrent ? (
                       <span
                         style={{
@@ -162,12 +160,14 @@ export default function TreeSwitcher({
                           textDecoration: "none",
                         }}
                         onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLAnchorElement).style.background =
-                            "var(--surface-hover, #E8DDD0)";
+                          (
+                            e.currentTarget as HTMLAnchorElement
+                          ).style.background = "var(--surface-hover, #E8DDD0)";
                         }}
                         onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLAnchorElement).style.background =
-                            "transparent";
+                          (
+                            e.currentTarget as HTMLAnchorElement
+                          ).style.background = "transparent";
                         }}
                       >
                         <span
