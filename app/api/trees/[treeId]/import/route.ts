@@ -45,7 +45,8 @@ function parseGedcomTolerant(text: string): GedRoot {
     }
 
     const parent = stack[stack.length - 1].node;
-    (parent.children ??= []).push(node as GedNode);
+    if (!parent.children) parent.children = [];
+    parent.children.push(node as GedNode);
     stack.push({ level, node });
   }
 
