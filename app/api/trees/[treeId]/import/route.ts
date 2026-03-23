@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { parse as parseGedcom } from "parse-gedcom";
 import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
 
@@ -11,6 +10,47 @@ type GedNode = {
 };
 
 type GedRoot = { type: "root"; children: GedNode[] };
+
+/**
+ * Tolerant GEDCOM parser that accepts non-sequential level numbers (e.g. 3→7)
+ * as produced by MyHeritage and other exporters. Uses a stack keyed on level
+ * numbers to locate the correct parent for each record.
+ */
+function parseGedcomTolerant(text: string): GedRoot {
+  const root: GedRoot = { type: "root", children: [] };
+  // Stack entries: { level, node }. Level -1 = root sentinel.
+  const stack: Array<{ level: number; node: GedNode | GedRoot }> = [
+    { level: -1, node: root },
+  ];
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // GEDCOM line format: LEVEL [@XREF@] TAG [VALUE]
+    const m = line.match(/^(\d+)\s+(?:(@[^@]+@)\s+)?(\S+)(?:\s+(.+))?$/);
+    if (!m) continue;
+
+    const level = parseInt(m[1], 10);
+    const xref = m[2]; // e.g. "@I1@" or undefined
+    const tag = m[3];
+    const value = m[4]?.trim() || undefined;
+
+    const node: GedNode = { type: tag, value, children: [] };
+    if (xref) node.data = { xref_id: xref };
+
+    // Pop until we find a node strictly below this level
+    while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+      stack.pop();
+    }
+
+    const parent = stack[stack.length - 1].node;
+    (parent.children ??= []).push(node as GedNode);
+    stack.push({ level, node });
+  }
+
+  return root;
+}
 
 function child(node: GedNode, type: string): GedNode | undefined {
   return node.children?.find((n) => n.type === type);
@@ -51,12 +91,25 @@ export async function POST(
     text = await req.text();
   }
 
+  // Normalize line endings, strip UTF-8 BOM, and remove blank lines
+  // (MyHeritage and other exporters include empty lines that confuse parse-gedcom)
+  text = text
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    // Drop blank lines and non-standard tab-indented continuation lines
+    // (MyHeritage exports wrapped text values this way; parse-gedcom can't handle them)
+    .filter((line) => line.trim() !== "" && /^\d/.test(line))
+    .join("\n");
+
   if (!text.trim()) return apiError("EMPTY_FILE", "The uploaded file is empty");
 
   let root: GedRoot;
   try {
-    root = parseGedcom(text) as GedRoot;
-  } catch {
+    root = parseGedcomTolerant(text);
+  } catch (err) {
+    console.error("[import] GEDCOM parse error:", err);
     return apiError(
       "PARSE_ERROR",
       "Could not parse GEDCOM file — ensure it is a valid .ged file",
