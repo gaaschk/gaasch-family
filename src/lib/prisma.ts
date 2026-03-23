@@ -13,9 +13,11 @@ function createPrismaClient() {
   } catch {
     console.log("[prisma] DATABASE_URL unset or unparseable");
   }
+  const isLocal =
+    connStr.includes("localhost") || connStr.includes("127.0.0.1");
   const pool = new pg.Pool({
     connectionString: connStr,
-    ssl: { rejectUnauthorized: false },
+    ssl: isLocal ? false : { rejectUnauthorized: false },
   });
   pool.on("error", (err) =>
     console.error("[prisma:pool] idle client error", err),

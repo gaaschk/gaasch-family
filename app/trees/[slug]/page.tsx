@@ -3,18 +3,33 @@ import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import FanChartView from "./FanChartView";
+import PedigreeView from "./PedigreeView";
 import PeopleDirectory from "./PeopleDirectory";
+import TreeSwitcher from "./TreeSwitcher";
+import ViewTabs from "./ViewTabs";
 
 export default async function TreePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{
+    view?: string;
+    root?: string;
+    agens?: string;
+    dgens?: string;
+  }>;
 }) {
   const { slug } = await params;
+  const { view = "list", root, agens, dgens } = await searchParams;
   const auth = await requireTreeAccess(slug, "viewer");
   if (auth instanceof NextResponse) redirect("/dashboard");
 
-  const [total, recent] = await Promise.all([
+  const ancestorGens = Math.min(Math.max(1, parseInt(agens ?? "4", 10)), 6);
+  const descendantGens = Math.min(Math.max(0, parseInt(dgens ?? "0", 10)), 4);
+
+  const [total, recent, myTrees] = await Promise.all([
     prisma.person.count({ where: { treeId: auth.tree.id } }),
     prisma.person.findMany({
       where: { treeId: auth.tree.id },
@@ -27,6 +42,17 @@ export default async function TreePage({
         birthDate: true,
         deathDate: true,
       },
+    }),
+    // Fetch all trees this user can access (owned + member)
+    prisma.tree.findMany({
+      where: {
+        OR: [
+          { ownerId: auth.userId },
+          { members: { some: { userId: auth.userId } } },
+        ],
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -41,26 +67,21 @@ export default async function TreePage({
           background: "var(--surface-raised)",
           padding: "1rem 1.5rem",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           gap: "1.5rem",
           flexWrap: "wrap",
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
+          <div
             style={{
               fontSize: "0.75rem",
               color: "var(--text-muted)",
               marginBottom: "0.1rem",
             }}
           >
-            <Link
-              href="/dashboard"
-              style={{ color: "var(--text-link)", textDecoration: "none" }}
-            >
-              My Trees
-            </Link>
-          </p>
+            <TreeSwitcher currentSlug={slug} trees={myTrees} />
+          </div>
           <h1
             className="font-display"
             style={{
@@ -72,6 +93,7 @@ export default async function TreePage({
           >
             {auth.tree.name}
           </h1>
+          <ViewTabs slug={slug} currentView={view} />
         </div>
         <nav
           style={{
@@ -117,82 +139,112 @@ export default async function TreePage({
         </nav>
       </header>
 
-      <div
-        style={{ maxWidth: "64rem", margin: "0 auto", padding: "2rem 1.5rem" }}
-      >
-        {/* Stats row */}
+      {view === "list" && (
         <div
           style={{
-            display: "flex",
-            gap: "1.5rem",
-            marginBottom: "2.5rem",
-            flexWrap: "wrap",
+            maxWidth: "64rem",
+            margin: "0 auto",
+            padding: "2rem 1.5rem",
           }}
         >
-          <StatCard label="People" value={total} />
-          {auth.tree.description && (
-            <p
-              style={{
-                flex: 1,
-                color: "var(--text-muted)",
-                fontSize: "0.9375rem",
-                lineHeight: 1.6,
-                alignSelf: "center",
-              }}
-            >
-              {auth.tree.description}
-            </p>
+          {/* Stats row */}
+          <div
+            style={{
+              display: "flex",
+              gap: "1.5rem",
+              marginBottom: "2.5rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <StatCard label="People" value={total} />
+            {auth.tree.description && (
+              <p
+                style={{
+                  flex: 1,
+                  color: "var(--text-muted)",
+                  fontSize: "0.9375rem",
+                  lineHeight: 1.6,
+                  alignSelf: "center",
+                }}
+              >
+                {auth.tree.description}
+              </p>
+            )}
+          </div>
+
+          {/* Recently updated */}
+          {recent.length > 0 && (
+            <section style={{ marginBottom: "2.5rem" }}>
+              <h2
+                className="font-ui"
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--brown-muted)",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                Recently updated
+              </h2>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                {recent.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/trees/${slug}/people/${p.id}`}
+                    style={{
+                      padding: "0.4rem 0.875rem",
+                      borderRadius: "var(--radius-full)",
+                      border: "1px solid var(--cream-border)",
+                      background: "var(--surface-raised)",
+                      color: "var(--text-primary)",
+                      fontSize: "0.875rem",
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {[p.firstName, p.lastName].filter(Boolean).join(" ") ||
+                      "(unnamed)"}
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
+
+          {/* Directory */}
+          <PeopleDirectory
+            treeId={auth.tree.id}
+            treeSlug={slug}
+            canEdit={canEdit}
+            initialTotal={total}
+          />
         </div>
+      )}
 
-        {/* Recently updated */}
-        {recent.length > 0 && (
-          <section style={{ marginBottom: "2.5rem" }}>
-            <h2
-              className="font-ui"
-              style={{
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--brown-muted)",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Recently updated
-            </h2>
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              {recent.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/trees/${slug}/people/${p.id}`}
-                  style={{
-                    padding: "0.4rem 0.875rem",
-                    borderRadius: "var(--radius-full)",
-                    border: "1px solid var(--cream-border)",
-                    background: "var(--surface-raised)",
-                    color: "var(--text-primary)",
-                    fontSize: "0.875rem",
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {[p.firstName, p.lastName].filter(Boolean).join(" ") ||
-                    "(unnamed)"}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+      {view === "pedigree" && (
+        <div style={{ padding: "2rem 1.5rem" }}>
+          <PedigreeView
+            treeId={auth.tree.id}
+            treeSlug={slug}
+            rootPersonId={root}
+            ancestorGens={ancestorGens}
+            descendantGens={descendantGens}
+          />
+        </div>
+      )}
 
-        {/* Directory */}
-        <PeopleDirectory
-          treeId={auth.tree.id}
-          treeSlug={slug}
-          canEdit={canEdit}
-          initialTotal={total}
-        />
-      </div>
+      {view === "fan" && (
+        <div style={{ padding: "2rem 1.5rem" }}>
+          <FanChartView
+            treeId={auth.tree.id}
+            treeSlug={slug}
+            rootPersonId={root}
+            ancestorGens={ancestorGens}
+            descendantGens={descendantGens}
+          />
+        </div>
+      )}
     </main>
   );
 }

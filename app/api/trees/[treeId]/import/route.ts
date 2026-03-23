@@ -1,16 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { parse as parseGedcom } from "parse-gedcom";
 import { apiError, requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-
-type GedNode = {
-  type: string;
-  data?: { xref_id?: string; [key: string]: unknown };
-  value?: string;
-  children?: GedNode[];
-};
-
-type GedRoot = { type: "root"; children: GedNode[] };
+import {
+  type GedNode,
+  type GedRoot,
+  parseGedcomTolerant,
+} from "./gedcom-parser";
 
 function child(node: GedNode, type: string): GedNode | undefined {
   return node.children?.find((n) => n.type === type);
@@ -51,12 +46,25 @@ export async function POST(
     text = await req.text();
   }
 
+  // Normalize line endings, strip UTF-8 BOM, and remove blank lines
+  // (MyHeritage and other exporters include empty lines that confuse parse-gedcom)
+  text = text
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    // Drop blank lines and non-standard tab-indented continuation lines
+    // (MyHeritage exports wrapped text values this way; parse-gedcom can't handle them)
+    .filter((line) => line.trim() !== "" && /^\d/.test(line))
+    .join("\n");
+
   if (!text.trim()) return apiError("EMPTY_FILE", "The uploaded file is empty");
 
   let root: GedRoot;
   try {
-    root = parseGedcom(text) as GedRoot;
-  } catch {
+    root = parseGedcomTolerant(text);
+  } catch (err) {
+    console.error("[import] GEDCOM parse error:", err);
     return apiError(
       "PARSE_ERROR",
       "Could not parse GEDCOM file — ensure it is a valid .ged file",
