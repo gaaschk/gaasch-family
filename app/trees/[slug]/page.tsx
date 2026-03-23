@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
 import PeopleDirectory from "./PeopleDirectory";
+import TreeSwitcher from "./TreeSwitcher";
 
 export default async function TreePage({
   params,
@@ -14,7 +15,7 @@ export default async function TreePage({
   const auth = await requireTreeAccess(slug, "viewer");
   if (auth instanceof NextResponse) redirect("/dashboard");
 
-  const [total, recent] = await Promise.all([
+  const [total, recent, myTrees] = await Promise.all([
     prisma.person.count({ where: { treeId: auth.tree.id } }),
     prisma.person.findMany({
       where: { treeId: auth.tree.id },
@@ -27,6 +28,17 @@ export default async function TreePage({
         birthDate: true,
         deathDate: true,
       },
+    }),
+    // Fetch all trees this user can access (owned + member)
+    prisma.tree.findMany({
+      where: {
+        OR: [
+          { ownerId: auth.userId },
+          { members: { some: { userId: auth.userId } } },
+        ],
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -54,12 +66,7 @@ export default async function TreePage({
               marginBottom: "0.1rem",
             }}
           >
-            <Link
-              href="/dashboard"
-              style={{ color: "var(--text-link)", textDecoration: "none" }}
-            >
-              My Trees
-            </Link>
+            <TreeSwitcher currentSlug={slug} trees={myTrees} />
           </p>
           <h1
             className="font-display"
