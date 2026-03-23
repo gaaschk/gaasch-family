@@ -10,7 +10,7 @@ In QA mode, flag any code that doesn't match `DESIGN.md`.
 
 ## What This Is
 
-A Next.js 15 multi-tenant private family history platform. Multiple families can each own a private genealogy tree — with an interactive explorer, searchable people directory, and AI-generated biographical narratives. Users are invited to trees by tree admins.
+A Next.js 15 multi-tenant private family history platform. Multiple families can each own a private genealogy tree — with an interactive pedigree chart, radial fan chart, searchable people directory, and AI-generated biographical narratives. Users are invited to trees by tree admins.
 
 ## Commands
 
@@ -95,7 +95,27 @@ Old routes (`/api/people`, `/api/families`, `/api/settings`, `/api/export`, `/ap
 `POST /api/trees/[treeId]/people/[personId]/generate-narrative` — requires `editor` tree role or Bearer token. Reads `anthropic_api_key` and `anthropic_model` from the tree's `Setting` rows. Streams Claude's response as `text/plain`, accumulates full HTML, saves to `Person.narrative`, writes audit log.
 
 ### Tree view page
-`app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership via `requireTreeAccess`, then renders tree stats, recent people, and `<PeopleDirectory>`.
+`app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership via `requireTreeAccess`, then renders tree stats, recent people, and three view tabs:
+- **Directory** (`<PeopleDirectory>`) — searchable people list
+- **Pedigree** (`<PedigreeView>`) — left-to-right SVG ancestor chart with zoom/pan, minimap, and `<PersonSlideOver>`
+- **Fan Chart** (`<FanChartView>`) — 240° radial arc chart with the same interaction model
+
+Active view is set via `?view=` query param (shareable). The `<TreeSwitcher>` dropdown lets users hop between trees from the header.
+
+Key components in `app/trees/[slug]/`:
+- `ChartZoomWrapper.tsx` — wheel/touch/keyboard zoom+pan wrapper
+- `ChartMinimap.tsx` — thumbnail overview for 4+ generation trees
+- `GenerationControls.tsx` — +/− buttons to adjust visible generation depth (1–6)
+- `PersonPicker.tsx` — inline name-search to set the chart root person
+- `PersonSlideOver.tsx` — slide-over panel opened on node click
+- `chart-utils.ts` — shared `AncestorNode`, `DescNode`, `formatYear`, `lifespanText`, `flatten` utilities
+
+### Ancestor/descendant APIs
+- `GET /api/trees/[treeId]/ancestors?personId=&generations=` — returns a recursive `AncestorNode` tree up to 6 generations; requires `viewer` tree role.
+- `GET /api/trees/[treeId]/descendants?personId=&generations=` — returns a recursive `DescNode` tree up to 6 generations; requires `viewer` tree role.
+
+### GEDCOM parser
+`app/api/trees/[treeId]/import/gedcom-parser.ts` — tolerant `parseGedcomTolerant` function that handles non-sequential structure levels and MyHeritage-exported files. Replaces the `parse-gedcom` npm package.
 
 ## Environment Variables
 
