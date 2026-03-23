@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import GenerationControls from "./GenerationControls";
 import PersonPicker from "./PersonPicker";
 
 type AncestorNode = {
@@ -15,12 +16,26 @@ type AncestorNode = {
   mother: AncestorNode | null;
 };
 
+type DescNode = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: string | null;
+  deathDate: string | null;
+  gender: string | null;
+  children: DescNode[];
+};
+
+type DescLayoutNode = {
+  node: DescNode;
+  gen: number;
+  yCenter: number;
+  parentId: string | null;
+};
+
 const BOX_W = 180;
 const BOX_H = 56;
 const GEN_GAP = 60;
-const MAX_GEN = 4;
-const SVG_H = 640;
-const SVG_W = MAX_GEN * (BOX_W + GEN_GAP) + BOX_W + 48;
 
 function flatten(
   node: AncestorNode | null,
@@ -32,14 +47,6 @@ function flatten(
   map.set(num, node);
   flatten(node.father, num * 2, maxGen, map);
   flatten(node.mother, num * 2 + 1, maxGen, map);
-}
-
-function boxPosition(num: number): { x: number; y: number } {
-  const gen = Math.floor(Math.log2(num));
-  const indexInGen = num - 2 ** gen;
-  const x = gen * (BOX_W + GEN_GAP) + 24;
-  const y = ((indexInGen + 0.5) / 2 ** gen) * SVG_H - BOX_H / 2;
-  return { x, y };
 }
 
 function formatYear(date: string): string {
@@ -57,19 +64,69 @@ function lifespanText(
   return d ? `${b}–${d}` : `b. ${b}`;
 }
 
+function leafCount(node: DescNode, maxDepth: number): number {
+  if (maxDepth === 0 || node.children.length === 0) return 1;
+  return node.children.reduce((s, c) => s + leafCount(c, maxDepth - 1), 0);
+}
+
+function buildDescLayout(
+  root: DescNode,
+  maxGen: number,
+  svgH: number,
+): DescLayoutNode[] {
+  const totalLeaves =
+    root.children.reduce((s, c) => s + leafCount(c, maxGen - 1), 0) || 1;
+  const slotH = Math.max(BOX_H + 16, svgH / totalLeaves);
+  const totalH = Math.max(svgH, totalLeaves * slotH);
+  const yOffset = (totalH - totalLeaves * slotH) / 2;
+  const result: DescLayoutNode[] = [];
+
+  function recurse(
+    node: DescNode,
+    gen: number,
+    parentId: string | null,
+    slotStart: number,
+    slotCount: number,
+  ) {
+    const yCenter = yOffset + (slotStart + slotCount / 2) * slotH;
+    result.push({ node, gen, yCenter, parentId });
+    if (gen < maxGen && node.children.length > 0) {
+      let cur = slotStart;
+      for (const child of node.children) {
+        const leaves = leafCount(child, maxGen - gen);
+        recurse(child, gen + 1, node.id, cur, leaves);
+        cur += leaves;
+      }
+    }
+  }
+
+  let cur = 0;
+  for (const child of root.children) {
+    const leaves = leafCount(child, maxGen - 1);
+    recurse(child, 1, root.id, cur, leaves);
+    cur += leaves;
+  }
+  return result;
+}
+
 export default function PedigreeView({
   treeId,
   treeSlug,
   rootPersonId,
+  ancestorGens = 4,
+  descendantGens = 0,
 }: {
   treeId: string;
   treeSlug: string;
   rootPersonId?: string;
+  ancestorGens?: number;
+  descendantGens?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [root, setRoot] = useState<AncestorNode | null>(null);
+  const [ancestorRoot, setAncestorRoot] = useState<AncestorNode | null>(null);
+  const [descRoot, setDescRoot] = useState<DescNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +144,8 @@ export default function PedigreeView({
           const listData = await listRes.json();
           if (!listData.people || listData.people.length === 0) {
             if (!cancelled) {
-              setRoot(null);
+              setAncestorRoot(null);
+              setDescRoot(null);
               setLoading(false);
             }
             return;
@@ -95,12 +153,30 @@ export default function PedigreeView({
           personId = listData.people[0].id as string;
         }
 
-        const res = await fetch(
-          `/api/trees/${treeId}/ancestors?rootPersonId=${personId}&generations=4`,
-        );
-        if (!res.ok) throw new Error("Could not load ancestors");
-        const data = await res.json();
-        if (!cancelled) setRoot(data.root);
+        const [ancestorRes, descendantRes] = await Promise.all([
+          fetch(
+            `/api/trees/${treeId}/ancestors?rootPersonId=${personId}&generations=${ancestorGens}`,
+          ),
+          descendantGens > 0
+            ? fetch(
+                `/api/trees/${treeId}/descendants?rootPersonId=${personId}&generations=${descendantGens}`,
+              )
+            : Promise.resolve(null),
+        ]);
+
+        if (!ancestorRes.ok) throw new Error("Could not load ancestors");
+        if (descendantRes && !descendantRes.ok)
+          throw new Error("Could not load descendants");
+
+        const ancestorData = await ancestorRes.json();
+        const descendantData = descendantRes
+          ? await descendantRes.json()
+          : null;
+
+        if (!cancelled) {
+          setAncestorRoot(ancestorData.root);
+          setDescRoot(descendantData ? descendantData.root : null);
+        }
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "An error occurred");
@@ -113,7 +189,7 @@ export default function PedigreeView({
     return () => {
       cancelled = true;
     };
-  }, [treeId, rootPersonId]);
+  }, [treeId, rootPersonId, ancestorGens, descendantGens]);
 
   function navigateToRoot(personId: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -134,7 +210,7 @@ export default function PedigreeView({
           fontSize: "0.9375rem",
         }}
       >
-        Loading ancestors…
+        Loading…
       </div>
     );
   }
@@ -160,7 +236,7 @@ export default function PedigreeView({
     );
   }
 
-  if (!root) {
+  if (!ancestorRoot) {
     return (
       <div
         style={{
@@ -174,10 +250,44 @@ export default function PedigreeView({
     );
   }
 
-  const nodeMap = new Map<number, AncestorNode>();
-  flatten(root, 1, MAX_GEN, nodeMap);
+  // Layout constants — declare SVG_H before anything that uses it
+  const SVG_H_BASE = 640;
+  const totalDescLeaves =
+    descRoot && descendantGens > 0
+      ? descRoot.children.reduce(
+          (s, c) => s + leafCount(c, descendantGens - 1),
+          0,
+        ) || 1
+      : 1;
+  const SVG_H =
+    descendantGens > 0
+      ? Math.max(SVG_H_BASE, totalDescLeaves * (BOX_H + 16) + 80)
+      : SVG_H_BASE;
 
-  // Build connector paths
+  const rootX =
+    descendantGens > 0 ? descendantGens * (BOX_W + GEN_GAP) + 24 : 24;
+  const SVG_W =
+    (ancestorGens + descendantGens) * (BOX_W + GEN_GAP) + BOX_W + 48;
+
+  // Ancestor layout
+  const nodeMap = new Map<number, AncestorNode>();
+  flatten(ancestorRoot, 1, ancestorGens, nodeMap);
+
+  function boxPosition(num: number): { x: number; y: number } {
+    const gen = Math.floor(Math.log2(num));
+    const indexInGen = num - 2 ** gen;
+    const x = rootX + gen * (BOX_W + GEN_GAP);
+    const y = ((indexInGen + 0.5) / 2 ** gen) * SVG_H - BOX_H / 2;
+    return { x, y };
+  }
+
+  // Descendant layout
+  const descLayout =
+    descendantGens > 0 && descRoot
+      ? buildDescLayout(descRoot, descendantGens, SVG_H_BASE)
+      : [];
+
+  // Ancestor connector lines
   const connectors: { key: string; d: string }[] = [];
   for (const [num] of nodeMap) {
     if (num === 1) continue;
@@ -194,10 +304,58 @@ export default function PedigreeView({
     const mx = (x1 + x2) / 2;
 
     connectors.push({
-      key: `${parentNum}-${num}`,
+      key: `anc-${parentNum}-${num}`,
       d: `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`,
     });
   }
+
+  // Descendant connector lines
+  const descConnectors: { key: string; d: string }[] = [];
+  const descLayoutMap = new Map<string, DescLayoutNode>();
+  for (const item of descLayout) {
+    descLayoutMap.set(item.node.id, item);
+  }
+
+  const rootCenterY = SVG_H / 2;
+
+  for (const item of descLayout) {
+    if (!item.parentId) continue;
+    const parentItem = descLayoutMap.get(item.parentId);
+    if (!parentItem) {
+      // parent is root
+      const childX = rootX - item.gen * (BOX_W + GEN_GAP) - BOX_W;
+      const x1 = rootX;
+      const y1 = rootCenterY;
+      const x2 = childX + BOX_W;
+      const y2 = item.yCenter;
+      const mx = (x1 + x2) / 2;
+      descConnectors.push({
+        key: `desc-root-${item.node.id}`,
+        d: `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`,
+      });
+    } else {
+      const parentX = rootX - parentItem.gen * (BOX_W + GEN_GAP) - BOX_W;
+      const childX = rootX - item.gen * (BOX_W + GEN_GAP) - BOX_W;
+      const x1 = parentX;
+      const y1 = parentItem.yCenter;
+      const x2 = childX + BOX_W;
+      const y2 = item.yCenter;
+      const mx = (x1 + x2) / 2;
+      descConnectors.push({
+        key: `desc-${parentItem.node.id}-${item.node.id}`,
+        d: `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`,
+      });
+    }
+  }
+
+  const rootY = rootCenterY - BOX_H / 2;
+  const rootName =
+    [ancestorRoot.firstName, ancestorRoot.lastName].filter(Boolean).join(" ") ||
+    "(unnamed)";
+  const rootDates = lifespanText(
+    ancestorRoot.birthDate,
+    ancestorRoot.deathDate,
+  );
 
   return (
     <div>
@@ -219,7 +377,7 @@ export default function PedigreeView({
         >
           <title>Pedigree chart</title>
 
-          {/* Connector lines */}
+          {/* Ancestor connector lines */}
           {connectors.map((c) => (
             <path
               key={c.key}
@@ -230,78 +388,141 @@ export default function PedigreeView({
             />
           ))}
 
-          {/* Person boxes */}
-          {Array.from(nodeMap.entries()).map(([num, node]) => {
-            const { x, y } = boxPosition(num);
-            const name =
-              [node.firstName, node.lastName].filter(Boolean).join(" ") ||
-              "(unnamed)";
-            const dates = lifespanText(node.birthDate, node.deathDate);
-            const isRoot = num === 1;
+          {/* Descendant connector lines */}
+          {descConnectors.map((c) => (
+            <path
+              key={c.key}
+              d={c.d}
+              fill="none"
+              stroke="var(--border)"
+              strokeWidth={1.5}
+            />
+          ))}
 
-            return (
-              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
-              <g
-                key={num}
-                onClick={() => navigateToRoot(node.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ")
-                    navigateToRoot(node.id);
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`View ${name} as root`}
-                style={{ cursor: "pointer" }}
+          {/* Root person box */}
+          {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
+          <g
+            onClick={() => navigateToRoot(ancestorRoot.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ")
+                navigateToRoot(ancestorRoot.id);
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`View ${rootName} as root`}
+            style={{ cursor: "pointer" }}
+          >
+            <rect
+              x={rootX}
+              y={rootY}
+              width={BOX_W}
+              height={BOX_H}
+              rx={8}
+              fill="var(--forest-bg)"
+              stroke="var(--forest)"
+              strokeWidth={1.5}
+            />
+            <text
+              x={rootX + 10}
+              y={rootY + BOX_H / 2 - (rootDates ? 8 : 0)}
+              className="font-display"
+              style={{
+                fontSize: "13px",
+                fill: "var(--brown-text)",
+                fontWeight: 600,
+              }}
+              dominantBaseline="central"
+            >
+              <tspan>
+                {rootName.length > 22 ? `${rootName.slice(0, 22)}…` : rootName}
+              </tspan>
+            </text>
+            {rootDates && (
+              <text
+                x={rootX + 10}
+                y={rootY + BOX_H / 2 + 10}
+                className="font-mono"
+                style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                dominantBaseline="central"
               >
-                <rect
-                  x={x}
-                  y={y}
-                  width={BOX_W}
-                  height={BOX_H}
-                  rx={8}
-                  fill={isRoot ? "var(--forest-bg)" : "var(--parchment-2)"}
-                  stroke={isRoot ? "var(--forest)" : "var(--border)"}
-                  strokeWidth={isRoot ? 1.5 : 1}
-                />
-                <text
-                  x={x + 10}
-                  y={y + BOX_H / 2 - (dates ? 8 : 0)}
-                  className="font-display"
-                  style={{
-                    fontSize: "13px",
-                    fill: "var(--brown-text)",
-                    fontWeight: isRoot ? 600 : 400,
+                {rootDates}
+              </text>
+            )}
+          </g>
+
+          {/* Ancestor person boxes (num > 1) */}
+          {Array.from(nodeMap.entries())
+            .filter(([num]) => num !== 1)
+            .map(([num, node]) => {
+              const { x, y } = boxPosition(num);
+              const name =
+                [node.firstName, node.lastName].filter(Boolean).join(" ") ||
+                "(unnamed)";
+              const dates = lifespanText(node.birthDate, node.deathDate);
+
+              return (
+                // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+                <g
+                  key={num}
+                  onClick={() => navigateToRoot(node.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      navigateToRoot(node.id);
                   }}
-                  dominantBaseline="central"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View ${name} as root`}
+                  style={{ cursor: "pointer" }}
                 >
-                  <tspan>
-                    {name.length > 22 ? `${name.slice(0, 22)}…` : name}
-                  </tspan>
-                </text>
-                {dates && (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={BOX_W}
+                    height={BOX_H}
+                    rx={8}
+                    fill="var(--parchment-2)"
+                    stroke="var(--border)"
+                    strokeWidth={1}
+                  />
                   <text
                     x={x + 10}
-                    y={y + BOX_H / 2 + 10}
-                    className="font-mono"
-                    style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                    y={y + BOX_H / 2 - (dates ? 8 : 0)}
+                    className="font-display"
+                    style={{
+                      fontSize: "13px",
+                      fill: "var(--brown-text)",
+                      fontWeight: 400,
+                    }}
                     dominantBaseline="central"
                   >
-                    {dates}
+                    <tspan>
+                      {name.length > 22 ? `${name.slice(0, 22)}…` : name}
+                    </tspan>
                   </text>
-                )}
-              </g>
-            );
-          })}
+                  {dates && (
+                    <text
+                      x={x + 10}
+                      y={y + BOX_H / 2 + 10}
+                      className="font-mono"
+                      style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                      dominantBaseline="central"
+                    >
+                      {dates}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
 
-          {/* Empty parent placeholders at gen 1-3 */}
-          {Array.from({ length: MAX_GEN }, (_, gen) =>
+          {/* Empty ancestor placeholders */}
+          {Array.from({ length: ancestorGens }, (_, gen) =>
             Array.from({ length: 2 ** gen }, (__, idx) => {
               const num = 2 ** gen + idx;
+              if (num === 1) return null;
               if (nodeMap.has(num)) return null;
-              // Only show empty boxes if parent exists
               const parentNum = Math.floor(num / 2);
               if (gen > 0 && !nodeMap.has(parentNum)) return null;
-              if (gen === 0) return null; // root always present
+              if (gen === 0) return null;
               const { x, y } = boxPosition(num);
               return (
                 <g key={`empty-${num}`}>
@@ -329,10 +550,102 @@ export default function PedigreeView({
               );
             }),
           )}
+
+          {/* Descendant person boxes */}
+          {descLayout.map((item) => {
+            const x = rootX - item.gen * (BOX_W + GEN_GAP) - BOX_W;
+            const y = item.yCenter - BOX_H / 2;
+            const name =
+              [item.node.firstName, item.node.lastName]
+                .filter(Boolean)
+                .join(" ") || "(unnamed)";
+            const dates = lifespanText(
+              item.node.birthDate,
+              item.node.deathDate,
+            );
+
+            return (
+              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+              <g
+                key={`desc-box-${item.node.id}`}
+                onClick={() => navigateToRoot(item.node.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    navigateToRoot(item.node.id);
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View ${name} as root`}
+                style={{ cursor: "pointer" }}
+              >
+                <rect
+                  x={x}
+                  y={y}
+                  width={BOX_W}
+                  height={BOX_H}
+                  rx={8}
+                  fill="var(--parchment-2)"
+                  stroke="var(--border)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={x + 10}
+                  y={y + BOX_H / 2 - (dates ? 8 : 0)}
+                  className="font-display"
+                  style={{
+                    fontSize: "13px",
+                    fill: "var(--brown-text)",
+                    fontWeight: 400,
+                  }}
+                  dominantBaseline="central"
+                >
+                  <tspan>
+                    {name.length > 22 ? `${name.slice(0, 22)}…` : name}
+                  </tspan>
+                </text>
+                {dates && (
+                  <text
+                    x={x + 10}
+                    y={y + BOX_H / 2 + 10}
+                    className="font-mono"
+                    style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                    dominantBaseline="central"
+                  >
+                    {dates}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* No children placeholder */}
+          {descendantGens > 0 && descRoot && descRoot.children.length === 0 && (
+            <text
+              x={rootX - (BOX_W + GEN_GAP) / 2}
+              y={rootCenterY}
+              textAnchor="middle"
+              dominantBaseline="central"
+              style={{
+                fontSize: "11px",
+                fill: "var(--border)",
+                fontStyle: "italic",
+              }}
+            >
+              No children recorded
+            </text>
+          )}
         </svg>
       </div>
 
-      <div style={{ marginTop: "1.25rem" }}>
+      <GenerationControls
+        ancestorGens={ancestorGens}
+        descendantGens={descendantGens}
+        treeSlug={treeSlug}
+        view="pedigree"
+        root={rootPersonId}
+      />
+
+      <div style={{ marginTop: "0.75rem" }}>
         <PersonPicker
           treeId={treeId}
           treeSlug={treeSlug}

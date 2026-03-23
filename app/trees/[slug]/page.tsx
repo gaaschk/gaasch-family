@@ -14,12 +14,20 @@ export default async function TreePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ view?: string; root?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    root?: string;
+    agens?: string;
+    dgens?: string;
+  }>;
 }) {
   const { slug } = await params;
-  const { view = "list", root } = await searchParams;
+  const { view = "list", root, agens, dgens } = await searchParams;
   const auth = await requireTreeAccess(slug, "viewer");
   if (auth instanceof NextResponse) redirect("/dashboard");
+
+  const ancestorGens = Math.min(Math.max(1, parseInt(agens ?? "4", 10)), 6);
+  const descendantGens = Math.min(Math.max(0, parseInt(dgens ?? "0", 10)), 4);
 
   const [total, recent, myTrees] = await Promise.all([
     prisma.person.count({ where: { treeId: auth.tree.id } }),
@@ -220,6 +228,8 @@ export default async function TreePage({
             treeId={auth.tree.id}
             treeSlug={slug}
             rootPersonId={root}
+            ancestorGens={ancestorGens}
+            descendantGens={descendantGens}
           />
         </div>
       )}
@@ -230,6 +240,8 @@ export default async function TreePage({
             treeId={auth.tree.id}
             treeSlug={slug}
             rootPersonId={root}
+            ancestorGens={ancestorGens}
+            descendantGens={descendantGens}
           />
         </div>
       )}

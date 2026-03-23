@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import GenerationControls from "./GenerationControls";
 import PersonPicker from "./PersonPicker";
 
 type AncestorNode = {
@@ -15,13 +16,31 @@ type AncestorNode = {
   mother: AncestorNode | null;
 };
 
+type DescNode = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: string | null;
+  deathDate: string | null;
+  gender: string | null;
+  children: DescNode[];
+};
+
 const CX = 400;
 const CY = 400;
-const RING_RADII = [0, 75, 150, 225, 300, 370];
-const MAX_GEN = 4;
+const RING_RADII = [0, 75, 150, 225, 300, 370, 440];
 
-// Colors per generation index (1-4)
-const GEN_COLORS = ["", "#F2EBE0", "#FAF5EC", "#F2EBE0", "#FAF5EC"];
+// Colors per generation index (1-6)
+const GEN_COLORS = [
+  "",
+  "#F2EBE0",
+  "#FAF5EC",
+  "#F2EBE0",
+  "#FAF5EC",
+  "#F2EBE0",
+  "#FAF5EC",
+];
+const DESC_GEN_COLORS = ["", "#E8DDD0", "#F2EBE0", "#E8DDD0", "#F2EBE0"];
 
 function polarToXY(
   cx: number,
@@ -73,6 +92,11 @@ function formatYear(date: string): string {
   return m ? m[1] : date;
 }
 
+function leafCount(node: DescNode, maxDepth: number): number {
+  if (maxDepth === 0 || node.children.length === 0) return 1;
+  return node.children.reduce((s, c) => s + leafCount(c, maxDepth - 1), 0);
+}
+
 type ArcSegment = {
   num: number;
   node: AncestorNode;
@@ -85,22 +109,95 @@ type ArcSegment = {
   path: string;
 };
 
+type DescArcSegment = {
+  node: DescNode;
+  gen: number;
+  startAngle: number;
+  endAngle: number;
+  midAngle: number;
+  innerR: number;
+  outerR: number;
+  path: string;
+};
+
+function buildDescArcSegments(
+  root: DescNode,
+  maxGen: number,
+): DescArcSegment[] {
+  const TOTAL_ARC = 120;
+  const START = 120;
+  const segments: DescArcSegment[] = [];
+
+  function recurse(
+    node: DescNode,
+    gen: number,
+    arcStart: number,
+    arcEnd: number,
+  ) {
+    segments.push({
+      node,
+      gen,
+      startAngle: arcStart,
+      endAngle: arcEnd,
+      midAngle: (arcStart + arcEnd) / 2,
+      innerR: RING_RADII[gen],
+      outerR: RING_RADII[gen + 1],
+      path: arcPath(
+        CX,
+        CY,
+        RING_RADII[gen],
+        RING_RADII[gen + 1],
+        arcStart,
+        arcEnd,
+      ),
+    });
+    if (gen < maxGen && node.children.length > 0) {
+      const total =
+        node.children.reduce((s, c) => s + leafCount(c, maxGen - gen), 0) || 1;
+      let cur = arcStart;
+      for (const child of node.children) {
+        const leaves = leafCount(child, maxGen - gen - 1);
+        const childArc = ((arcEnd - arcStart) * leaves) / total;
+        recurse(child, gen + 1, cur, cur + childArc);
+        cur += childArc;
+      }
+    }
+  }
+
+  const total =
+    root.children.reduce((s, c) => s + leafCount(c, maxGen - 1), 0) || 1;
+  let cur = START;
+  for (const child of root.children) {
+    const leaves = leafCount(child, maxGen - 1);
+    const childArc = (TOTAL_ARC * leaves) / total;
+    recurse(child, 1, cur, cur + childArc);
+    cur += childArc;
+  }
+  return segments;
+}
+
 export default function FanChartView({
   treeId,
   treeSlug,
   rootPersonId,
+  ancestorGens = 4,
+  descendantGens = 0,
 }: {
   treeId: string;
   treeSlug: string;
   rootPersonId?: string;
+  ancestorGens?: number;
+  descendantGens?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [root, setRoot] = useState<AncestorNode | null>(null);
+  const [descRoot, setDescRoot] = useState<DescNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredNum, setHoveredNum] = useState<number | null>(null);
+  const [hoveredDescId, setHoveredDescId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +214,7 @@ export default function FanChartView({
           if (!listData.people || listData.people.length === 0) {
             if (!cancelled) {
               setRoot(null);
+              setDescRoot(null);
               setLoading(false);
             }
             return;
@@ -124,12 +222,30 @@ export default function FanChartView({
           personId = listData.people[0].id as string;
         }
 
-        const res = await fetch(
-          `/api/trees/${treeId}/ancestors?rootPersonId=${personId}&generations=4`,
-        );
-        if (!res.ok) throw new Error("Could not load ancestors");
-        const data = await res.json();
-        if (!cancelled) setRoot(data.root);
+        const [ancestorRes, descendantRes] = await Promise.all([
+          fetch(
+            `/api/trees/${treeId}/ancestors?rootPersonId=${personId}&generations=${ancestorGens}`,
+          ),
+          descendantGens > 0
+            ? fetch(
+                `/api/trees/${treeId}/descendants?rootPersonId=${personId}&generations=${descendantGens}`,
+              )
+            : Promise.resolve(null),
+        ]);
+
+        if (!ancestorRes.ok) throw new Error("Could not load ancestors");
+        if (descendantRes && !descendantRes.ok)
+          throw new Error("Could not load descendants");
+
+        const ancestorData = await ancestorRes.json();
+        const descendantData = descendantRes
+          ? await descendantRes.json()
+          : null;
+
+        if (!cancelled) {
+          setRoot(ancestorData.root);
+          setDescRoot(descendantData ? descendantData.root : null);
+        }
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "An error occurred");
@@ -142,7 +258,7 @@ export default function FanChartView({
     return () => {
       cancelled = true;
     };
-  }, [treeId, rootPersonId]);
+  }, [treeId, rootPersonId, ancestorGens, descendantGens]);
 
   function navigateToRoot(personId: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -163,7 +279,7 @@ export default function FanChartView({
           fontSize: "0.9375rem",
         }}
       >
-        Loading ancestors…
+        Loading…
       </div>
     );
   }
@@ -203,23 +319,27 @@ export default function FanChartView({
     );
   }
 
-  const nodeMap = new Map<number, AncestorNode>();
-  flatten(root, 1, MAX_GEN + 1, nodeMap);
+  // When descendantGens > 0: ancestors use 210°, descendants use 120°
+  const ancestorArcTotal = descendantGens > 0 ? 210 : 240;
+  const ancestorStartAngle = descendantGens > 0 ? -105 : -120;
 
-  // Build arc segments for gen 1-4
+  const nodeMap = new Map<number, AncestorNode>();
+  flatten(root, 1, ancestorGens + 1, nodeMap);
+
+  // Build arc segments for ancestors
   const segments: ArcSegment[] = [];
-  for (let gen = 1; gen <= MAX_GEN; gen++) {
+  for (let gen = 1; gen <= ancestorGens; gen++) {
     const count = 2 ** gen;
-    const arcSpan = 240 / count;
+    const arcSpan = ancestorArcTotal / count;
     const innerR = RING_RADII[gen];
-    const outerR = RING_RADII[gen + 1];
+    const outerR = RING_RADII[gen + 1] ?? RING_RADII[RING_RADII.length - 1];
 
     for (let idx = 0; idx < count; idx++) {
       const num = 2 ** gen + idx;
       const node = nodeMap.get(num);
       if (!node) continue;
 
-      const startAngle = -120 + idx * arcSpan;
+      const startAngle = ancestorStartAngle + idx * arcSpan;
       const endAngle = startAngle + arcSpan;
       const midAngle = (startAngle + endAngle) / 2;
 
@@ -237,9 +357,20 @@ export default function FanChartView({
     }
   }
 
+  // Build descendant arc segments
+  const descSegments: DescArcSegment[] =
+    descendantGens > 0 && descRoot
+      ? buildDescArcSegments(descRoot, descendantGens)
+      : [];
+
+  const viewBox = descendantGens > 0 ? "0 0 800 600" : "0 0 800 510";
+  const maxHeight = descendantGens > 0 ? "600px" : "520px";
+
   const rootName =
     [root.firstName, root.lastName].filter(Boolean).join(" ") || "(unnamed)";
   const rootBirth = root.birthDate ? formatYear(root.birthDate) : "";
+
+  const currentRoot = rootPersonId;
 
   return (
     <div>
@@ -253,19 +384,18 @@ export default function FanChartView({
         }}
       >
         <svg
-          viewBox="0 0 800 510"
-          style={{ width: "100%", maxHeight: "520px", display: "block" }}
+          viewBox={viewBox}
+          style={{ width: "100%", maxHeight, display: "block" }}
           preserveAspectRatio="xMidYMid meet"
         >
           <title>Fan chart</title>
 
-          {/* Arc segments */}
+          {/* Ancestor arc segments */}
           {segments.map((seg) => {
             const isHovered = hoveredNum === seg.num;
             const baseFill = GEN_COLORS[seg.gen] ?? "#F2EBE0";
             const fill = isHovered ? "#E8DDD0" : baseFill;
 
-            // Text positioning
             const midR = (seg.innerR + seg.outerR) / 2;
             const textPos = polarToXY(CX, CY, midR, seg.midAngle);
             const name =
@@ -276,12 +406,10 @@ export default function FanChartView({
               ? formatYear(seg.node.birthDate)
               : "";
 
-            // Rotate text along arc tangent
             const rotateAngle = seg.midAngle - 90;
-
+            const arcSpanDeg = seg.endAngle - seg.startAngle;
             const showFullText = seg.gen <= 2;
-            const showShortText = seg.gen === 3;
-            // gen 4: no text (too small)
+            const showShortText = seg.gen === 3 && arcSpanDeg > 10;
 
             return (
               // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
@@ -358,6 +486,128 @@ export default function FanChartView({
             );
           })}
 
+          {/* Descendant arc segments */}
+          {descSegments.map((seg) => {
+            const isHovered = hoveredDescId === seg.node.id;
+            const baseFill = DESC_GEN_COLORS[seg.gen] ?? "#E8DDD0";
+            const fill = isHovered ? "#DDD0BE" : baseFill;
+
+            const midR = (seg.innerR + seg.outerR) / 2;
+            const textPos = polarToXY(CX, CY, midR, seg.midAngle);
+            const name =
+              [seg.node.firstName, seg.node.lastName]
+                .filter(Boolean)
+                .join(" ") || "(unnamed)";
+            const birth = seg.node.birthDate
+              ? formatYear(seg.node.birthDate)
+              : "";
+
+            const rotateAngle = seg.midAngle - 90;
+            const arcSpanDeg = seg.endAngle - seg.startAngle;
+            const showFullText = seg.gen <= 2 && arcSpanDeg > 20;
+            const showShortText = seg.gen === 3 && arcSpanDeg > 20;
+
+            return (
+              // biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button>
+              <g
+                key={`desc-${seg.node.id}-${seg.gen}`}
+                onClick={() => navigateToRoot(seg.node.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    navigateToRoot(seg.node.id);
+                }}
+                onMouseEnter={() => setHoveredDescId(seg.node.id)}
+                onMouseLeave={() => setHoveredDescId(null)}
+                tabIndex={0}
+                role="button"
+                aria-label={`View ${name} as root`}
+                style={{ cursor: "pointer" }}
+              >
+                <path
+                  d={seg.path}
+                  fill={fill}
+                  stroke="#C4B09A"
+                  strokeWidth={0.75}
+                  style={{ transition: "fill 120ms ease" }}
+                />
+                {showFullText && (
+                  <text
+                    x={textPos.x}
+                    y={textPos.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
+                    style={{ pointerEvents: "none" }}
+                  >
+                    <tspan
+                      x={textPos.x}
+                      dy="-6"
+                      className="font-display"
+                      style={{ fontSize: "12px", fill: "var(--brown-text)" }}
+                    >
+                      {name.length > 18 ? `${name.slice(0, 18)}…` : name}
+                    </tspan>
+                    {birth && (
+                      <tspan
+                        x={textPos.x}
+                        dy="14"
+                        className="font-mono"
+                        style={{ fontSize: "10px", fill: "var(--brown-muted)" }}
+                      >
+                        {birth}
+                      </tspan>
+                    )}
+                  </text>
+                )}
+                {showShortText && (
+                  <text
+                    x={textPos.x}
+                    y={textPos.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    transform={`rotate(${rotateAngle}, ${textPos.x}, ${textPos.y})`}
+                    className="font-display"
+                    style={{
+                      fontSize: "10px",
+                      fill: "var(--brown-text)",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {(seg.node.firstName ?? "").slice(0, 10) ||
+                      (seg.node.lastName ?? "").slice(0, 10) ||
+                      "?"}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Empty descendant arc outline when no children */}
+          {descendantGens > 0 && descRoot && descRoot.children.length === 0 && (
+            <>
+              <path
+                d={arcPath(CX, CY, RING_RADII[1], RING_RADII[2], 120, 240)}
+                fill="none"
+                stroke="var(--border-light)"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+              />
+              <text
+                x={CX}
+                y={CY + (RING_RADII[1] + RING_RADII[2]) / 2 + 20}
+                textAnchor="middle"
+                dominantBaseline="central"
+                style={{
+                  fontSize: "11px",
+                  fill: "var(--border)",
+                  fontStyle: "italic",
+                }}
+              >
+                No children recorded
+              </text>
+            </>
+          )}
+
           {/* Center circle (root / gen 0) */}
           {/* biome-ignore lint/a11y/useSemanticElements: SVG <g> cannot be replaced by <button> */}
           <g
@@ -411,7 +661,15 @@ export default function FanChartView({
         </svg>
       </div>
 
-      <div style={{ marginTop: "1.25rem" }}>
+      <GenerationControls
+        ancestorGens={ancestorGens}
+        descendantGens={descendantGens}
+        treeSlug={treeSlug}
+        view="fan"
+        root={currentRoot}
+      />
+
+      <div style={{ marginTop: "0.75rem" }}>
         <PersonPicker
           treeId={treeId}
           treeSlug={treeSlug}
