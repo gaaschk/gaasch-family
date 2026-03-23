@@ -82,7 +82,7 @@ export async function GET(
   }
 
   const rawGen = parseInt(url.searchParams.get("generations") ?? "3", 10);
-  const generations = Math.min(Math.max(1, rawGen), 5);
+  const generations = Math.min(Math.max(1, rawGen), 6);
 
   const root = await fetchDescendants(rootPersonId, auth.tree.id, generations);
   if (!root) {
