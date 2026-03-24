@@ -681,6 +681,7 @@ export default function PedigreeView({
         treeId={treeId}
         treeSlug={treeSlug}
         personId={selectedPersonId}
+        rootPersonId={ancestorRoot?.id ?? null}
         onClose={handleCloseSlideOver}
         onViewAsRoot={navigateToRoot}
       />

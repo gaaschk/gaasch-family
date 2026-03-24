@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { requireTreeAccess } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import ChatWidget from "./ChatWidget";
 import FanChartView from "./FanChartView";
 import PedigreeView from "./PedigreeView";
 import PeopleDirectory from "./PeopleDirectory";
@@ -245,6 +246,12 @@ export default async function TreePage({
           />
         </div>
       )}
+
+      <ChatWidget
+        treeId={auth.tree.id}
+        treeSlug={slug}
+        treeRole={auth.treeRole}
+      />
     </main>
   );
 }
