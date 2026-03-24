@@ -339,8 +339,10 @@ ${narrative}
                   lineHeight: 1.8,
                   maxWidth: "65ch",
                 }}
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: narrative is AI-generated HTML from our own API, not user input
-                dangerouslySetInnerHTML={{ __html: narrative }}
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: narrative is sanitized to <p> tags only before rendering
+                dangerouslySetInnerHTML={{
+                  __html: narrative.replace(/<(?!\/?p(?:>|\s))[^>]+>/gi, ""),
+                }}
               />
             )}
 

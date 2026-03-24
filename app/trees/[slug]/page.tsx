@@ -247,11 +247,7 @@ export default async function TreePage({
         </div>
       )}
 
-      <ChatWidget
-        treeId={auth.tree.id}
-        treeSlug={slug}
-        treeRole={auth.treeRole}
-      />
+      <ChatWidget treeId={auth.tree.id} />
     </main>
   );
 }

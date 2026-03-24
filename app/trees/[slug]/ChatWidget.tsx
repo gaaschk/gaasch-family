@@ -10,8 +10,6 @@ type Message = {
 
 type Props = {
   treeId: string;
-  treeSlug: string;
-  treeRole: string;
 };
 
 export default function ChatWidget({ treeId }: Props) {
@@ -335,7 +333,7 @@ export default function ChatWidget({ treeId }: Props) {
                 fontFamily: "var(--font-ui, inherit)",
                 color: "var(--brown-text)",
                 background: "var(--parchment)",
-                outline: "none",
+                outline: "revert",
                 lineHeight: 1.5,
               }}
               aria-label="Chat message"

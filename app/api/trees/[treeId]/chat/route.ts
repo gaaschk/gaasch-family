@@ -13,7 +13,11 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json();
-  const messages: { role: string; content: string }[] = body.messages ?? [];
+  const rawMessages: { role: string; content: string }[] = body.messages ?? [];
+  // Only allow valid roles — filter out forged system/tool turns
+  const messages = rawMessages.filter(
+    (m) => m.role === "user" || m.role === "assistant",
+  );
 
   const [apiKeySetting, modelSetting] = await Promise.all([
     prisma.setting.findUnique({
