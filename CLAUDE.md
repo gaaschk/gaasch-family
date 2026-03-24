@@ -94,6 +94,12 @@ Old routes (`/api/people`, `/api/families`, `/api/settings`, `/api/export`, `/ap
 ### AI narrative generation
 `POST /api/trees/[treeId]/people/[personId]/generate-narrative` — requires `editor` tree role or Bearer token. Reads `anthropic_api_key` and `anthropic_model` from the tree's `Setting` rows. Streams Claude's response as `text/plain`, accumulates full HTML, saves to `Person.narrative`, writes audit log.
 
+### AI chat
+`POST /api/trees/[treeId]/chat` — requires `viewer` tree role. Accepts a `messages` array (user + assistant turns); filters to valid roles, caps at 20 messages/4,000 chars per message. Reads `anthropic_api_key` and `anthropic_model` from tree Settings; model validated against an allowlist, falls back to `claude-haiku-4-5-20251001`. Streams plain text.
+
+### Lineage story
+`POST /api/trees/[treeId]/lineage-story` — requires `viewer` tree role. Accepts `fromPersonId` and `toPersonId`; walks the ancestor chain via `FamilyChild` up to 6 generations to find a path. Generates a flowing, per-generation narrative HTML (`<p>` tags only) using Claude, streamed as `text/plain`.
+
 ### Tree view page
 `app/trees/[slug]/page.tsx` — server component. Verifies session + tree membership via `requireTreeAccess`, then renders tree stats, recent people, and three view tabs:
 - **Directory** (`<PeopleDirectory>`) — searchable people list
@@ -103,11 +109,13 @@ Old routes (`/api/people`, `/api/families`, `/api/settings`, `/api/export`, `/ap
 Active view is set via `?view=` query param (shareable). The `<TreeSwitcher>` dropdown lets users hop between trees from the header.
 
 Key components in `app/trees/[slug]/`:
-- `ChartZoomWrapper.tsx` — wheel/touch/keyboard zoom+pan wrapper
+- `ChartZoomWrapper.tsx` — wheel/touch/keyboard/mouse-drag zoom+pan wrapper
 - `ChartMinimap.tsx` — thumbnail overview for 4+ generation trees
 - `GenerationControls.tsx` — +/− buttons to adjust visible generation depth (1–6)
 - `PersonPicker.tsx` — inline name-search to set the chart root person
-- `PersonSlideOver.tsx` — slide-over panel opened on node click
+- `PersonSlideOver.tsx` — slide-over panel opened on node click; includes "Tell the story" lineage story trigger
+- `ChatWidget.tsx` — floating "Ask AI" chat panel, streams responses from `/api/trees/[treeId]/chat`
+- `LineageStoryModal.tsx` — streams lineage narrative from `/api/trees/[treeId]/lineage-story`; exportable as .txt/.md/.html/PDF
 - `chart-utils.ts` — shared `AncestorNode`, `DescNode`, `formatYear`, `lifespanText`, `flatten` utilities
 
 ### Ancestor/descendant APIs
