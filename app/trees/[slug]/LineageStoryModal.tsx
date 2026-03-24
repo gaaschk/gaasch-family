@@ -341,7 +341,9 @@ ${narrative}
                 }}
                 // biome-ignore lint/security/noDangerouslySetInnerHtml: narrative is sanitized to <p> tags only before rendering
                 dangerouslySetInnerHTML={{
-                  __html: narrative.replace(/<(?!\/?p(?:>|\s))[^>]+>/gi, ""),
+                  __html: narrative
+                    .replace(/<(?!\/?p(?:>|\s))[^>]+>/gi, "")
+                    .replace(/<p\b[^>]*>/gi, "<p>"),
                 }}
               />
             )}

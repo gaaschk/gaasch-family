@@ -93,6 +93,15 @@ export async function POST(
     );
   }
 
+  if (fromPersonId === toPersonId) {
+    return apiError(
+      "INVALID_INPUT",
+      "fromPersonId and toPersonId must be different people",
+      undefined,
+      400,
+    );
+  }
+
   // Verify both people exist in this tree
   const [fromPerson, toPerson, apiKeySetting, modelSetting] = await Promise.all(
     [
@@ -156,7 +165,15 @@ export async function POST(
     );
   }
 
-  const model = modelSetting?.value || "claude-haiku-4-5-20251001";
+  const ALLOWED_MODELS = new Set([
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6",
+  ]);
+  const requestedModel = modelSetting?.value ?? "";
+  const model = ALLOWED_MODELS.has(requestedModel)
+    ? requestedModel
+    : "claude-haiku-4-5-20251001";
 
   function personName(p: {
     firstName: string | null;
@@ -221,11 +238,11 @@ Write a flowing narrative that connects these generations, 3-5 sentences per gen
   });
 
   if (!anthropicRes.ok) {
-    const errText = await anthropicRes.text();
+    await anthropicRes.text(); // consume body, don't expose to client
     return apiError(
       "ANTHROPIC_ERROR",
       "Anthropic API error",
-      errText,
+      undefined,
       anthropicRes.status,
     );
   }

@@ -21,6 +21,7 @@ export default function ChatWidget({ treeId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSendingRef = useRef(false);
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -47,10 +48,11 @@ export default function ChatWidget({ treeId }: Props) {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || isSendingRef.current) return;
+    isSendingRef.current = true;
 
     const userMessage: Message = {
-      id: `u-${Date.now()}`,
+      id: crypto.randomUUID(),
       role: "user",
       content: text,
     };
@@ -60,7 +62,7 @@ export default function ChatWidget({ treeId }: Props) {
     setError(null);
     setIsStreaming(true);
 
-    const assistantId = `a-${Date.now() + 1}`;
+    const assistantId = crypto.randomUUID();
     // Placeholder for streaming assistant response
     setMessages((prev) => [
       ...prev,
@@ -107,6 +109,7 @@ export default function ChatWidget({ treeId }: Props) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsStreaming(false);
+      isSendingRef.current = false;
     }
   }
 

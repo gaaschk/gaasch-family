@@ -15,9 +15,22 @@ export async function POST(
   const body = await req.json();
   const rawMessages: { role: string; content: string }[] = body.messages ?? [];
   // Only allow valid roles — filter out forged system/tool turns
-  const messages = rawMessages.filter(
-    (m) => m.role === "user" || m.role === "assistant",
-  );
+  // Cap at 20 turns and 4,000 chars per message to prevent API budget drain
+  const MAX_MESSAGES = 20;
+  const MAX_CONTENT_LENGTH = 4000;
+  const messages = rawMessages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .slice(-MAX_MESSAGES)
+    .map((m) => ({
+      role: m.role,
+      content: String(m.content).slice(0, MAX_CONTENT_LENGTH),
+    }));
+
+  const ALLOWED_MODELS = new Set([
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6",
+  ]);
 
   const [apiKeySetting, modelSetting] = await Promise.all([
     prisma.setting.findUnique({
@@ -37,7 +50,10 @@ export async function POST(
     );
   }
 
-  const model = modelSetting?.value || "claude-haiku-4-5-20251001";
+  const requestedModel = modelSetting?.value ?? "";
+  const model = ALLOWED_MODELS.has(requestedModel)
+    ? requestedModel
+    : "claude-haiku-4-5-20251001";
 
   const systemPrompt = `You are a helpful genealogy assistant for the ${auth.tree.name} family tree. Answer questions about the people in this family, their history, relationships, dates, places, and historical context. Be warm, conversational, and accurate. Do not invent facts.`;
 
@@ -58,11 +74,11 @@ export async function POST(
   });
 
   if (!anthropicRes.ok) {
-    const errText = await anthropicRes.text();
+    await anthropicRes.text(); // consume body, don't expose to client
     return apiError(
       "ANTHROPIC_ERROR",
       "Anthropic API error",
-      errText,
+      undefined,
       anthropicRes.status,
     );
   }
