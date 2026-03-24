@@ -679,6 +679,7 @@ export default function FanChartView({
         treeId={treeId}
         treeSlug={treeSlug}
         personId={selectedPersonId}
+        rootPersonId={root?.id ?? null}
         onClose={handleCloseSlideOver}
         onViewAsRoot={navigateToRoot}
       />

@@ -2,6 +2,24 @@
 
 All notable changes to Heirloom will be documented in this file.
 
+## [0.1.3.0] - 2026-03-24
+
+### Added
+- **AI Chat Widget** — floating "Ask AI" button on every tree page opens a chat panel powered by Claude. Tree members can ask free-form questions about their family history; responses stream in real time. Requires tree owner to configure an Anthropic API key in Settings.
+- **Lineage Story Modal** — "Tell the story" action traces the ancestor chain between two people (up to 6 generations) and streams a narrative in HTML paragraph form. Exportable as `.txt`, `.md`, `.html`, or PDF (print). Accessible from the person slide-over panel.
+- **Chart mouse drag pan** — click-and-drag panning on both Pedigree and Fan Chart views (in addition to existing touch/keyboard pan). Cursor changes to `grab`/`grabbing`; motion is suppressed on mouseup if total drag distance > 5px to prevent accidental node clicks.
+- **PersonSlideOver "Tell the story" button** — opens the lineage story modal with the selected person as the starting point and the chart root as the target.
+
+### Fixed
+- Chat API: message role injection attack vector closed — only `user` and `assistant` roles forwarded to Anthropic; `system`/`tool` roles silently dropped
+- Chat API: API budget drain prevention — message arrays capped at 20 turns and 4,000 chars per message server-side
+- Chat API: model string injection closed — `anthropic_model` setting validated against an allowlist; falls back to `claude-haiku-4-5-20251001`
+- Chat API: Anthropic error body no longer forwarded to client
+- Lineage Story API: same model allowlist and same-person guard (`fromPersonId === toPersonId` → 400)
+- ChatWidget: concurrent double-send race fixed via `useRef` guard set synchronously before first `await`
+- LineageStoryModal: XSS in `dangerouslySetInnerHTML` — AI-generated HTML stripped to `<p>` tags only, then all `<p>` attributes stripped before render
+- ChatWidget: removed unused `treeSlug`/`treeRole` props; restored `outline: revert` on textarea for keyboard accessibility
+
 ## [0.1.2.1] - 2026-03-24
 
 ### Changed

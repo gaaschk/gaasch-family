@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { lifespanText } from "./chart-utils";
+import LineageStoryModal from "./LineageStoryModal";
 
 type PersonDetail = {
   id: string;
@@ -20,6 +21,7 @@ type Props = {
   treeId: string;
   treeSlug: string;
   personId: string | null;
+  rootPersonId?: string | null;
   onClose: () => void;
   onViewAsRoot: (personId: string) => void;
 };
@@ -28,12 +30,14 @@ export default function PersonSlideOver({
   treeId,
   treeSlug,
   personId,
+  rootPersonId,
   onClose,
   onViewAsRoot,
 }: Props) {
   const [person, setPerson] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLineageStory, setShowLineageStory] = useState(false);
   const cache = useRef<Map<string, PersonDetail>>(new Map());
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -327,11 +331,89 @@ export default function PersonSlideOver({
               >
                 View as root
               </button>
+
+              {rootPersonId && person.id !== rootPersonId && (
+                <button
+                  type="button"
+                  onClick={() => setShowLineageStory(true)}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    background: "var(--amber-bg, #fdf6e3)",
+                    border: "1px solid var(--amber, #b45309)",
+                    borderRadius: "var(--radius-md, 6px)",
+                    color: "var(--brown-text)",
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-ui, inherit)",
+                  }}
+                >
+                  Generate lineage story
+                </button>
+              )}
             </div>
           </>
         )}
       </div>
+
+      {showLineageStory && person && rootPersonId && (
+        <LineageStoryModalWrapper
+          treeId={treeId}
+          fromPerson={person}
+          toPersonId={rootPersonId}
+          onClose={() => setShowLineageStory(false)}
+        />
+      )}
     </>
+  );
+}
+
+// Wrapper that fetches the root person's name for the modal
+function LineageStoryModalWrapper({
+  treeId,
+  fromPerson,
+  toPersonId,
+  onClose,
+}: {
+  treeId: string;
+  fromPerson: PersonDetail;
+  toPersonId: string;
+  onClose: () => void;
+}) {
+  const [toPerson, setToPerson] = useState<{
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/trees/${treeId}/people/${toPersonId}`)
+      .then((r) => r.json())
+      .then((data) =>
+        setToPerson({
+          id: data.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        }),
+      )
+      .catch(() =>
+        setToPerson({ id: toPersonId, firstName: null, lastName: null }),
+      );
+  }, [treeId, toPersonId]);
+
+  if (!toPerson) return null;
+
+  return (
+    <LineageStoryModal
+      treeId={treeId}
+      fromPerson={{
+        id: fromPerson.id,
+        firstName: fromPerson.firstName,
+        lastName: fromPerson.lastName,
+      }}
+      toPerson={toPerson}
+      onClose={onClose}
+    />
   );
 }
 
