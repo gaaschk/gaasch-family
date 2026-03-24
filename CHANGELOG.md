@@ -2,6 +2,13 @@
 
 All notable changes to Heirloom will be documented in this file.
 
+## [0.1.2.1] - 2026-03-24
+
+### Changed
+- **TODOS.md** — TODO-4 (batch ancestor/descendant queries) promoted from deferred to P1 active; pulled into scope alongside EU citizenship feature as the forcing function (6 generations = 60+ sequential queries before eligibility logic runs)
+- **USER_REQUIREMENTS.md** — plan review report updated; CEO, Design, and Eng reviews all CLEARED; credits/lineage/EU eligibility architecture locked in
+- **gstack vendored copy** — upgraded from v0.11.5.2 to v0.11.15.0; brings zsh-compatible globbing, CSO skill, outside voice plan review, improved adversarial review scaling, design hard rules, and AI slop detection
+
 ## [0.1.2.0] - 2026-03-23
 
 ### Added

@@ -54,10 +54,12 @@ Deferred items from /plan-eng-review (2026-03-18, branch gaaschk/richmond).
 
 **Context:** The previous build had a partial implementation. Implement after the basic EU eligibility engine exists (Phase 2-3). The data model: a `HistoricalPlace` table with `(name, countryCode, validFrom, validTo, modernCountry)`.
 
-**Depends on:** EU eligibility engine (Phase 2).
+**Depends on:** EU eligibility engine.
+
+**Status:** Pulled into active scope — build alongside the EU citizenship feature (accepted in /plan-ceo-review 2026-03-24).
 
 **Effort:** M (human: ~1 week / CC: ~1 hour for code; dataset curation ~3 hours)
-**Priority:** P2
+**Priority:** P1 (active)
 
 ---
 
@@ -71,12 +73,14 @@ Deferred items from /plan-eng-review (2026-03-18, branch gaaschk/richmond).
 
 **Cons:** More complex stitching logic — collecting all person IDs per generation, batching lookups, building the tree in post-processing.
 
-**Context:** Added from /plan-eng-review on branch gaaschk/design-fixes. The current recursive implementation is correct and readable; optimization is premature unless profiling shows this as a bottleneck. Start by adding timing logs in production to confirm whether the issue manifests.
+**Context:** Added from /plan-eng-review on branch gaaschk/design-fixes. EU eligibility feature (plan-eng-review 2026-03-24) will traverse full ancestor trees to collect birthPlaces — at 6 generations that's 60+ sequential queries before eligibility logic runs. Pulled into active scope alongside EU citizenship feature. Implement batch queries for both the chart routes AND the eligibility ancestor fetch.
 
 **Depends on:** Existing ancestors/descendants routes (`app/api/trees/[treeId]/ancestors/route.ts`, `descendants/route.ts`).
 
+**Status:** Pulled into active scope — implement alongside EU citizenship feature (accepted in /plan-eng-review 2026-03-24).
+
 **Effort:** S (human: ~4h / CC: ~15 min)
-**Priority:** P3
+**Priority:** P1 (active)
 
 ---
 
@@ -96,6 +100,44 @@ Deferred items from /plan-eng-review (2026-03-18, branch gaaschk/richmond).
 
 **Effort:** S (human: ~1 day / CC: ~15 min)
 **Priority:** P2
+
+---
+
+## TODO-7: FamilySearch multi-generation import
+
+**What:** Complete the FamilySearch OAuth integration to allow importing a person + multiple generations of ancestors directly into a tree. User connects their FamilySearch account, searches for themselves, clicks "Import 4 generations" — done.
+
+**Why:** GEDCOM export requires knowing what GEDCOM is and finding the export button. FamilySearch import removes 5+ steps from onboarding for users whose data is already in FamilySearch (the largest free genealogy data source).
+
+**Pros:** Dramatically lowers activation barrier; FamilySearch has the broadest data; zero re-entry for existing FamilySearch users.
+
+**Cons:** Blocked by FamilySearch production app approval requirement. FamilySearch will not grant multi-gen import API access until Heirloom demonstrates production usage with real users.
+
+**Context:** FamilySearch OAuth is partially built per CLAUDE.md. Cannot complete until FamilySearch approves the app. This becomes high-priority once the product has external users and can apply for production API access.
+
+**Depends on:** FamilySearch production app approval (external dependency).
+
+**Effort:** M (human: ~3 days / CC: ~45 min)
+**Priority:** P2 (after external validation)
+
+---
+
+## TODO-8: Public AI genealogy assistant
+
+**What:** A public-facing (unauthenticated) AI chat that answers genealogy questions: "How do I trace Luxembourg ancestry?", "What documents do I need for Italian citizenship by descent?" Serves as an SEO content surface and conversion funnel.
+
+**Why:** People who get value from the free assistant are primed to sign up for the full tree tool. Every answered question is potentially indexed content.
+
+**Pros:** Organic acquisition channel; demonstrates AI capability before signup; content indexes on Google.
+
+**Cons:** LLM API costs from unauthenticated users require rate limiting; common answers should be cached; competes with ChatGPT which anyone can use for free.
+
+**Context:** The existing tree-scoped AI chat (`/api/trees/[treeId]/chat/route.ts`) can be adapted. Rate limiting and caching are required before enabling unauthenticated access. Deferred until credits model is validated and there are paying users.
+
+**Depends on:** Credits model shipped and validated with external users.
+
+**Effort:** M (human: ~2 days / CC: ~30 min)
+**Priority:** P3
 
 ---
 
